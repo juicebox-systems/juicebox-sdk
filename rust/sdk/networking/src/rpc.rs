@@ -9,7 +9,7 @@ use url::Url;
 use crate::{http, requests::ClientError};
 use loam_sdk_core::marshalling;
 
-pub trait Service {}
+pub trait Service: Sync {}
 
 pub trait Rpc<S: Service>: fmt::Debug + DeserializeOwned + Serialize {
     const PATH: &'static str;
@@ -32,16 +32,14 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
 
     let body = marshalling::to_vec(&request).map_err(ClientError::Serialization)?;
 
-    match http::send(
-        http,
-        http::Request {
+    match http
+        .send(http::Request {
             method: http::Method::Post,
             url: url.to_string(),
             headers,
             body: Some(body),
-        },
-    )
-    .await
+        })
+        .await
     {
         None => Err(ClientError::Network),
         Some(response) => {

@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -84,19 +85,7 @@ impl ResponseStatusType {
     }
 }
 
-pub trait Client {
-    fn send(&self, request: Request, callback: Box<dyn FnOnce(Option<Response>) + Send>);
-}
-
-pub async fn send<Http: Client>(http: &Http, request: Request) -> Option<Response> {
-    let (tx, rx) = futures::channel::oneshot::channel();
-
-    http.send(
-        request,
-        Box::new(|res| {
-            let _ = tx.send(res);
-        }),
-    );
-
-    rx.await.unwrap()
+#[async_trait]
+pub trait Client: Sync {
+    async fn send(&self, request: Request) -> Option<Response>;
 }

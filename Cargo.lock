@@ -647,7 +647,7 @@ dependencies = [
 name = "loam-sdk-networking"
 version = "0.1.0"
 dependencies = [
- "futures",
+ "async-trait",
  "loam-sdk-core",
  "opentelemetry",
  "serde",

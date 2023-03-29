@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 loam-sdk-core = { path = "../../sdk/core" }
 
-futures = { version = "0.3.25" }
+async-trait = "0.1.64"
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 serde = { version = "1.0.152", default-features = false, features = [
     "alloc",
