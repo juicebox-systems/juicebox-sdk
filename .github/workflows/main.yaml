@@ -1,0 +1,71 @@
+# This is based on
+# <https://github.com/ongardie/cubicle/blob/b307fe9/.github/workflows/main.yaml>
+# with Diego's permission.  The initial workflow YAML skeleton before that was
+# based on
+# <https://github.com/actions-rs/example/blob/master/.github/workflows/quickstart.yml>
+# and
+# <https://github.com/ramosbugs/oauth2-rs/blob/main/.github/workflows/main.yml>.
+#
+# GitHub Actions workflow syntax documentation is here:
+# <https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions>.
+name: CI
+
+on:
+  pull_request: {}
+  push:
+    branches:
+    - main
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build & check
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Check out sources
+      uses: actions/checkout@v2
+
+    - name: Install Rust stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        components: rustfmt, clippy
+        override: 'true'
+        profile: minimal
+        toolchain: stable
+
+    - name: Use Rust/Cargo cache
+      uses: actions/cache@v3
+      with:
+        key: cargo-ubuntu-20.04-stable-${{ hashFiles('Cargo.lock') }}
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git/
+        restore-keys: cargo-ubuntu-20.04-stable-
+
+    - name: Run cargo build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+
+    - name: Run cargo fmt
+      uses: actions-rs/cargo@v1
+      with:
+        args: --all -- --check
+        command: fmt
+
+    - name: Run clippy
+      uses: actions-rs/cargo@v1
+      with:
+        args: --workspace --tests -- -D warnings
+        command: clippy
+
+    - name: Install cargo audit
+      uses: actions-rs/cargo@v1
+      with:
+        args: cargo-audit
+        command: install
+
+    - name: Run cargo audit
+      uses: actions-rs/cargo@v1
+      with:
+        command: audit

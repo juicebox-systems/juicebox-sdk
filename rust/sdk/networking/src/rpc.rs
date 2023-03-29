@@ -30,14 +30,14 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
         propagator.inject_context(&Span::current().context(), &mut headers)
     });
 
-    let body = marshalling::to_vec(&request).map_err(|err| ClientError::Serialization(err))?;
+    let body = marshalling::to_vec(&request).map_err(ClientError::Serialization)?;
 
     match http::send(
         http,
         http::Request {
             method: http::Method::Post,
             url: url.to_string(),
-            headers: headers,
+            headers,
             body: Some(body),
         },
     )
@@ -47,7 +47,7 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
         Some(response) => {
             if response.status.is_success() {
                 Ok(marshalling::from_slice(&response.bytes)
-                    .map_err(|err| ClientError::Deserialization(err))?)
+                    .map_err(ClientError::Deserialization)?)
             } else {
                 Err(ClientError::HttpStatus(response.status))
             }
