@@ -1,0 +1,13 @@
+[package]
+name = "loam-sdk-ffi"
+version = "0.1.0"
+authors = ["Nora Trapp <nora@loam.me>"]
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+loam-sdk = { path = "../../sdk/client" }
+
+[build-dependencies]
+cbindgen = "0.20.0"

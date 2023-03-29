@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "rust/sdk/client",
+    "rust/sdk/core",
+    "rust/bridge/ffi",
+]
+default-members = [
+    "rust/sdk/client",
+]
