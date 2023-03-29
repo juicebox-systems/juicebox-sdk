@@ -1,6 +1,9 @@
-use serde::{Deserialize, Serialize};
+extern crate alloc;
 
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::fmt::{self, Debug, Display};
+use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
 pub type OprfCipherSuite = voprf::Ristretto255;

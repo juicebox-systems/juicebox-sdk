@@ -2,6 +2,7 @@
 members = [
     "rust/sdk/client",
     "rust/sdk/core",
+    "rust/sdk/networking",
     "rust/bridge/ffi",
 ]
 default-members = [

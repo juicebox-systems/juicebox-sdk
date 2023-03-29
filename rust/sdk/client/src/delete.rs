@@ -1,11 +1,11 @@
 use futures::future::join_all;
-use loam_sdk_core::{
-    DeleteRequest, DeleteResponse, GenerationNumber, SecretsRequest, SecretsResponse,
-};
 use tracing::instrument;
 
-use crate::request::RequestError;
-use crate::{HttpClient, Loam, Realm};
+use crate::{http, request::RequestError, Client, Realm};
+use loam_sdk_core::{
+    requests::{DeleteRequest, DeleteResponse, SecretsRequest, SecretsResponse},
+    types::GenerationNumber,
+};
 
 /// Error return type for [`Client::delete_all`].
 #[derive(Debug)]
@@ -20,7 +20,7 @@ pub enum DeleteError {
     InvalidRealmUrl,
 }
 
-impl<Http: HttpClient> Loam<Http> {
+impl<Http: http::Client> Client<Http> {
     /// Deletes all secrets for this user up to and excluding the given
     /// generation number.
     ///

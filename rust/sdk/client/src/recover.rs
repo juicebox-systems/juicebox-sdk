@@ -1,17 +1,25 @@
 use futures::future::join_all;
-use loam_sdk_core::{
-    GenerationNumber, MaskedTgkShare, OprfBlindedResult, OprfClient, Recover1Request,
-    Recover1Response, Recover2Request, Recover2Response, SecretsRequest, SecretsResponse,
-    UnlockTag, UserSecretShare,
-};
 use rand::rngs::OsRng;
 use sharks::Sharks;
 use std::collections::BTreeSet;
 use tracing::instrument;
 
-use crate::request::RequestError;
-use crate::types::{TagGeneratingKey, TgkShare};
-use crate::{HttpClient, Loam, Pin, Realm, UserSecret};
+use loam_sdk_core::{
+    requests::{
+        Recover1Request, Recover1Response, Recover2Request, Recover2Response, SecretsRequest,
+        SecretsResponse,
+    },
+    types::{
+        GenerationNumber, MaskedTgkShare, OprfBlindedResult, OprfClient, UnlockTag, UserSecretShare,
+    },
+};
+
+use crate::{
+    http,
+    request::RequestError,
+    types::{TagGeneratingKey, TgkShare},
+    Client, Pin, Realm, UserSecret,
+};
 
 /// Error return type for [`Client::recover`].
 #[derive(Debug)]
@@ -75,7 +83,7 @@ struct Recover1Success {
     previous_generation: Option<GenerationNumber>,
 }
 
-impl<Http: HttpClient> Loam<Http> {
+impl<Http: http::Client> Client<Http> {
     /// Recovers a PIN-protected secret stored at the most recent generation.
     pub(crate) async fn recover_latest_generation(
         &self,

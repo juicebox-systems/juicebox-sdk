@@ -1,24 +1,24 @@
 //! Register and recover PIN-protected secrets on behalf of a particular user.
 //! See [`Loam`].
 
-use loam_sdk_core::types::{AuthToken, Policy};
 use std::fmt::Debug;
 use tracing::instrument;
 
-use crate::http::HttpClient;
-use crate::types::CheckedConfiguration;
-use crate::{Configuration, DeleteError, Pin, RecoverError, RegisterError, UserSecret};
+use crate::{
+    http, types::CheckedConfiguration, AuthToken, Configuration, DeleteError, Pin, Policy,
+    RecoverError, RegisterError, UserSecret,
+};
 
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
 #[derive(Debug)]
-pub struct Loam<Http: HttpClient> {
+pub struct Client<Http: http::Client> {
     pub(crate) configuration: CheckedConfiguration,
     pub auth_token: AuthToken,
     pub http: Http,
 }
 
-impl<Http: HttpClient> Loam<Http> {
+impl<Http: http::Client> Client<Http> {
     /// Constructs a new `Loam`.
     ///
     /// The configuration provided must include at least one realm.

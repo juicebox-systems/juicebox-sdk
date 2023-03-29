@@ -5,24 +5,11 @@ authors = ["Simon Fell <simon@loam.me", "Diego Ongaro <diego@loam.me>", "Nora Tr
 edition = "2021"
 
 [dependencies]
-bytes = { version = "1.4.0", default-features = false }
 ciborium = { version = "0.2.0", default-features = false }
 digest = { version = "0.10.6" }
-futures = { version = "0.3.25" }
-http = { version = "0.2.8" }
-http-body-util = { version = "0.1.0-rc.2" }
-hyper = { version = "1.0.0-rc.2", features = ["http1", "http2", "server"] }
 serde = { version = "1.0.152", default-features = false, features = [
     "alloc",
     "derive",
 ] }
 subtle = { version = "2.4.1", default-features = false }
-tracing = { git = "https://github.com/tokio-rs/tracing", version = "0.2.0", default-features = false, features = [
-    "alloc",
-    "attributes",
-] }
-# The latest Cargo.toml of tracing-opentelemetry in Git has an old version number.
-tracing-opentelemetry = { git = "https://github.com/tokio-rs/tracing", version = "*" }
-# The latest Cargo.toml of tracing-subscriber in Git has an old version number.
-tracing-subscriber = { version = "*" }
 voprf = { version = "0.4.0" }

@@ -1,18 +1,20 @@
 use digest::Digest;
 use hmac::{Hmac, Mac};
-use loam_sdk_core::{MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, UnlockTag};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use sha2::Sha256;
 use std::fmt::{self, Debug};
 use std::iter::zip;
 use std::ops::Deref;
+use url::Url;
+
+use loam_sdk_core::types::{MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, UnlockTag};
 
 /// A remote service that the client interacts with directly.
 #[derive(Clone)]
 pub struct Realm {
     /// The network address to connect to the service.
-    pub address: String,
+    pub address: Url,
     /// A long-lived public key for which the service has the matching private
     /// key.
     pub public_key: Vec<u8>,

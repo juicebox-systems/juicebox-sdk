@@ -1,17 +1,23 @@
 use futures::future::{join_all, try_join_all};
-use loam_sdk_core::{
-    GenerationNumber, OprfClient, OprfResult, Policy, Register1Request, Register1Response,
-    Register2Request, Register2Response, SecretsRequest, SecretsResponse, UnlockTag,
-    UserSecretShare,
-};
 use rand::rngs::OsRng;
 use sharks::Sharks;
 use std::iter::zip;
 use tracing::instrument;
 
-use crate::request::RequestError;
-use crate::types::{oprf_output_size, TagGeneratingKey, TgkShare};
-use crate::{HttpClient, Loam, Pin, Realm, UserSecret};
+use loam_sdk_core::{
+    requests::{
+        Register1Request, Register1Response, Register2Request, Register2Response, SecretsRequest,
+        SecretsResponse,
+    },
+    types::{GenerationNumber, OprfClient, OprfResult, UnlockTag, UserSecretShare},
+};
+
+use crate::{
+    http,
+    request::RequestError,
+    types::{oprf_output_size, TagGeneratingKey, TgkShare},
+    Client, Pin, Policy, Realm, UserSecret,
+};
 
 /// Error return type for [`Client::register`].
 #[derive(Debug)]
@@ -60,7 +66,7 @@ struct Register2Args {
     policy: Policy,
 }
 
-impl<Http: HttpClient> Loam<Http> {
+impl<Http: http::Client> Client<Http> {
     /// Registers a PIN-protected secret at the latest available generation number.
     pub(crate) async fn register_latest_generation(
         &self,

@@ -1,15 +1,17 @@
-use crate::http::send_rpc;
-use crate::{HttpClient, Loam, Realm};
+use crate::{http, Client, ClientError, Realm};
+
 use loam_sdk_core::{
-    marshalling, ClientError, ClientRequest, ClientResponse, HttpResponseStatus, SecretsRequest,
-    SecretsResponse,
+    marshalling,
+    requests::{SecretsRequest, SecretsResponse},
 };
-use std::str::FromStr;
-use url::Url;
+use loam_sdk_networking::{
+    requests::{ClientRequest, ClientResponse},
+    rpc,
+};
 
 pub(crate) enum RequestError {
     Network,
-    HttpStatus(HttpResponseStatus),
+    HttpStatus(http::ResponseStatus),
     DeserializationError(marshalling::DeserializationError),
     SerializationError(marshalling::SerializationError),
     Unavailable,
@@ -17,15 +19,15 @@ pub(crate) enum RequestError {
     InvalidRealmUrl,
 }
 
-impl<Http: HttpClient> Loam<Http> {
+impl<Http: http::Client> Client<Http> {
     pub(crate) async fn make_request(
         &self,
         realm: &Realm,
         request: SecretsRequest,
     ) -> Result<SecretsResponse, RequestError> {
-        match send_rpc(
+        match rpc::send(
             &self.http,
-            Url::from_str(&realm.address).map_err(|_| RequestError::InvalidRealmUrl)?,
+            &realm.address,
             ClientRequest {
                 realm: realm.id,
                 auth_token: self.auth_token.clone(),
