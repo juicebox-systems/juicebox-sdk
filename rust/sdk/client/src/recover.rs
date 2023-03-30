@@ -81,8 +81,8 @@ struct Recover1Success {
 }
 
 impl<Http: http::Client> Client<Http> {
-    /// Recovers a PIN-protected secret stored at the most recent generation.
-    pub(crate) async fn recover_latest_generation(
+    /// Recovers a PIN-protected secret from the latest agreed upon generation.
+    pub(crate) async fn recover_latest_available_generation(
         &self,
         pin: &Pin,
     ) -> Result<UserSecret, RecoverError> {

@@ -64,8 +64,8 @@ struct Register2Args {
 }
 
 impl<Http: http::Client> Client<Http> {
-    /// Registers a PIN-protected secret at the latest available generation number.
-    pub(crate) async fn register_latest_generation(
+    /// Registers a PIN-protected secret at the first available generation number.
+    pub(crate) async fn register_first_available_generation(
         &self,
         pin: &Pin,
         secret: &UserSecret,
