@@ -16,7 +16,6 @@ pub(crate) enum RequestError {
     SerializationError(marshalling::SerializationError),
     Unavailable,
     InvalidAuth,
-    InvalidRealmUrl,
 }
 
 impl<Http: http::Client> Client<Http> {
@@ -44,7 +43,6 @@ impl<Http: http::Client> Client<Http> {
             Err(ClientError::Serialization(e)) => Err(RequestError::SerializationError(e)),
             Err(ClientError::Deserialization(e)) => Err(RequestError::DeserializationError(e)),
             Err(ClientError::HsmRpcError) => Err(RequestError::Unavailable),
-            Err(ClientError::InvalidUrl) => Err(RequestError::InvalidRealmUrl),
         }
     }
 }

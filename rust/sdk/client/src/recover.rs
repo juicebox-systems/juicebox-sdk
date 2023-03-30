@@ -30,9 +30,6 @@ pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// The provided URL for the realm was unable to be parsed.
-    InvalidRealmUrl,
-
     /// A list of attempts explaining why the recovery failed.
     ///
     /// Each entry in the vector corresponds to an attempt at recovery with
@@ -115,10 +112,7 @@ impl<Http: http::Client> Client<Http> {
 
                 Err(
                     e @ RecoverGenError {
-                        error:
-                            RecoverError::NetworkError
-                            | RecoverError::InvalidAuth
-                            | RecoverError::InvalidRealmUrl,
+                        error: RecoverError::NetworkError | RecoverError::InvalidAuth,
                         retry: _,
                     },
                 ) => Err(e.error),
@@ -180,7 +174,7 @@ impl<Http: http::Client> Client<Http> {
 
                 Err(
                     e @ RecoverGenError {
-                        error: RecoverError::InvalidAuth | RecoverError::InvalidRealmUrl,
+                        error: RecoverError::InvalidAuth,
                         retry: _,
                     },
                 ) => {
@@ -362,12 +356,6 @@ impl<Http: http::Client> Client<Http> {
                     retry: None,
                 })
             }
-            Err(RequestError::InvalidRealmUrl) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::InvalidRealmUrl,
-                    retry: None,
-                })
-            }
 
             Ok(SecretsResponse::Recover1(rr)) => match rr {
                 Recover1Response::Ok {
@@ -478,7 +466,6 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
-            Err(RequestError::InvalidRealmUrl) => Err(RecoverError::InvalidRealmUrl),
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {
                 Recover2Response::Ok(secret_share) => Ok(secret_share),

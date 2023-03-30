@@ -28,9 +28,6 @@ pub enum RegisterError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// The provided URL for the realm was unable to be parsed.
-    InvalidRealmUrl,
-
     /// An error representing an assumption was not met in executing the
     /// registration protocol.
     ///
@@ -245,9 +242,6 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::InvalidAuth) => {
                 Err(RegisterGenError::Error(RegisterError::InvalidAuth))
             }
-            Err(RequestError::InvalidRealmUrl) => {
-                Err(RegisterGenError::Error(RegisterError::InvalidRealmUrl))
-            }
 
             Ok(SecretsResponse::Register1(rr)) => match rr {
                 Register1Response::Ok { blinded_oprf_pin } => {
@@ -308,7 +302,6 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
-            Err(RequestError::InvalidRealmUrl) => Err(RegisterError::InvalidRealmUrl),
 
             Ok(SecretsResponse::Register2(rr)) => match rr {
                 Register2Response::Ok {

@@ -21,9 +21,7 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     base_url: &Url,
     request: R,
 ) -> Result<R::Response, ClientError> {
-    let url = base_url
-        .join(R::PATH)
-        .map_err(|_| ClientError::InvalidUrl)?;
+    let url = base_url.join(R::PATH).unwrap();
 
     let mut headers = HashMap::new();
     opentelemetry::global::get_text_map_propagator(|propagator| {

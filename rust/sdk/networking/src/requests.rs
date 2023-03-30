@@ -31,7 +31,6 @@ pub enum ClientResponse {
 
 #[derive(Debug)]
 pub enum ClientError {
-    InvalidUrl,
     Network,
     HttpStatus(http::ResponseStatus),
     Serialization(marshalling::SerializationError),
@@ -57,9 +56,6 @@ impl std::fmt::Display for ClientError {
             }
             HsmRpcError => {
                 write!(f, "HSM RPC error")
-            }
-            InvalidUrl => {
-                write!(f, "invalid url")
             }
         }
     }

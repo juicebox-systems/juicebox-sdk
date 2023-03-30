@@ -15,9 +15,6 @@ pub enum DeleteError {
 
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
-
-    /// The provided URL for the realm was unable to be parsed.
-    InvalidRealmUrl,
 }
 
 impl<Http: http::Client> Client<Http> {
@@ -61,7 +58,6 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
-            Err(RequestError::InvalidRealmUrl) => Err(DeleteError::InvalidRealmUrl),
 
             Ok(SecretsResponse::Delete(dr)) => match dr {
                 DeleteResponse::Ok => Ok(()),
