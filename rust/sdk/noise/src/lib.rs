@@ -35,6 +35,9 @@ use x25519_dalek as x25519;
 pub mod client;
 pub mod server;
 
+#[cfg(test)]
+mod test_vectors;
+
 const PROTOCOL_NAME: &str = "Noise_NK_25519_ChaChaPoly_BLAKE2s";
 const HASH_LEN: usize = 32;
 
