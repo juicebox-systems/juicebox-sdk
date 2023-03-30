@@ -5,18 +5,10 @@ authors = ["Simon Fell <simon@loam.me", "Diego Ongaro <diego@loam.me>", "Nora Tr
 edition = "2021"
 
 [dependencies]
+async-trait = { workspace = true }
 loam-sdk-core = { path = "../../sdk/core" }
-
-async-trait = "0.1.64"
-opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
-serde = { version = "1.0.152", default-features = false, features = [
-    "alloc",
-    "derive",
-] }
-tracing = { git = "https://github.com/tokio-rs/tracing", version = "0.2.0", default-features = false, features = [
-    "alloc",
-    "attributes",
-] }
-# The latest Cargo.toml of tracing-opentelemetry in Git has an old version number.
-tracing-opentelemetry = { git = "https://github.com/tokio-rs/tracing", version = "*" }
-url = "2.3.1"
+opentelemetry = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+url = { workspace = true }

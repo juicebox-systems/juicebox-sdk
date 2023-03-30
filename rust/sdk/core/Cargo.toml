@@ -5,11 +5,8 @@ authors = ["Simon Fell <simon@loam.me", "Diego Ongaro <diego@loam.me>", "Nora Tr
 edition = "2021"
 
 [dependencies]
-ciborium = { version = "0.2.0", default-features = false }
-digest = { version = "0.10.6" }
-serde = { version = "1.0.152", default-features = false, features = [
-    "alloc",
-    "derive",
-] }
-subtle = { version = "2.4.1", default-features = false }
-voprf = { version = "0.4.0" }
+ciborium = { workspace = true }
+digest = { workspace = true }
+serde = { workspace = true }
+subtle = { workspace = true }
+voprf = { workspace = true }
