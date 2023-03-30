@@ -1,9 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    GenerationNumber, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, Policy, UnlockTag,
-    UserSecretShare,
+    AuthToken, GenerationNumber, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, Policy,
+    RealmId, UnlockTag, UserSecretShare,
 };
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ClientRequest {
+    pub realm: RealmId,
+    pub auth_token: AuthToken,
+    pub request: SecretsRequest,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[allow(clippy::large_enum_variant)]
+pub enum ClientResponse {
+    Ok(SecretsResponse),
+    Unavailable,
+    InvalidAuth,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum SecretsRequest {

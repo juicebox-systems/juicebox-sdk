@@ -1,17 +1,14 @@
-use crate::{http, Client, ClientError, Realm};
+use crate::{http, Client, Realm};
 
 use loam_sdk_core::{
     marshalling,
-    requests::{SecretsRequest, SecretsResponse},
+    requests::{ClientRequest, ClientResponse, SecretsRequest, SecretsResponse},
 };
-use loam_sdk_networking::{
-    requests::{ClientRequest, ClientResponse},
-    rpc,
-};
+use loam_sdk_networking::rpc::{self, RpcError};
 
 pub(crate) enum RequestError {
     Network,
-    HttpStatus(http::ResponseStatus),
+    HttpStatus(u16),
     DeserializationError(marshalling::DeserializationError),
     SerializationError(marshalling::SerializationError),
     Unavailable,
@@ -38,11 +35,10 @@ impl<Http: http::Client> Client<Http> {
             Ok(ClientResponse::Ok(response)) => Ok(response),
             Ok(ClientResponse::Unavailable) => Err(RequestError::Unavailable),
             Ok(ClientResponse::InvalidAuth) => Err(RequestError::InvalidAuth),
-            Err(ClientError::Network) => Err(RequestError::Network),
-            Err(ClientError::HttpStatus(sc)) => Err(RequestError::HttpStatus(sc)),
-            Err(ClientError::Serialization(e)) => Err(RequestError::SerializationError(e)),
-            Err(ClientError::Deserialization(e)) => Err(RequestError::DeserializationError(e)),
-            Err(ClientError::HsmRpcError) => Err(RequestError::Unavailable),
+            Err(RpcError::Network) => Err(RequestError::Network),
+            Err(RpcError::HttpStatus(sc)) => Err(RequestError::HttpStatus(sc)),
+            Err(RpcError::Serialization(e)) => Err(RequestError::SerializationError(e)),
+            Err(RpcError::Deserialization(e)) => Err(RequestError::DeserializationError(e)),
         }
     }
 }
