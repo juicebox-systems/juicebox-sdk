@@ -3,25 +3,36 @@ members = [
     "rust/sdk/client",
     "rust/sdk/core",
     "rust/sdk/networking",
+    "rust/sdk/noise",
     "rust/bridge/ffi",
 ]
 default-members = [
     "rust/sdk/client",
+    # TODO: remove noise from this list once the client uses it
+    "rust/sdk/noise",
 ]
 
 [workspace.dependencies]
 async-trait = "0.1.64"
+blake2 = { version = "0.10.6", default-features = false }
+chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
+    "alloc",
+] }
 ciborium = { version = "0.2.0", default-features = false }
 digest = { version = "0.10.6" }
 futures = { version = "0.3.25" }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "0.2.8"
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
+rand_core = "0.6.4"
 serde = { version = "1.0.152", default-features = false, features = [
     "alloc",
     "derive",
 ] }
+serde_json = "1.0.94"
 sha2 = { version = "0.10.6", default-features = false }
 sharks = "0.5.0"
 subtle = { version = "2.4.1", default-features = false }
@@ -33,3 +44,8 @@ tracing = { git = "https://github.com/tokio-rs/tracing", version = "0.2.0", defa
 tracing-opentelemetry = { git = "https://github.com/tokio-rs/tracing", version = "*" }
 url = "2.3.1"
 voprf = { version = "0.4.0" }
+x25519-dalek = { version = "2.0.0-pre.1", default-features = false, features = [
+    "reusable_secrets",
+    "serde",
+    "u64_backend", # TODO: need 32-bit on HSMs
+] }
