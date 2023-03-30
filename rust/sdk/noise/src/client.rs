@@ -2,8 +2,8 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use x25519_dalek as x25519;
+use rand_core::{RngCore, CryptoRng};
 
-use super::super::hal::CryptoRng;
 use super::{ChainingKey, HandshakeHash, Payload, Role};
 pub use super::{EncryptionError, HandshakeRequest, HandshakeResponse, Transport};
 
@@ -33,7 +33,7 @@ impl Handshake {
     ///
     /// The `request` may be empty. Note that any request given here will not
     /// have forward secrecy.
-    pub fn start<R: CryptoRng>(
+    pub fn start<R: RngCore + CryptoRng>(
         server_static_public: &x25519::PublicKey,
         payload_plaintext: &[u8],
         rng: &mut R,

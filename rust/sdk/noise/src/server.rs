@@ -2,8 +2,8 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use x25519_dalek as x25519;
+use rand_core::{RngCore, CryptoRng};
 
-use super::super::hal::CryptoRng;
 use super::{ChainingKey, CipherState, HandshakeHash, Payload, Role};
 pub use super::{EncryptionError, HandshakeRequest, HandshakeResponse, Transport};
 
@@ -33,7 +33,7 @@ pub enum HandshakeError {
 
 impl Handshake {
     /// Called when the server receives a handshake request from a client.
-    pub fn start<R: CryptoRng>(
+    pub fn start<R: RngCore + CryptoRng>(
         (server_static_secret, server_static_public): (&x25519::StaticSecret, &x25519::PublicKey),
         request: &HandshakeRequest,
         rng: R,

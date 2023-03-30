@@ -45,7 +45,7 @@ struct VectorFile {
 }
 
 fn open(filename: &str) -> fs::File {
-    let path = Path::new("src/noise/vectors").join(filename);
+    let path = Path::new("src/vectors").join(filename);
     fs::File::open(&path).unwrap_or_else(|e| {
         panic!(
             "failed to open {path:?} from {cwd:?}: {e}",
