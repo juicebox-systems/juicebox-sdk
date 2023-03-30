@@ -1,8 +1,8 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use rand_core::{CryptoRng, RngCore};
 use x25519_dalek as x25519;
-use rand_core::{RngCore, CryptoRng};
 
 use super::{ChainingKey, CipherState, HandshakeHash, Payload, Role};
 pub use super::{EncryptionError, HandshakeRequest, HandshakeResponse, Transport};
