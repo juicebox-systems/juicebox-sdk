@@ -2,12 +2,20 @@
 name = "loam-sdk-ffi"
 version = "0.1.0"
 authors = ["Nora Trapp <nora@loam.me>"]
+edition = "2021"
+build = "build.rs"
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
+async-trait = { workspace = true }
+futures = { workspace = true }
+libc = { workspace = true }
 loam-sdk = { path = "../../sdk/client" }
+tokio = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
 
 [build-dependencies]
-cbindgen = "0.20.0"
+cbindgen = { workspace = true }

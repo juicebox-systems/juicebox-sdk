@@ -12,11 +12,10 @@ mod register;
 mod request;
 mod types;
 
-use loam_sdk_core::types::RealmId;
 use types::{CheckedConfiguration, Session};
 
 pub use delete::DeleteError;
-pub use loam_sdk_core::types::{AuthToken, Policy};
+pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
 pub use recover::RecoverError;
 pub use register::RegisterError;

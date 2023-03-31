@@ -15,6 +15,8 @@ pub enum DeleteError {
 
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
+
+    ProtocolError,
 }
 
 impl<Http: http::Client> Client<Http> {
@@ -53,8 +55,10 @@ impl<Http: http::Client> Client<Http> {
 
         match delete_result {
             Err(RequestError::Network) => Err(DeleteError::NetworkError),
-            Err(RequestError::Deserialization(_)) | Err(RequestError::Serialization(_)) => todo!(),
-            Err(RequestError::HttpStatus(_status)) => todo!(),
+            Err(RequestError::Deserialization(_)) | Err(RequestError::Serialization(_)) => {
+                Err(DeleteError::ProtocolError)
+            }
+            Err(RequestError::HttpStatus(_status)) => Err(DeleteError::NetworkError),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
