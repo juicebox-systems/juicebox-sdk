@@ -18,17 +18,15 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build:
-    name: Build & check
+  swift-package:
+    name: Swift Package
     runs-on: ubuntu-20.04
     steps:
-    - name: Check out sources
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install Rust stable toolchain
       uses: actions-rs/toolchain@v1
       with:
-        components: rustfmt, clippy
         override: 'true'
         profile: minimal
         toolchain: stable
@@ -42,39 +40,95 @@ jobs:
           ~/.cargo/git/
         restore-keys: cargo-ubuntu-20.04-stable-
 
-    - name: Run cargo build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: -p loam-sdk loam-sdk-ffi
+    - name: Install cbindgen
+      run: cargo +stable install cbindgen --version 0.24.3
 
-    - name: Run cargo test
-      uses: actions-rs/cargo@v1
-      with:
-        args: --workspace
-        command: test
-      env:
-        RUST_BACKTRACE: '1'
+    - name: Build loam-sdk-ffi
+      run: swift/build-ffi.sh -d -v --verify-ffi
 
-    - name: Run cargo fmt
-      uses: actions-rs/cargo@v1
-      with:
-        args: --all -- --check
-        command: fmt
+    - name: Build and Test
+      run: swift test -v
+      working-directory: swift
 
-    - name: Run clippy
-      uses: actions-rs/cargo@v1
-      with:
-        args: --workspace --tests -- -D warnings
-        command: clippy
+  swift-pod:
+    name: Swift Pod
+    runs-on: macOS-latest
+    steps:
+      - uses: actions/checkout@v3
 
-    - name: Install cargo audit
-      uses: actions-rs/cargo@v1
-      with:
-        args: cargo-audit
-        command: install
+      - name: Lint
+        run: swiftlint lint --strict --reporter github-actions-logging
+        working-directory: swift
 
-    - name: Run cargo audit
-      uses: actions-rs/cargo@v1
-      with:
-        command: audit
+      - run: rustup toolchain install stable --profile minimal --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Use Rust/Cargo cache
+        uses: actions/cache@v3
+        with:
+          key: cargo-macOS-stable-${{ hashFiles('Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git/
+          restore-keys: cargo-macOS-stable-
+
+      - name: Run pod lint
+        run: pod lib lint --verbose
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rustfmt, clippy
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust/Cargo cache
+        uses: actions/cache@v3
+        with:
+          key: cargo-ubuntu-20.04-stable-${{ hashFiles('Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git/
+          restore-keys: cargo-ubuntu-20.04-stable-
+
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          args: --workspace
+          command: test
+        env:
+          RUST_BACKTRACE: '1'
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          args: --all -- --check
+          command: fmt
+
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          args: --workspace --tests -- -D warnings
+          command: clippy
+
+      - name: Install cargo audit
+        uses: actions-rs/cargo@v1
+        with:
+          args: cargo-audit
+          command: install
+
+      - name: Run cargo audit
+        uses: actions-rs/cargo@v1
+        with:
+          command: audit

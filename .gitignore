@@ -1,2 +1,4 @@
 /target
 /.vscode
+/swift/.build
+/swift/.swiftpm
