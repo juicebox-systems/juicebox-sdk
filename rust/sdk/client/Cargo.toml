@@ -16,6 +16,7 @@ loam-sdk-core = { path = "../../sdk/core" }
 loam-sdk-networking = { path = "../../sdk/networking" }
 loam-sdk-noise = { path = "../../sdk/noise" }
 rand = { workspace = true }
+serde = { workspace = true }
 sha2 = { workspace = true }
 sharks = { workspace = true }
 tokio = { workspace = true }
