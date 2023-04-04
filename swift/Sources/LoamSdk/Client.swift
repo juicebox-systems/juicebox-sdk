@@ -17,20 +17,15 @@ public class Client {
 
     private let opaque: OpaquePointer
 
-    public init(configuration: Configuration, authToken: AuthToken) throws {
+    public init(configuration: Configuration, authToken: AuthToken) {
         self.configuration = configuration
         self.authToken = authToken
 
-        var error = LoamClientCreateErrorNone
-        guard let opaque = configuration.withUnsafeFfi({ ffiConfig in
+        self.opaque = configuration.withUnsafeFfi({ ffiConfig in
             authToken.withUnsafeFfi { ffiToken in
-                loam_client_create(ffiConfig, ffiToken, httpSend, &error)
+                loam_client_create(ffiConfig, ffiToken, httpSend)
             }
-        }), error == LoamClientCreateErrorNone else {
-            throw error
-        }
-
-        self.opaque = opaque
+        })
     }
 
     deinit {

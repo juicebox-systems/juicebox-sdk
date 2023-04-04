@@ -4,7 +4,7 @@ import LoamSdkFfi
 
 final class LoamSdkTests: XCTestCase {
     func testRegisterRequestError() async throws {
-        let client = try client(url: "https://httpbin.org/anything/")
+        let client = client(url: "https://httpbin.org/anything/")
         do {
             try await client.register(pin: Data(), secret: Data(), guesses: 5)
         } catch let error as LoamRegisterError {
@@ -13,7 +13,7 @@ final class LoamSdkTests: XCTestCase {
     }
 
     func testRecoverRequestError() async throws {
-        let client = try client(url: "https://httpbin.org/anything/")
+        let client = client(url: "https://httpbin.org/anything/")
         do {
             let secret = try await client.recover(pin: Data())
             XCTAssertNil(secret)
@@ -23,7 +23,7 @@ final class LoamSdkTests: XCTestCase {
     }
 
     func testDeleteRequestError() async throws {
-        let client = try client(url: "https://httpbin.org/anything/")
+        let client = client(url: "https://httpbin.org/anything/")
         do {
             try await client.deleteAll()
         } catch let error as LoamDeleteError {
@@ -31,17 +31,9 @@ final class LoamSdkTests: XCTestCase {
         }
     }
 
-    func testClientCreateError() throws {
-        do {
-            try client(url: "bad")
-        } catch let error as LoamClientCreateError {
-            XCTAssertEqual(LoamClientCreateErrorInvalidConfiguration, error)
-        }
-    }
-
     @discardableResult
-    func client(url: String) throws -> Client {
-        try Client(
+    func client(url: String) -> Client {
+        Client(
             configuration: .init(
                 realms: [
                     .init(

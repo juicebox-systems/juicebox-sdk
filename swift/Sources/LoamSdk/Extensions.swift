@@ -11,7 +11,6 @@ import FoundationNetworking
 #endif
 import LoamSdkFfi
 
-extension LoamClientCreateError: Error {}
 extension LoamRegisterError: Error {}
 extension LoamRecoverError: Error {}
 extension LoamDeleteError: Error {}

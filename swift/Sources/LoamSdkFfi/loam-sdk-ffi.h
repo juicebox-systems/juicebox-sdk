@@ -9,12 +9,6 @@
 #include <stdlib.h>
 
 typedef enum {
-  LoamClientCreateErrorNone = 0,
-  LoamClientCreateErrorInvalidConfiguration,
-  LoamClientCreateErrorInvalidAuthToken,
-} LoamClientCreateError;
-
-typedef enum {
   LoamDeleteErrorNullClient = 0,
   LoamDeleteErrorInvalidAuth,
   LoamDeleteErrorNetworkError,
@@ -126,8 +120,7 @@ typedef void (*LoamHttpSendFn)(const LoamHttpClient *context, const LoamHttpRequ
  */
 LoamClient *loam_client_create(LoamConfiguration configuration,
                                LoamAuthToken auth_token,
-                               LoamHttpSendFn http_send,
-                               LoamClientCreateError *error);
+                               LoamHttpSendFn http_send);
 
 void loam_client_destroy(LoamClient *client);
 

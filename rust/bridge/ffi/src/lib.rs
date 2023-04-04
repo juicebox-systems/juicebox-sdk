@@ -18,28 +18,20 @@ pub struct Configuration {
     pub recover_threshold: u8,
 }
 
-impl TryFrom<Configuration> for sdk::Configuration {
-    type Error = &'static str;
-
-    fn try_from(ffi: Configuration) -> Result<Self, Self::Error> {
+impl From<Configuration> for sdk::Configuration {
+    fn from(ffi: Configuration) -> Self {
         let ffi_realms: Vec<Realm> = match ffi.realms.to_vec() {
             Ok(value) => value,
-            Err(_) => return Err("realms pointer is unexpectedly null."),
+            Err(_) => panic!("realms pointer is unexpectedly null."),
         };
 
-        let mut realms = vec![];
-        for ffi in ffi_realms.iter() {
-            realms.push(match sdk::Realm::try_from(*ffi) {
-                Ok(value) => value,
-                Err(_) => return Err("Failed to parse realm"),
-            })
-        }
+        let realms = ffi_realms.into_iter().map(sdk::Realm::from).collect();
 
-        Ok(sdk::Configuration {
+        sdk::Configuration {
             realms,
             register_threshold: ffi.register_threshold,
             recover_threshold: ffi.recover_threshold,
-        })
+        }
     }
 }
 
@@ -51,34 +43,32 @@ pub struct Realm {
     pub public_key: UnmanagedBuffer<u8>,
 }
 
-impl TryFrom<Realm> for sdk::Realm {
-    type Error = &'static str;
-
-    fn try_from(ffi: Realm) -> Result<Self, Self::Error> {
+impl From<Realm> for sdk::Realm {
+    fn from(ffi: Realm) -> Self {
         if ffi.address.is_null() {
-            return Err("address pointer unexpectedly null.");
+            panic!("address pointer unexpectedly null.");
         }
 
         let address_str = match unsafe { CStr::from_ptr(ffi.address) }.to_str() {
             Ok(value) => value,
-            Err(_) => return Err("Invalid string for address"),
+            Err(_) => panic!("Invalid string for address"),
         };
 
         let address = match Url::from_str(address_str) {
             Ok(value) => value,
-            Err(_) => return Err("Invalid url for address"),
+            Err(_) => panic!("Invalid url for address"),
         };
 
         let public_key = match ffi.public_key.to_vec() {
             Ok(value) => value,
-            Err(_) => return Err("public_key pointer unexpectedly null."),
+            Err(_) => panic!("public_key pointer unexpectedly null."),
         };
 
-        Ok(sdk::Realm {
+        sdk::Realm {
             address,
             public_key,
             id: sdk::RealmId(ffi.id),
-        })
+        }
     }
 }
 
@@ -90,48 +80,39 @@ pub struct AuthToken {
     pub signature: UnmanagedBuffer<u8>,
 }
 
-impl TryFrom<AuthToken> for sdk::AuthToken {
-    type Error = &'static str;
-
-    fn try_from(ffi: AuthToken) -> Result<Self, Self::Error> {
+impl From<AuthToken> for sdk::AuthToken {
+    fn from(ffi: AuthToken) -> Self {
         if ffi.tenant.is_null() {
-            return Err("tenant pointer unexpectedly null.");
+            panic!("tenant pointer unexpectedly null.");
         }
 
         let tenant = match unsafe { CStr::from_ptr(ffi.tenant) }.to_str() {
             Ok(value) => value,
-            Err(_) => return Err("Invalid string for tenant"),
+            Err(_) => panic!("Invalid string for tenant"),
         }
         .to_string();
 
         if ffi.user.is_null() {
-            return Err("user pointer unexpectedly null.");
+            panic!("user pointer unexpectedly null.");
         }
 
         let user = match unsafe { CStr::from_ptr(ffi.user) }.to_str() {
             Ok(value) => value,
-            Err(_) => return Err("Invalid string for user"),
+            Err(_) => panic!("Invalid string for user"),
         }
         .to_string();
 
         let signature = match ffi.signature.to_vec() {
             Ok(value) => value,
-            Err(_) => return Err("signature pointer unexpectedly null."),
+            Err(_) => panic!("signature pointer unexpectedly null."),
         };
 
-        Ok(sdk::AuthToken {
+        sdk::AuthToken {
             tenant,
             user,
             signature,
-        })
+        }
     }
-}
-
-#[repr(C)]
-pub enum ClientCreateError {
-    None = 0,
-    InvalidConfiguration,
-    InvalidAuthToken,
 }
 
 /// Creates a new opaque `LoamClient` reference.
@@ -150,24 +131,9 @@ pub unsafe extern "C" fn loam_client_create(
     configuration: Configuration,
     auth_token: AuthToken,
     http_send: HttpSendFn,
-    error: *mut ClientCreateError,
 ) -> *mut sdk::Client<HttpClient> {
-    let configuration = match sdk::Configuration::try_from(configuration) {
-        Ok(value) => value,
-        Err(_) => {
-            *error = ClientCreateError::InvalidConfiguration;
-            return ptr::null_mut();
-        }
-    };
-
-    let auth_token = match sdk::AuthToken::try_from(auth_token) {
-        Ok(value) => value,
-        Err(_) => {
-            *error = ClientCreateError::InvalidAuthToken;
-            return ptr::null_mut();
-        }
-    };
-
+    let configuration = sdk::Configuration::from(configuration);
+    let auth_token = sdk::AuthToken::from(auth_token);
     let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
     Box::into_raw(Box::new(client))
 }

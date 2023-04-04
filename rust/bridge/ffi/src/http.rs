@@ -97,22 +97,20 @@ pub struct HttpResponse {
     pub body: UnmanagedBuffer<u8>,
 }
 
-impl TryFrom<HttpResponse> for sdk::http::Response {
-    type Error = &'static str;
-
-    fn try_from(ffi: HttpResponse) -> Result<Self, Self::Error> {
+impl From<HttpResponse> for sdk::http::Response {
+    fn from(ffi: HttpResponse) -> Self {
         let body = match ffi.body.to_vec() {
             Ok(value) => value,
-            Err(_) => return Err("body pointer is unexpectedly null"),
+            Err(_) => panic!("body pointer is unexpectedly null"),
         };
 
         if ffi.headers.is_null() {
-            return Err("headers pointer is unexpectedly null.");
+            panic!("headers pointer is unexpectedly null.");
         }
 
         let headers_vec: Vec<HttpHeader> = match ffi.headers.to_vec() {
             Ok(value) => value,
-            Err(_) => return Err("headers pointer is unexpectedly null."),
+            Err(_) => panic!("headers pointer is unexpectedly null."),
         };
 
         let headers = headers_vec
@@ -130,11 +128,11 @@ impl TryFrom<HttpResponse> for sdk::http::Response {
             })
             .collect::<HashMap<_, _>>();
 
-        Ok(sdk::http::Response {
+        sdk::http::Response {
             status_code: ffi.status_code,
             headers,
             body,
-        })
+        }
     }
 }
 
