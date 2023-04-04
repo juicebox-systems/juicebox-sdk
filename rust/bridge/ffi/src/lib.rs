@@ -1,17 +1,19 @@
+pub mod buffer;
 pub mod http;
 
-use libc::{c_char, c_void, size_t};
+use libc::{c_char, c_void};
 use loam_sdk as sdk;
 use std::{ffi::CStr, ptr, str::FromStr};
 use tokio::runtime::Runtime;
 use url::Url;
 
+use crate::buffer::{ManagedBuffer, UnmanagedBuffer};
 use crate::http::{HttpClient, HttpSendFn};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Configuration {
-    pub realms: UnownedBuffer<Realm>,
+    pub realms: UnmanagedBuffer<Realm>,
     pub register_threshold: u8,
     pub recover_threshold: u8,
 }
@@ -20,7 +22,7 @@ impl TryFrom<Configuration> for sdk::Configuration {
     type Error = &'static str;
 
     fn try_from(ffi: Configuration) -> Result<Self, Self::Error> {
-        let ffi_realms: Vec<Realm> = match ffi.realms.try_into() {
+        let ffi_realms: Vec<Realm> = match ffi.realms.to_vec() {
             Ok(value) => value,
             Err(_) => return Err("realms pointer is unexpectedly null."),
         };
@@ -46,7 +48,7 @@ impl TryFrom<Configuration> for sdk::Configuration {
 pub struct Realm {
     pub id: [u8; 16],
     pub address: *const c_char,
-    pub public_key: UnownedBuffer<u8>,
+    pub public_key: UnmanagedBuffer<u8>,
 }
 
 impl TryFrom<Realm> for sdk::Realm {
@@ -67,7 +69,7 @@ impl TryFrom<Realm> for sdk::Realm {
             Err(_) => return Err("Invalid url for address"),
         };
 
-        let public_key = match ffi.public_key.try_into() {
+        let public_key = match ffi.public_key.to_vec() {
             Ok(value) => value,
             Err(_) => return Err("public_key pointer unexpectedly null."),
         };
@@ -85,7 +87,7 @@ impl TryFrom<Realm> for sdk::Realm {
 pub struct AuthToken {
     pub tenant: *const c_char,
     pub user: *const c_char,
-    pub signature: UnownedBuffer<u8>,
+    pub signature: UnmanagedBuffer<u8>,
 }
 
 impl TryFrom<AuthToken> for sdk::AuthToken {
@@ -112,7 +114,7 @@ impl TryFrom<AuthToken> for sdk::AuthToken {
         }
         .to_string();
 
-        let signature = match ffi.signature.try_into() {
+        let signature = match ffi.signature.to_vec() {
             Ok(value) => value,
             Err(_) => return Err("signature pointer unexpectedly null."),
         };
@@ -212,8 +214,8 @@ impl From<sdk::RegisterError> for RegisterError {
 pub unsafe extern "C" fn loam_client_register(
     client: *mut sdk::Client<HttpClient>,
     context: *const c_void,
-    pin: UnownedBuffer<u8>,
-    secret: UnownedBuffer<u8>,
+    pin: UnmanagedBuffer<u8>,
+    secret: UnmanagedBuffer<u8>,
     num_guesses: u16,
     response: extern "C" fn(context: &c_void, error: *const RegisterError),
 ) {
@@ -226,7 +228,7 @@ pub unsafe extern "C" fn loam_client_register(
         return;
     }
 
-    let pin = match pin.try_into() {
+    let pin = match pin.to_vec() {
         Ok(value) => value,
         Err(_) => {
             let error_ptr = Box::into_raw(Box::new(RegisterError::NullPin));
@@ -236,7 +238,7 @@ pub unsafe extern "C" fn loam_client_register(
         }
     };
 
-    let secret = match secret.try_into() {
+    let secret = match secret.to_vec() {
         Ok(value) => value,
         Err(_) => {
             let error_ptr = Box::into_raw(Box::new(RegisterError::NullSecret));
@@ -298,10 +300,10 @@ impl From<sdk::RecoverError> for RecoverError {
 pub unsafe extern "C" fn loam_client_recover(
     client: *mut sdk::Client<HttpClient>,
     context: *const c_void,
-    pin: UnownedBuffer<u8>,
+    pin: UnmanagedBuffer<u8>,
     response: extern "C" fn(
         context: &c_void,
-        secret: UnownedBuffer<u8>,
+        secret: UnmanagedBuffer<u8>,
         error: *const RecoverError,
     ),
 ) {
@@ -309,16 +311,16 @@ pub unsafe extern "C" fn loam_client_recover(
 
     if client.is_null() {
         let error_ptr = Box::into_raw(Box::new(RecoverError::NullClient));
-        response(context, UnownedBuffer::null(), error_ptr);
+        response(context, UnmanagedBuffer::null(), error_ptr);
         drop(Box::from_raw(error_ptr));
         return;
     }
 
-    let pin = match pin.try_into() {
+    let pin = match pin.to_vec() {
         Ok(value) => value,
         Err(_) => {
             let error_ptr = Box::into_raw(Box::new(RecoverError::NullPin));
-            response(context, UnownedBuffer::null(), error_ptr);
+            response(context, UnmanagedBuffer::null(), error_ptr);
             drop(Box::from_raw(error_ptr));
             return;
         }
@@ -332,15 +334,13 @@ pub unsafe extern "C" fn loam_client_recover(
             .block_on(async { client.recover(&sdk::Pin(pin)).await })
         {
             Ok(secret) => {
-                let secret = UnownedBuffer::from(secret.0);
-
+                let secret = ManagedBuffer(secret.0).to_unmanaged();
                 (response)(context, secret, ptr::null());
-
-                drop(Box::from_raw(secret.data as *mut u8));
+                drop(secret.to_managed());
             }
             Err(err) => {
                 let error_ptr = Box::into_raw(Box::new(RecoverError::from(err)));
-                (response)(context, UnownedBuffer::null(), error_ptr);
+                (response)(context, UnmanagedBuffer::null(), error_ptr);
                 drop(Box::from_raw(error_ptr));
             }
         };
@@ -399,50 +399,4 @@ pub unsafe extern "C" fn loam_client_delete_all(
             }
         };
     });
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct UnownedBuffer<T> {
-    data: *const T,
-    length: size_t,
-}
-
-impl<T> UnownedBuffer<T> {
-    fn is_null(&self) -> bool {
-        self.data.is_null()
-    }
-
-    fn null() -> Self {
-        UnownedBuffer {
-            data: ptr::null(),
-            length: 0,
-        }
-    }
-}
-
-impl<T: Clone> TryInto<Vec<T>> for UnownedBuffer<T> {
-    type Error = &'static str;
-
-    fn try_into(self) -> Result<Vec<T>, Self::Error> {
-        if self.length == 0 {
-            return Ok(vec![]);
-        }
-
-        if self.data.is_null() {
-            return Err("Buffer data is unexpectedly null");
-        }
-
-        Ok(unsafe { std::slice::from_raw_parts(self.data, self.length) }.to_vec())
-    }
-}
-
-impl<T> From<Vec<T>> for UnownedBuffer<T> {
-    fn from(value: Vec<T>) -> Self {
-        let length = value.len();
-        UnownedBuffer {
-            data: Box::into_raw(value.into_boxed_slice()) as *const T,
-            length,
-        }
-    }
 }

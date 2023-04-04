@@ -16,7 +16,7 @@ public struct Configuration {
 
         func withUnsafeFfi<Result>(_ body: (LoamRealm) throws -> Result) rethrows -> Result {
             try address.absoluteString.withCString { addressCStr in
-                try publicKey.withLoamUnownedDataBuffer { publicKeyBuffer in
+                try publicKey.withLoamUnmanagedDataBuffer { publicKeyBuffer in
                     try body(.init(
                         id: id.uuid,
                         address: addressCStr,

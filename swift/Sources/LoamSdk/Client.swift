@@ -39,8 +39,8 @@ public class Client {
 
     func register(pin: Data, secret: Data, guesses: UInt16) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            pin.withLoamUnownedDataBuffer { pinBuffer in
-                secret.withLoamUnownedDataBuffer { secretBuffer in
+            pin.withLoamUnmanagedDataBuffer { pinBuffer in
+                secret.withLoamUnmanagedDataBuffer { secretBuffer in
                     loam_client_register(
                         opaque,
                         Unmanaged.passRetained(Box(continuation)).toOpaque(),
@@ -64,7 +64,7 @@ public class Client {
 
     func recover(pin: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
-            pin.withLoamUnownedDataBuffer { pinBuffer in
+            pin.withLoamUnmanagedDataBuffer { pinBuffer in
                 loam_client_recover(
                     opaque,
                     Unmanaged.passRetained(Box(continuation)).toOpaque(),
@@ -141,7 +141,7 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
 
         withHeadersRecursively { headers in
             headers.withUnsafeBufferPointer { headersBuffer in
-                responseData.withLoamUnownedDataBuffer { bodyBuffer in
+                responseData.withLoamUnmanagedDataBuffer { bodyBuffer in
                     let response = LoamHttpResponse(
                         id: requestPointer.pointee.id,
                         status_code: UInt16(response.statusCode),

@@ -17,9 +17,9 @@ renaming_overrides_prefixing = true
 
 [export.rename]
 "ClientHttpClient" = "LoamClient"
-"UnownedBufferu8" = "LoamUnownedDataBuffer"
-"UnownedBufferRealm" = "LoamUnownedRealmBuffer"
-"UnownedBufferHttpHeader" = "LoamUnownedHttpHeaderBuffer"
+"UnmanagedBufferu8" = "LoamUnmanagedDataBuffer"
+"UnmanagedBufferRealm" = "LoamUnmanagedRealmBuffer"
+"UnmanagedBufferHttpHeader" = "LoamUnmanagedHttpHeaderBuffer"
 
 [export.mangle]
 remove_underscores = true

@@ -1,4 +1,4 @@
-use crate::UnownedBuffer;
+use crate::buffer::{ManagedBuffer, UnmanagedBuffer};
 use futures::channel::oneshot::{channel, Sender};
 use libc::c_char;
 use std::collections::HashMap;
@@ -35,8 +35,8 @@ pub struct HttpRequest {
     pub id: [u8; 16],
     pub method: HttpRequestMethod,
     pub url: *const c_char,
-    pub headers: UnownedBuffer<HttpHeader>,
-    pub body: UnownedBuffer<u8>,
+    pub headers: UnmanagedBuffer<HttpHeader>,
+    pub body: UnmanagedBuffer<u8>,
 }
 
 impl Drop for HttpRequest {
@@ -46,10 +46,22 @@ impl Drop for HttpRequest {
                 drop(CString::from_raw(self.url as *mut c_char));
             }
 
-            loam_http_headers_destroy(&self.headers);
+            if !self.headers.is_null() {
+                let headers = self.headers.to_managed().unwrap();
+                for header in headers.0.iter() {
+                    if !header.name.is_null() {
+                        drop(CString::from_raw(header.name as *mut c_char));
+                    }
+
+                    if !header.value.is_null() {
+                        drop(CString::from_raw(header.value as *mut c_char));
+                    }
+                }
+                drop(headers);
+            }
 
             if !self.body.is_null() {
-                drop(Box::from_raw(self.body.data as *mut u8));
+                drop(self.body.to_managed().unwrap());
             }
         }
     }
@@ -60,10 +72,10 @@ impl From<sdk::http::Request> for HttpRequest {
         let method = HttpRequestMethod::from(request.method);
         let url = CString::new(request.url.to_string()).unwrap().into_raw() as *const c_char;
         let body = match request.body {
-            Some(body) => UnownedBuffer::from(body),
-            None => UnownedBuffer::null(),
+            Some(body) => ManagedBuffer(body).to_unmanaged(),
+            None => UnmanagedBuffer::null(),
         };
-        let headers = UnownedBuffer::from(request.headers);
+        let headers = ManagedBuffer::from(request.headers).to_unmanaged();
         let id = *Uuid::new_v4().as_bytes();
 
         HttpRequest {
@@ -81,15 +93,15 @@ impl From<sdk::http::Request> for HttpRequest {
 pub struct HttpResponse {
     pub id: [u8; 16],
     pub status_code: u16,
-    pub headers: UnownedBuffer<HttpHeader>,
-    pub body: UnownedBuffer<u8>,
+    pub headers: UnmanagedBuffer<HttpHeader>,
+    pub body: UnmanagedBuffer<u8>,
 }
 
 impl TryFrom<HttpResponse> for sdk::http::Response {
     type Error = &'static str;
 
     fn try_from(ffi: HttpResponse) -> Result<Self, Self::Error> {
-        let body = match ffi.body.try_into() {
+        let body = match ffi.body.to_vec() {
             Ok(value) => value,
             Err(_) => return Err("body pointer is unexpectedly null"),
         };
@@ -98,7 +110,7 @@ impl TryFrom<HttpResponse> for sdk::http::Response {
             return Err("headers pointer is unexpectedly null.");
         }
 
-        let headers_vec: Vec<HttpHeader> = match ffi.headers.try_into() {
+        let headers_vec: Vec<HttpHeader> = match ffi.headers.to_vec() {
             Ok(value) => value,
             Err(_) => return Err("headers pointer is unexpectedly null."),
         };
@@ -191,7 +203,7 @@ pub struct HttpHeader {
     value: *const c_char,
 }
 
-impl From<HashMap<String, String>> for UnownedBuffer<HttpHeader> {
+impl From<HashMap<String, String>> for ManagedBuffer<HttpHeader> {
     fn from(value: HashMap<String, String>) -> Self {
         let mut headers = vec![];
         for (name, value) in value.iter() {
@@ -203,24 +215,6 @@ impl From<HashMap<String, String>> for UnownedBuffer<HttpHeader> {
             });
         }
 
-        UnownedBuffer::from(headers)
-    }
-}
-
-unsafe extern "C" fn loam_http_headers_destroy(buffer: &UnownedBuffer<HttpHeader>) {
-    if buffer.is_null() {
-        return;
-    }
-    for i in 0..buffer.length {
-        let header = buffer.data.add(i);
-        if !header.is_null() {
-            if !(*header).name.is_null() {
-                drop(CString::from_raw((*header).name as *mut c_char));
-            }
-
-            if !(*header).value.is_null() {
-                drop(CString::from_raw((*header).value as *mut c_char));
-            }
-        }
+        ManagedBuffer(headers)
     }
 }

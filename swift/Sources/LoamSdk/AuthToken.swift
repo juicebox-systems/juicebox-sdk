@@ -16,7 +16,7 @@ public struct AuthToken {
     func withUnsafeFfi<Result>(_ body: (LoamAuthToken) throws -> Result) rethrows -> Result {
         try tenant.withCString { tenantCStr in
             try user.withCString { userCStr in
-                try signature.withLoamUnownedDataBuffer { signatureBuffer in
+                try signature.withLoamUnmanagedDataBuffer { signatureBuffer in
                     try body(.init(
                         tenant: tenantCStr,
                         user: userCStr,

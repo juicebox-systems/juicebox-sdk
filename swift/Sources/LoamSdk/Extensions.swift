@@ -17,7 +17,7 @@ extension LoamRecoverError: Error {}
 extension LoamDeleteError: Error {}
 
 extension Data {
-    func withLoamUnownedDataBuffer<Result>(_ body: (LoamUnownedDataBuffer) throws -> Result) rethrows -> Result {
+    func withLoamUnmanagedDataBuffer<Result>(_ body: (LoamUnmanagedDataBuffer) throws -> Result) rethrows -> Result {
         try withUnsafeBytes { bytes in
             try body(.init(
                 data: bytes.bindMemory(to: UInt8.self).baseAddress,
@@ -26,7 +26,7 @@ extension Data {
         }
     }
 
-    init?(_ buffer: LoamUnownedDataBuffer) {
+    init?(_ buffer: LoamUnmanagedDataBuffer) {
         guard let data = buffer.data else { return nil }
         self.init(bytes: data, count: buffer.length)
     }
