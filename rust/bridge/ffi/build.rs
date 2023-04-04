@@ -3,10 +3,7 @@ use std::path::PathBuf;
 
 fn main() {
     let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let output_file = target_dir()
-        .join(format!("include/{}.h", package_name))
-        .display()
-        .to_string();
+    let output_file = target_dir().join(format!("include/{}.h", package_name));
 
     let crate_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
