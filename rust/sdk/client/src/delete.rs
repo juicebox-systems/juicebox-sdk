@@ -53,9 +53,10 @@ impl<Http: http::Client> Client<Http> {
 
         match delete_result {
             Err(RequestError::Network) => Err(DeleteError::NetworkError),
-            Err(RequestError::DeserializationError(_))
-            | Err(RequestError::SerializationError(_)) => todo!(),
+            Err(RequestError::Deserialization(_)) | Err(RequestError::Serialization(_)) => todo!(),
             Err(RequestError::HttpStatus(_status)) => todo!(),
+            Err(RequestError::Session) => todo!(),
+            Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
 

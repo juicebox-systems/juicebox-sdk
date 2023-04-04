@@ -44,6 +44,17 @@ impl Debug for AuthToken {
     }
 }
 
+/// Used to distinguish different secure communication channels for a single
+/// user.
+///
+/// This is useful in case a user has multiple concurrent Noise sessions (from
+/// one or more clients). The IDs are opaque and are chosen randomly by the
+/// client. If the chosen IDs collide, the user might see extra errors and have
+/// to retry, but that's the worst that should happen. Session IDs need not be
+/// confidential.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct SessionId(pub u32);
+
 /// A share of the user's secret.
 ///
 /// The client needs a threshold number of such shares to recover the user's

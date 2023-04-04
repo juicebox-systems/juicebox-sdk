@@ -346,9 +346,10 @@ impl<Http: http::Client> Client<Http> {
                     retry: None,
                 })
             }
-            Err(RequestError::DeserializationError(_))
-            | Err(RequestError::SerializationError(_)) => todo!(),
+            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => todo!(),
             Err(RequestError::HttpStatus(_status)) => todo!(),
+            Err(RequestError::Session) => todo!(),
+            Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => {
                 return Err(RecoverGenError {
@@ -461,9 +462,10 @@ impl<Http: http::Client> Client<Http> {
 
         match recover2_request.await {
             Err(RequestError::Network) => Err(RecoverError::NetworkError),
-            Err(RequestError::DeserializationError(_))
-            | Err(RequestError::SerializationError(_)) => todo!(),
+            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => todo!(),
             Err(RequestError::HttpStatus(_status)) => todo!(),
+            Err(RequestError::Session) => todo!(),
+            Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 

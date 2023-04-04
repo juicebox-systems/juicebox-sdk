@@ -1,7 +1,11 @@
 [package]
 name = "loam-sdk"
 version = "0.1.0"
-authors = ["Simon Fell <simon@loam.me", "Diego Ongaro <diego@loam.me>", "Nora Trapp <nora@loam.me>"]
+authors = [
+    "Simon Fell <simon@loam.me>",
+    "Diego Ongaro <diego@loam.me>",
+    "Nora Trapp <nora@loam.me>",
+]
 edition = "2021"
 
 [dependencies]
@@ -10,9 +14,12 @@ futures = { workspace = true }
 hmac = { workspace = true }
 loam-sdk-core = { path = "../../sdk/core" }
 loam-sdk-networking = { path = "../../sdk/networking" }
+loam-sdk-noise = { path = "../../sdk/noise" }
 rand = { workspace = true }
 sha2 = { workspace = true }
 sharks = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 voprf = { workspace = true }
+x25519-dalek = { workspace = true }

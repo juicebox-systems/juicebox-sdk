@@ -1,7 +1,11 @@
 [package]
 name = "loam-sdk-networking"
 version = "0.1.0"
-authors = ["Simon Fell <simon@loam.me", "Diego Ongaro <diego@loam.me>", "Nora Trapp <nora@loam.me>"]
+authors = [
+    "Simon Fell <simon@loam.me>",
+    "Diego Ongaro <diego@loam.me>",
+    "Nora Trapp <nora@loam.me>",
+]
 edition = "2021"
 
 [dependencies]

@@ -50,6 +50,7 @@ jobs:
     - name: Run cargo test
       uses: actions-rs/cargo@v1
       with:
+        args: --workspace
         command: test
       env:
         RUST_BACKTRACE: '1'
