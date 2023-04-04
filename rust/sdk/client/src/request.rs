@@ -29,9 +29,9 @@ pub(crate) enum RequestError {
     InvalidAuth,
     /// Local or remote errors with encrypting/decrypting Noise sessions,
     /// including [`ClientResponse::SessionError`].
-    SessionError,
+    Session,
     /// See [`ClientResponse::DecodingError`].
-    DecodingError,
+    Decoding,
 }
 
 impl From<RpcError> for RequestError {
@@ -76,7 +76,7 @@ impl<Http: http::Client> Client<Http> {
             x25519::PublicKey::from(buf)
         };
         let (handshake, fields) = noise::Handshake::start(&realm_public_key, request, &mut OsRng)
-            .map_err(|_| RequestError::SessionError)?;
+            .map_err(|_| RequestError::Session)?;
         let session_id = SessionId(OsRng.next_u32());
 
         match rpc::send(
@@ -102,7 +102,7 @@ impl<Http: http::Client> Client<Http> {
             }) => {
                 let (transport, response) = handshake
                     .finish(&noise)
-                    .map_err(|_| RequestError::SessionError)?;
+                    .map_err(|_| RequestError::Session)?;
                 Ok((
                     Session {
                         session_id,
@@ -115,8 +115,8 @@ impl<Http: http::Client> Client<Http> {
             }
             ClientResponse::Ok(NoiseResponse::Transport { .. })
             | ClientResponse::MissingSession
-            | ClientResponse::SessionError => Err(RequestError::SessionError),
-            ClientResponse::DecodingError => Err(RequestError::DecodingError),
+            | ClientResponse::SessionError => Err(RequestError::Session),
+            ClientResponse::DecodingError => Err(RequestError::Decoding),
             ClientResponse::Unavailable => Err(RequestError::Unavailable),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth),
         }
@@ -140,7 +140,7 @@ impl<Http: http::Client> Client<Http> {
                     session
                         .transport
                         .encrypt(request)
-                        .map_err(|_| RequestError::SessionError)?,
+                        .map_err(|_| RequestError::Session)?,
                 ),
             },
         )
@@ -152,12 +152,12 @@ impl<Http: http::Client> Client<Http> {
                 Ok(session
                     .transport
                     .decrypt(response.as_slice())
-                    .map_err(|_| RequestError::SessionError)?)
+                    .map_err(|_| RequestError::Session)?)
             }
             ClientResponse::Ok(NoiseResponse::Handshake { .. }) | ClientResponse::SessionError => {
-                Err(RequestError::SessionError.into())
+                Err(RequestError::Session.into())
             }
-            ClientResponse::DecodingError => Err(RequestError::DecodingError.into()),
+            ClientResponse::DecodingError => Err(RequestError::Decoding.into()),
             ClientResponse::Unavailable => Err(RequestError::Unavailable.into()),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth.into()),
             ClientResponse::MissingSession => Err(RequestErrorOrMissingSession::MissingSession),
@@ -176,14 +176,14 @@ impl<Http: http::Client> Client<Http> {
                 let (mut session, handshake_response) =
                     self.make_handshake_request(realm, &[]).await?;
                 if !handshake_response.is_empty() {
-                    return Err(RequestError::SessionError.into());
+                    return Err(RequestError::Session.into());
                 }
                 let response = self
                     .make_transport_request(realm, &mut session, request)
                     .await
                     .map_err(|e| match e {
                         RequestErrorOrMissingSession::RequestError(e) => e,
-                        RequestErrorOrMissingSession::MissingSession => RequestError::SessionError,
+                        RequestErrorOrMissingSession::MissingSession => RequestError::Session,
                     })?;
                 Ok((session, response))
             }
@@ -231,6 +231,6 @@ impl<Http: http::Client> Client<Http> {
                 }
             }
         }
-        Err(RequestError::SessionError)
+        Err(RequestError::Session)
     }
 }

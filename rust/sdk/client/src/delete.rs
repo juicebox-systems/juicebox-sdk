@@ -55,8 +55,8 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::Network) => Err(DeleteError::NetworkError),
             Err(RequestError::Deserialization(_)) | Err(RequestError::Serialization(_)) => todo!(),
             Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::SessionError) => todo!(),
-            Err(RequestError::DecodingError) => todo!(),
+            Err(RequestError::Session) => todo!(),
+            Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
 

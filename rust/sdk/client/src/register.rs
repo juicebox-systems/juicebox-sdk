@@ -237,8 +237,8 @@ impl<Http: http::Client> Client<Http> {
                 Err(RegisterGenError::Error(RegisterError::ProtocolError))
             }
             Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::SessionError) => todo!(),
-            Err(RequestError::DecodingError) => todo!(),
+            Err(RequestError::Session) => todo!(),
+            Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => {
                 Err(RegisterGenError::Error(RegisterError::InvalidAuth))
@@ -302,8 +302,8 @@ impl<Http: http::Client> Client<Http> {
                 Err(RegisterError::ProtocolError)
             }
             Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::SessionError) => todo!(),
-            Err(RequestError::DecodingError) => todo!(),
+            Err(RequestError::Session) => todo!(),
+            Err(RequestError::Decoding) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
 
