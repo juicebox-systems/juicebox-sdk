@@ -99,20 +99,16 @@ pub struct HttpResponse {
 
 impl From<HttpResponse> for sdk::http::Response {
     fn from(ffi: HttpResponse) -> Self {
-        let body = match ffi.body.to_vec() {
-            Ok(value) => value,
-            Err(_) => panic!("body pointer is unexpectedly null"),
-        };
+        let body = ffi
+            .body
+            .to_vec()
+            .expect("body pointer is unexpectedly null");
 
-        if ffi.headers.is_null() {
-            panic!("headers pointer is unexpectedly null.");
-        }
-
-        let headers_vec: Vec<HttpHeader> = match ffi.headers.to_vec() {
-            Ok(value) => value,
-            Err(_) => panic!("headers pointer is unexpectedly null."),
-        };
-
+        assert!(!ffi.headers.is_null());
+        let headers_vec: Vec<HttpHeader> = ffi
+            .headers
+            .to_vec()
+            .expect("headers pointer is unexpectedly null.");
         let headers = headers_vec
             .into_iter()
             .filter_map(|header| {

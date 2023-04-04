@@ -182,22 +182,10 @@ pub unsafe extern "C" fn loam_client_register(
     num_guesses: u16,
     response: extern "C" fn(context: &c_void, error: *const RegisterError),
 ) {
+    assert!(!client.is_null());
     let context = &*context;
-
-    if client.is_null() {
-        panic!("client pointer unexpectedly null");
-    }
-
-    let pin = match pin.to_vec() {
-        Ok(value) => value,
-        Err(_) => panic!("pin pointer unexpectedly null")
-    };
-
-    let secret = match secret.to_vec() {
-        Ok(value) => value,
-        Err(_) => panic!("secret pointer unexpectedly null")
-    };
-
+    let pin = pin.to_vec().expect("pin pointer unexpectedly null");
+    let secret = secret.to_vec().expect("secret pointer unexpectedly null");
     let client = &*client;
 
     Runtime::new().unwrap().spawn_blocking(move || {
@@ -255,17 +243,9 @@ pub unsafe extern "C" fn loam_client_recover(
         error: *const RecoverError,
     ),
 ) {
+    assert!(!client.is_null());
     let context = &*context;
-
-    if client.is_null() {
-        panic!("client pointer unexpectedly null")
-    }
-
-    let pin = match pin.to_vec() {
-        Ok(value) => value,
-        Err(_) => panic!("pin pointer unexpectedly null")
-    };
-
+    let pin = pin.to_vec().expect("pin pointer unexpectedly null");
     let client = &*client;
 
     Runtime::new().unwrap().spawn_blocking(move || {
@@ -314,12 +294,8 @@ pub unsafe extern "C" fn loam_client_delete_all(
     context: *const c_void,
     response: extern "C" fn(context: &c_void, error: *const DeleteError),
 ) {
+    assert!(!client.is_null());
     let context = &*context;
-
-    if client.is_null() {
-        panic!("client pointer unexpectedly null");
-    }
-
     let client = &*client;
 
     Runtime::new().unwrap().spawn_blocking(move || {
