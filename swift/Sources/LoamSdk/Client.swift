@@ -47,7 +47,7 @@ public class Client {
                         let box: Box<CheckedContinuation<Void, Error>>
                             = Unmanaged.fromOpaque(context).takeRetainedValue()
                         if let error = error?.pointee {
-                            box.value.resume(throwing: error)
+                            box.value.resume(throwing: RegisterError(error))
                         } else {
                             box.value.resume(returning: ())
                         }
@@ -88,7 +88,7 @@ public class Client {
                 guard let context = context else { fatalError() }
                 let box: Box<CheckedContinuation<Void, Error>> = Unmanaged.fromOpaque(context).takeRetainedValue()
                 if let error = error?.pointee {
-                    box.value.resume(throwing: error)
+                    box.value.resume(throwing: DeleteError(error))
                 } else {
                     box.value.resume(returning: ())
                 }

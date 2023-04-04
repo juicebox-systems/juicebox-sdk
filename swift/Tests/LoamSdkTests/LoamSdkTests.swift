@@ -7,8 +7,8 @@ final class LoamSdkTests: XCTestCase {
         let client = client(url: "https://httpbin.org/anything/")
         do {
             try await client.register(pin: Data(), secret: Data(), guesses: 5)
-        } catch let error as LoamRegisterError {
-            XCTAssertEqual(LoamRegisterErrorProtocolError, error)
+        } catch RegisterError.protocolError {
+
         }
     }
 
@@ -17,8 +17,8 @@ final class LoamSdkTests: XCTestCase {
         do {
             let secret = try await client.recover(pin: Data())
             XCTAssertNil(secret)
-        } catch let error as LoamRecoverError {
-            XCTAssertEqual(LoamRecoverErrorProtocolError, error)
+        } catch RecoverError.protocolError {
+
         }
     }
 
@@ -26,8 +26,8 @@ final class LoamSdkTests: XCTestCase {
         let client = client(url: "https://httpbin.org/anything/")
         do {
             try await client.deleteAll()
-        } catch let error as LoamDeleteError {
-            XCTAssertEqual(LoamDeleteErrorProtocolError, error)
+        } catch DeleteError.protocolError {
+
         }
     }
 
