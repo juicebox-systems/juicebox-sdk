@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'LoamSdk'
-  s.license          = 'MIT'
+  s.license          = 'proprietary'
   s.author           = { 'Nora Trapp' => 'nora@loam.me' }
   s.version          = '0.0.1'
   s.summary          = 'A Swift wrapper library for interfacing with the Loam service.'
