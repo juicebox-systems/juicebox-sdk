@@ -10,6 +10,11 @@ use url::Url;
 use crate::buffer::{ManagedBuffer, UnmanagedBuffer};
 use crate::http::{HttpClient, HttpSendFn};
 
+pub struct Client {
+    sdk: sdk::Client<HttpClient>,
+    runtime: Runtime,
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Configuration {
@@ -137,16 +142,19 @@ pub unsafe extern "C" fn loam_client_create(
     configuration: Configuration,
     auth_token: AuthToken,
     http_send: HttpSendFn,
-) -> *mut sdk::Client<HttpClient> {
+) -> *mut Client {
     let configuration = sdk::Configuration::from(configuration);
     let auth_token = sdk::AuthToken::from(auth_token);
     let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
-    Box::into_raw(Box::new(client))
+    Box::into_raw(Box::new(Client {
+        sdk: client,
+        runtime: Runtime::new().unwrap(),
+    }))
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_destroy(client: *mut sdk::Client<HttpClient>) {
+pub unsafe extern "C" fn loam_client_destroy(client: *mut Client) {
     if !client.is_null() {
         drop(Box::from_raw(client))
     }
@@ -181,7 +189,7 @@ impl From<sdk::RegisterError> for RegisterError {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_register(
-    client: *mut sdk::Client<HttpClient>,
+    client: *mut Client,
     context: *const c_void,
     pin: UnmanagedBuffer<u8>,
     secret: UnmanagedBuffer<u8>,
@@ -194,9 +202,10 @@ pub unsafe extern "C" fn loam_client_register(
     let secret = secret.to_vec().expect("secret pointer unexpectedly null");
     let client = &*client;
 
-    Runtime::new().unwrap().spawn_blocking(move || {
-        match Runtime::new().unwrap().block_on(async {
+    client.runtime.spawn_blocking(move || {
+        match client.runtime.block_on(async {
             client
+                .sdk
                 .register(
                     &sdk::Pin(pin),
                     &sdk::UserSecret(secret),
@@ -240,7 +249,7 @@ impl From<sdk::RecoverError> for RecoverError {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_recover(
-    client: *mut sdk::Client<HttpClient>,
+    client: *mut Client,
     context: *const c_void,
     pin: UnmanagedBuffer<u8>,
     response: extern "C" fn(
@@ -254,10 +263,10 @@ pub unsafe extern "C" fn loam_client_recover(
     let pin = pin.to_vec().expect("pin pointer unexpectedly null");
     let client = &*client;
 
-    Runtime::new().unwrap().spawn_blocking(move || {
-        match Runtime::new()
-            .unwrap()
-            .block_on(async { client.recover(&sdk::Pin(pin)).await })
+    client.runtime.spawn_blocking(move || {
+        match client
+            .runtime
+            .block_on(async { client.sdk.recover(&sdk::Pin(pin)).await })
         {
             Ok(secret) => {
                 let secret = ManagedBuffer(secret.0).to_unmanaged();
@@ -296,7 +305,7 @@ impl From<sdk::DeleteError> for DeleteError {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_delete_all(
-    client: *mut sdk::Client<HttpClient>,
+    client: *mut Client,
     context: *const c_void,
     response: extern "C" fn(context: &c_void, error: *const DeleteError),
 ) {
@@ -304,10 +313,10 @@ pub unsafe extern "C" fn loam_client_delete_all(
     let context = &*context;
     let client = &*client;
 
-    Runtime::new().unwrap().spawn_blocking(move || {
-        match Runtime::new()
-            .unwrap()
-            .block_on(async { client.delete_all().await })
+    client.runtime.spawn_blocking(move || {
+        match client
+            .runtime
+            .block_on(async { client.sdk.delete_all().await })
         {
             Ok(_) => (response)(context, ptr::null()),
             Err(err) => {

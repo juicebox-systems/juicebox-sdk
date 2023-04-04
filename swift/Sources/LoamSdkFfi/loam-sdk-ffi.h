@@ -35,10 +35,6 @@ typedef enum {
   LoamRegisterErrorUnavailable,
 } LoamRegisterError;
 
-/**
- * Used to register and recover PIN-protected secrets on behalf of a
- * particular user.
- */
 typedef struct LoamClient LoamClient;
 
 typedef struct LoamHttpClient LoamHttpClient;
