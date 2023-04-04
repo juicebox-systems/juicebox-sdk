@@ -32,7 +32,7 @@ public class Client {
         loam_client_destroy(opaque)
     }
 
-    func register(pin: Data, secret: Data, guesses: UInt16) async throws {
+    public func register(pin: Data, secret: Data, guesses: UInt16) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             pin.withLoamUnmanagedDataArray { pinArray in
                 secret.withLoamUnmanagedDataArray { secretArray in
@@ -57,7 +57,7 @@ public class Client {
         }
     }
 
-    func recover(pin: Data) async throws -> Data {
+    public func recover(pin: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
             pin.withLoamUnmanagedDataArray { pinArray in
                 loam_client_recover(
@@ -68,18 +68,18 @@ public class Client {
                     guard let context = context else { fatalError() }
                     let box: Box<CheckedContinuation<Data, Error>> = Unmanaged.fromOpaque(context).takeRetainedValue()
                     if let error = error?.pointee {
-                        box.value.resume(throwing: error)
+                        box.value.resume(throwing: RecoverError(error))
                     } else if let secret = Data(secretBuffer) {
                         box.value.resume(returning: secret)
                     } else {
-                        box.value.resume(throwing: LoamRecoverErrorUnsuccessful)
+                        box.value.resume(throwing: RecoverError.unsuccessful)
                     }
                 }
             }
         }
     }
 
-    func deleteAll() async throws {
+    public func deleteAll() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             loam_client_delete_all(
                 opaque,

@@ -13,6 +13,12 @@ public struct AuthToken {
     public let user: String
     public let signature: Data
 
+    public init(tenant: String, user: String, signature: Data) {
+        self.tenant = tenant
+        self.user = user
+        self.signature = signature
+    }
+
     func withUnsafeFfi<Result>(_ body: (LoamAuthToken) throws -> Result) rethrows -> Result {
         try tenant.withCString { tenantCStr in
             try user.withCString { userCStr in
