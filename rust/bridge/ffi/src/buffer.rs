@@ -44,7 +44,7 @@ impl<Instance: Clone> UnmanagedBuffer<Instance> {
     /// buffer is effectively transferred to the ManagedBuffer<Instance> which may then deallocate,
     /// reallocate or change the contents of memory pointed to by the buffer at will. Ensure that
     /// nothing else uses the buffer after calling this function.
-    pub fn to_managed(&self) -> Result<ManagedBuffer<Instance>, &'static str> {
+    pub fn to_managed(self) -> Result<ManagedBuffer<Instance>, &'static str> {
         if self.is_null() {
             return Err("Unmanaged data is unexpectedly null.");
         }
