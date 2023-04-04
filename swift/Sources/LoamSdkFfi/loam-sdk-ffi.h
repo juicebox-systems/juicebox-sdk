@@ -9,8 +9,7 @@
 #include <stdlib.h>
 
 typedef enum {
-  LoamDeleteErrorNullClient = 0,
-  LoamDeleteErrorInvalidAuth,
+  LoamDeleteErrorInvalidAuth = 0,
   LoamDeleteErrorNetworkError,
   LoamDeleteErrorProtocolError,
 } LoamDeleteError;
@@ -23,19 +22,14 @@ typedef enum {
 } LoamHttpRequestMethod;
 
 typedef enum {
-  LoamRecoverErrorNullClient = 0,
-  LoamRecoverErrorNullPin,
-  LoamRecoverErrorInvalidAuth,
+  LoamRecoverErrorInvalidAuth = 0,
   LoamRecoverErrorNetworkError,
   LoamRecoverErrorUnsuccessful,
   LoamRecoverErrorProtocolError,
 } LoamRecoverError;
 
 typedef enum {
-  LoamRegisterErrorNullClient = 0,
-  LoamRegisterErrorNullPin,
-  LoamRegisterErrorNullSecret,
-  LoamRegisterErrorInvalidAuth,
+  LoamRegisterErrorInvalidAuth = 0,
   LoamRegisterErrorNetworkError,
   LoamRegisterErrorProtocolError,
   LoamRegisterErrorUnavailable,

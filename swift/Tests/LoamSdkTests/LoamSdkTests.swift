@@ -39,7 +39,7 @@ final class LoamSdkTests: XCTestCase {
                     .init(
                         id: .init(),
                         address: URL(string: url)!,
-                        publicKey: Data()
+                        publicKey: Data(repeating: 0, count: 32)
                     )
                 ],
                 registerThreshold: 1,

@@ -148,10 +148,7 @@ pub unsafe extern "C" fn loam_client_destroy(client: *mut sdk::Client<HttpClient
 
 #[repr(C)]
 pub enum RegisterError {
-    NullClient = 0,
-    NullPin,
-    NullSecret,
-    InvalidAuth,
+    InvalidAuth = 0,
     NetworkError,
     ProtocolError,
     Unavailable,
@@ -188,30 +185,17 @@ pub unsafe extern "C" fn loam_client_register(
     let context = &*context;
 
     if client.is_null() {
-        let error_ptr = Box::into_raw(Box::new(RegisterError::NullClient));
-        response(context, error_ptr);
-        drop(Box::from_raw(error_ptr));
-        return;
+        panic!("client pointer unexpectedly null");
     }
 
     let pin = match pin.to_vec() {
         Ok(value) => value,
-        Err(_) => {
-            let error_ptr = Box::into_raw(Box::new(RegisterError::NullPin));
-            response(context, error_ptr);
-            drop(Box::from_raw(error_ptr));
-            return;
-        }
+        Err(_) => panic!("pin pointer unexpectedly null")
     };
 
     let secret = match secret.to_vec() {
         Ok(value) => value,
-        Err(_) => {
-            let error_ptr = Box::into_raw(Box::new(RegisterError::NullSecret));
-            response(context, error_ptr);
-            drop(Box::from_raw(error_ptr));
-            return;
-        }
+        Err(_) => panic!("secret pointer unexpectedly null")
     };
 
     let client = &*client;
@@ -238,9 +222,7 @@ pub unsafe extern "C" fn loam_client_register(
 
 #[repr(C)]
 pub enum RecoverError {
-    NullClient = 0,
-    NullPin,
-    InvalidAuth,
+    InvalidAuth = 0,
     NetworkError,
     Unsuccessful,
     ProtocolError,
@@ -276,20 +258,12 @@ pub unsafe extern "C" fn loam_client_recover(
     let context = &*context;
 
     if client.is_null() {
-        let error_ptr = Box::into_raw(Box::new(RecoverError::NullClient));
-        response(context, UnmanagedBuffer::null(), error_ptr);
-        drop(Box::from_raw(error_ptr));
-        return;
+        panic!("client pointer unexpectedly null")
     }
 
     let pin = match pin.to_vec() {
         Ok(value) => value,
-        Err(_) => {
-            let error_ptr = Box::into_raw(Box::new(RecoverError::NullPin));
-            response(context, UnmanagedBuffer::null(), error_ptr);
-            drop(Box::from_raw(error_ptr));
-            return;
-        }
+        Err(_) => panic!("pin pointer unexpectedly null")
     };
 
     let client = &*client;
@@ -315,8 +289,7 @@ pub unsafe extern "C" fn loam_client_recover(
 
 #[repr(C)]
 pub enum DeleteError {
-    NullClient = 0,
-    InvalidAuth,
+    InvalidAuth = 0,
     NetworkError,
     ProtocolError,
 }
@@ -344,10 +317,7 @@ pub unsafe extern "C" fn loam_client_delete_all(
     let context = &*context;
 
     if client.is_null() {
-        let error_ptr = Box::into_raw(Box::new(DeleteError::NullClient));
-        response(context, error_ptr);
-        drop(Box::from_raw(error_ptr));
-        return;
+        panic!("client pointer unexpectedly null");
     }
 
     let client = &*client;
