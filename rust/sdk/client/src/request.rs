@@ -209,6 +209,13 @@ impl<Http: http::Client> Client<Http> {
         let request = marshalling::to_vec(&request).map_err(RequestError::Serialization)?;
         // TODO: should we add some padding to the requests? and their responses?
         let mut locked = self.sessions.get(&realm.id).unwrap().lock().await;
+
+        // The first iteration of this loop attempts the request with an
+        // existing session, if available. Subsequent iterations always use a
+        // new session. Even using a brand new session can result in a
+        // `MissingSession` error, if the server restarts at an inopportune
+        // time. This loop tries a few times, but beyond that, it's not likely
+        // to succeed.
         for _attempt in 0..3 {
             let session = locked
                 .take()
