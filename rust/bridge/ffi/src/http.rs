@@ -117,18 +117,18 @@ impl TryFrom<HttpResponse> for sdk::http::Response {
 
         let headers = headers_vec
             .into_iter()
-            .fold(HashMap::new(), |mut acc, header| {
+            .filter_map(|header| {
                 let name = match unsafe { CStr::from_ptr(header.name) }.to_str() {
                     Ok(value) => value.to_string(),
-                    Err(_) => return acc,
+                    Err(_) => return None,
                 };
                 let value = match unsafe { CStr::from_ptr(header.value) }.to_str() {
                     Ok(value) => value.to_string(),
-                    Err(_) => return acc,
+                    Err(_) => return None,
                 };
-                acc.insert(name, value);
-                acc
-            });
+                Some((name, value))
+            })
+            .collect::<HashMap<_, _>>();
 
         Ok(sdk::http::Response {
             status_code: ffi.status_code,
