@@ -20,6 +20,8 @@
 //!   other way.
 //! - Noise limits messages to 65535 bytes, whereas this module does not.
 
+#![cfg_attr(not(test), no_std)]
+
 extern crate alloc;
 
 use alloc::vec::Vec;
