@@ -15,6 +15,17 @@ public class Client {
     public let configuration: Configuration
     public let authToken: AuthToken
 
+    #if !os(Linux)
+    // TODO: I hate that this references a global, but
+    // it's a byproduct of http-send being a C function pointer.
+    // Could/should be cleaned up by passing around even *more* context
+    // pointers.
+    public var pinnedCertificatePaths: [URL]? {
+        get { LoamSdk.pinnedCertificatePaths }
+        set { LoamSdk.pinnedCertificatePaths = newValue }
+    }
+    #endif
+
     private let opaque: OpaquePointer
 
     public init(configuration: Configuration, authToken: AuthToken) {
@@ -97,13 +108,19 @@ public class Client {
     }
 }
 
+private var pinnedCertificatePaths: [URL]?
+private let httpSession = URLSession(configuration: .ephemeral, delegate: TLSSessionPinningDelegate(), delegateQueue: .main)
+
 let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
     guard let responseCallback = responseCallback else { return }
     guard let requestPointer = requestPointer else {
         responseCallback(context, nil)
         return
     }
-    URLSession.shared.dataTask(
+
+    let requestId = requestPointer.pointee.id
+
+    httpSession.dataTask(
         with: URLRequest(loam: requestPointer.pointee)
     ) { responseData, response, _ in
         guard let response = response as? HTTPURLResponse, let responseData = responseData else {
@@ -138,7 +155,7 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
             headers.withUnsafeBufferPointer { headersBuffer in
                 responseData.withLoamUnmanagedDataArray { bodyArray in
                     let response = LoamHttpResponse(
-                        id: requestPointer.pointee.id,
+                        id: requestId,
                         status_code: UInt16(response.statusCode),
                         headers: .init(data: headersBuffer.baseAddress, length: headersBuffer.count),
                         body: bodyArray
@@ -150,6 +167,53 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
             }
         }
     }.resume()
+}
+
+private class TLSSessionPinningDelegate: NSObject, URLSessionDelegate {
+    #if !os(Linux)
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?
+    ) -> Void) {
+        var disposition: URLSession.AuthChallengeDisposition = .performDefaultHandling
+        var credential: URLCredential?
+
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+           let serverTrust = challenge.protectionSpace.serverTrust {
+            if evaluateServerTrust(serverTrust, forDomain: challenge.protectionSpace.host) {
+                credential = URLCredential(trust: serverTrust)
+                disposition = .useCredential
+            } else {
+                disposition = .cancelAuthenticationChallenge
+            }
+        } else {
+            disposition = .performDefaultHandling
+        }
+
+        completionHandler(disposition, credential)
+    }
+
+    func evaluateServerTrust(_ serverTrust: SecTrust, forDomain domain: String) -> Bool {
+        let policy = SecPolicyCreateSSL(true, domain as CFString)
+        guard SecTrustSetPolicies(serverTrust, policy) == errSecSuccess else {
+            return false
+        }
+
+        if let pinnedCertificatePaths = pinnedCertificatePaths, !pinnedCertificatePaths.isEmpty {
+            let pinnedCertificates = pinnedCertificatePaths
+                .lazy
+                .compactMap { try? Data(contentsOf: $0) }
+                .map { SecCertificateCreateWithData(nil, $0 as CFData) }
+
+            guard SecTrustSetAnchorCertificates(serverTrust, Array(pinnedCertificates) as CFArray) == errSecSuccess else {
+                return false
+            }
+        }
+
+        return SecTrustEvaluateWithError(serverTrust, nil)
+    }
+    #endif
 }
 
 private class Box<T> {
