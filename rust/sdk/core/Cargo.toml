@@ -2,7 +2,7 @@
 name = "loam-sdk-core"
 version = "0.1.0"
 authors = [
-    "Simon Fell <simon@loam.me",
+    "Simon Fell <simon@loam.me>",
     "Diego Ongaro <diego@loam.me>",
     "Nora Trapp <nora@loam.me>",
 ]
