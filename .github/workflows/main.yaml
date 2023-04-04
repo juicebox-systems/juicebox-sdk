@@ -27,18 +27,17 @@ jobs:
     - name: Install Rust stable toolchain
       uses: actions-rs/toolchain@v1
       with:
-        override: 'true'
         profile: minimal
         toolchain: stable
 
     - name: Use Rust/Cargo cache
       uses: actions/cache@v3
       with:
-        key: cargo-ubuntu-20.04-stable-${{ hashFiles('Cargo.lock') }}
+        key: cargo-${{ runner.os }}-stable-${{ hashFiles('Cargo.lock') }}
         path: |
           ~/.cargo/registry
           ~/.cargo/git/
-        restore-keys: cargo-ubuntu-20.04-stable-
+        restore-keys: cargo-${{ runner.os }}-stable-
 
     - name: Install cbindgen
       run: cargo +stable install cbindgen --version 0.24.3
@@ -65,11 +64,11 @@ jobs:
       - name: Use Rust/Cargo cache
         uses: actions/cache@v3
         with:
-          key: cargo-macOS-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ runner.os }}-stable-${{ hashFiles('Cargo.lock') }}
           path: |
             ~/.cargo/registry
             ~/.cargo/git/
-          restore-keys: cargo-macOS-stable-
+          restore-keys: cargo-${{ runner.os }}-stable-
 
       - name: Run pod lint
         run: pod lib lint --verbose
@@ -91,11 +90,11 @@ jobs:
       - name: Use Rust/Cargo cache
         uses: actions/cache@v3
         with:
-          key: cargo-ubuntu-20.04-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ runner.os }}-stable-${{ hashFiles('Cargo.lock') }}
           path: |
             ~/.cargo/registry
             ~/.cargo/git/
-          restore-keys: cargo-ubuntu-20.04-stable-
+          restore-keys: cargo-${{ runner.os }}-stable-
 
       - name: Run cargo build
         uses: actions-rs/cargo@v1

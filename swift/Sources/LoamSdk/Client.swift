@@ -109,7 +109,11 @@ public class Client {
 }
 
 private var pinnedCertificatePaths: [URL]?
-private let httpSession = URLSession(configuration: .ephemeral, delegate: TLSSessionPinningDelegate(), delegateQueue: .main)
+private let httpSession = URLSession(
+    configuration: .ephemeral,
+    delegate: TLSSessionPinningDelegate(),
+    delegateQueue: .main
+)
 
 let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
     guard let responseCallback = responseCallback else { return }
@@ -206,7 +210,10 @@ private class TLSSessionPinningDelegate: NSObject, URLSessionDelegate {
                 .compactMap { try? Data(contentsOf: $0) }
                 .map { SecCertificateCreateWithData(nil, $0 as CFData) }
 
-            guard SecTrustSetAnchorCertificates(serverTrust, Array(pinnedCertificates) as CFArray) == errSecSuccess else {
+            guard SecTrustSetAnchorCertificates(
+                serverTrust,
+                Array(pinnedCertificates) as CFArray
+            ) == errSecSuccess else {
                 return false
             }
         }
