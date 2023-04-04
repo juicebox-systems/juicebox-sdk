@@ -125,6 +125,10 @@ impl From<AuthToken> for sdk::AuthToken {
 /// The function pointer `http_send` will be called when the client wishes
 /// to make a network request. The appropriate request should be executed
 /// by you, and the the response provided to the response function pointer.
+/// This send should be performed asynchronously. `http_send` should not
+/// block on performing the request, and the response should be returned
+/// to the `response` function pointer argument when the asynchronous work
+/// has completed.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_create(
