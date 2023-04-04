@@ -91,17 +91,17 @@ impl<Http: http::Client> Client<Http> {
                 } else {
                     ClientRequestKind::SecretsRequest
                 },
-                encrypted: NoiseRequest::Handshake(fields),
+                encrypted: NoiseRequest::Handshake { handshake: fields },
             },
         )
         .await?
         {
             ClientResponse::Ok(NoiseResponse::Handshake {
-                noise,
+                handshake: handshake_response,
                 session_lifetime,
             }) => {
                 let (transport, response) = handshake
-                    .finish(&noise)
+                    .finish(&handshake_response)
                     .map_err(|_| RequestError::Session)?;
                 Ok((
                     Session {
@@ -136,22 +136,22 @@ impl<Http: http::Client> Client<Http> {
                 auth_token: self.auth_token.clone(),
                 session_id: session.session_id,
                 kind: ClientRequestKind::SecretsRequest,
-                encrypted: NoiseRequest::Transport(
-                    session
+                encrypted: NoiseRequest::Transport {
+                    ciphertext: session
                         .transport
                         .encrypt(request)
                         .map_err(|_| RequestError::Session)?,
-                ),
+                },
             },
         )
         .await
         .map_err(RequestError::from)?
         {
-            ClientResponse::Ok(NoiseResponse::Transport(response)) => {
+            ClientResponse::Ok(NoiseResponse::Transport { ciphertext }) => {
                 session.last_used = Instant::now();
                 Ok(session
                     .transport
-                    .decrypt(response.as_slice())
+                    .decrypt(ciphertext.as_slice())
                     .map_err(|_| RequestError::Session)?)
             }
             ClientResponse::Ok(NoiseResponse::Handshake { .. }) | ClientResponse::SessionError => {

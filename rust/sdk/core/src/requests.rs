@@ -56,15 +56,19 @@ pub enum ClientResponse {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum NoiseRequest {
-    Handshake(noise::HandshakeRequest),
-    Transport(Vec<u8>),
+    Handshake { handshake: noise::HandshakeRequest },
+    Transport { ciphertext: Vec<u8> },
 }
 
 impl fmt::Debug for NoiseRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Handshake { .. } => f.write_str("NoiseRequest::Handshake(_)"),
-            Self::Transport { .. } => f.write_str("NoiseRequest::Transport(_)"),
+            Self::Handshake { .. } => f
+                .debug_struct("NoiseRequest::Handshake")
+                .finish_non_exhaustive(),
+            Self::Transport { .. } => f
+                .debug_struct("NoiseRequest::Transport")
+                .finish_non_exhaustive(),
         }
     }
 }
@@ -72,12 +76,14 @@ impl fmt::Debug for NoiseRequest {
 #[derive(Deserialize, Serialize)]
 pub enum NoiseResponse {
     Handshake {
-        noise: noise::HandshakeResponse,
+        handshake: noise::HandshakeResponse,
         /// Once the session becomes inactive for this many milliseconds, the
         /// client should discard the session.
         session_lifetime: Duration,
     },
-    Transport(Vec<u8>),
+    Transport {
+        ciphertext: Vec<u8>,
+    },
 }
 
 impl fmt::Debug for NoiseResponse {
@@ -89,7 +95,9 @@ impl fmt::Debug for NoiseResponse {
                 .debug_struct("NoiseResponse::Handshake")
                 .field("session_lifetime", &session_lifetime)
                 .finish_non_exhaustive(),
-            Self::Transport { .. } => f.write_str("NoiseResponse::Transport(_)"),
+            Self::Transport { .. } => f
+                .debug_struct("NoiseResponse::Transport")
+                .finish_non_exhaustive(),
         }
     }
 }
