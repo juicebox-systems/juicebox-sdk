@@ -210,16 +210,18 @@ pub struct HttpHeader {
 
 impl From<HashMap<String, String>> for ManagedBuffer<HttpHeader> {
     fn from(value: HashMap<String, String>) -> Self {
-        let mut headers = vec![];
-        for (name, value) in value.iter() {
-            let name_cstr = CString::new(name.clone()).unwrap().into_raw();
-            let value_cstr = CString::new(value.clone()).unwrap().into_raw();
-            headers.push(HttpHeader {
-                name: name_cstr,
-                value: value_cstr,
-            });
-        }
-
-        ManagedBuffer(headers)
+        ManagedBuffer(
+            value
+                .into_iter()
+                .map(|(name, value)| {
+                    let name_cstr = CString::new(name).unwrap().into_raw();
+                    let value_cstr = CString::new(value).unwrap().into_raw();
+                    HttpHeader {
+                        name: name_cstr,
+                        value: value_cstr,
+                    }
+                })
+                .collect(),
+        )
     }
 }
