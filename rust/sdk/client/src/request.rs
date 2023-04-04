@@ -1,5 +1,5 @@
 use rand::{rngs::OsRng, RngCore};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use x25519_dalek as x25519;
 
 use crate::{http, types::Session, Client, Realm};
@@ -98,7 +98,7 @@ impl<Http: http::Client> Client<Http> {
         {
             ClientResponse::Ok(NoiseResponse::Handshake {
                 noise,
-                session_lifetime_millis,
+                session_lifetime,
             }) => {
                 let (transport, response) = handshake
                     .finish(&noise)
@@ -107,7 +107,7 @@ impl<Http: http::Client> Client<Http> {
                     Session {
                         session_id,
                         transport,
-                        lifetime: Duration::from_millis(u64::from(session_lifetime_millis)),
+                        lifetime: session_lifetime,
                         last_used: Instant::now(),
                     },
                     response,

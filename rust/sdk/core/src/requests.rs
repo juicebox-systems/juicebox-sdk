@@ -2,6 +2,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::fmt;
+use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
@@ -74,7 +75,7 @@ pub enum NoiseResponse {
         noise: noise::HandshakeResponse,
         /// Once the session becomes inactive for this many milliseconds, the
         /// client should discard the session.
-        session_lifetime_millis: u32,
+        session_lifetime: Duration,
     },
     Transport(Vec<u8>),
 }
@@ -83,11 +84,10 @@ impl fmt::Debug for NoiseResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Handshake {
-                session_lifetime_millis,
-                ..
+                session_lifetime, ..
             } => f
                 .debug_struct("NoiseResponse::Handshake")
-                .field("session_lifetime_millis", &session_lifetime_millis)
+                .field("session_lifetime", &session_lifetime)
                 .finish_non_exhaustive(),
             Self::Transport { .. } => f.write_str("NoiseResponse::Transport(_)"),
         }
