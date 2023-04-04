@@ -171,12 +171,17 @@ impl sdk::http::Client for HttpClient {
     async fn send(&self, request: sdk::http::Request) -> Option<sdk::http::Response> {
         let (tx, rx) = channel();
 
-        unsafe {
+        {
             let request_ffi = HttpRequest::from(request);
-            let mut request_map = self.request_map.lock().unwrap();
-            request_map.insert(request_ffi.id, tx);
 
-            (self.ffi_send)(self, &request_ffi, ffi_http_receive);
+            {
+                let mut request_map = self.request_map.lock().unwrap();
+                request_map.insert(request_ffi.id, tx);
+            }
+
+            unsafe {
+                (self.ffi_send)(self, &request_ffi, ffi_http_receive);
+            }
         }
 
         rx.await.unwrap()
