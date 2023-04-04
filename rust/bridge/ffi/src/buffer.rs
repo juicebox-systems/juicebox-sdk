@@ -56,7 +56,7 @@ impl<Instance: Clone> UnmanagedBuffer<Instance> {
 
     /// Clones the underlying unmanaged buffer into a new vector. The data referenced by
     /// the unmanaged buffer remains unaltered and unmanaged.
-    pub fn to_vec(self) -> Result<Vec<Instance>, &'static str> {
+    pub fn to_vec(&self) -> Result<Vec<Instance>, &'static str> {
         if self.length == 0 {
             return Ok(vec![]);
         }
