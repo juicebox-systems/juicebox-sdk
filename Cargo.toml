@@ -6,11 +6,7 @@ members = [
     "rust/sdk/noise",
     "rust/bridge/ffi",
 ]
-default-members = [
-    "rust/sdk/client",
-    # TODO: remove noise from this list once the client uses it
-    "rust/sdk/noise",
-]
+default-members = ["rust/sdk/client"]
 
 [workspace.dependencies]
 async-trait = "0.1.64"
@@ -40,6 +36,7 @@ tracing = { git = "https://github.com/tokio-rs/tracing", version = "0.2.0", defa
     "alloc",
     "attributes",
 ] }
+tokio = { version = "1.25.0", features = ["sync"] }
 # The latest Cargo.toml of tracing-opentelemetry in Git has an old version number.
 tracing-opentelemetry = { git = "https://github.com/tokio-rs/tracing", version = "*" }
 url = "2.3.1"
@@ -47,5 +44,5 @@ voprf = { version = "0.4.0" }
 x25519-dalek = { version = "2.0.0-pre.1", default-features = false, features = [
     "reusable_secrets",
     "serde",
-    "u64_backend", # TODO: need 32-bit on HSMs
+    "u64_backend",      # TODO: need 32-bit on HSMs
 ] }

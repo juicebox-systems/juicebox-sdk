@@ -233,11 +233,12 @@ impl<Http: http::Client> Client<Http> {
         );
         match register1_request.await {
             Err(RequestError::Network) => Err(RegisterGenError::Error(RegisterError::NetworkError)),
-            Err(RequestError::DeserializationError(_))
-            | Err(RequestError::SerializationError(_)) => {
+            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
                 Err(RegisterGenError::Error(RegisterError::ProtocolError))
             }
             Err(RequestError::HttpStatus(_status)) => todo!(),
+            Err(RequestError::SessionError) => todo!(),
+            Err(RequestError::DecodingError) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => {
                 Err(RegisterGenError::Error(RegisterError::InvalidAuth))
@@ -297,9 +298,12 @@ impl<Http: http::Client> Client<Http> {
 
         match register2_request.await {
             Err(RequestError::Network) => Err(RegisterError::NetworkError),
-            Err(RequestError::DeserializationError(_))
-            | Err(RequestError::SerializationError(_)) => Err(RegisterError::ProtocolError),
+            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
+                Err(RegisterError::ProtocolError)
+            }
             Err(RequestError::HttpStatus(_status)) => todo!(),
+            Err(RequestError::SessionError) => todo!(),
+            Err(RequestError::DecodingError) => todo!(),
             Err(RequestError::Unavailable) => todo!(),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
 

@@ -3,12 +3,17 @@ use hmac::{Hmac, Mac};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use sha2::Sha256;
+use std::collections::HashSet;
 use std::fmt::{self, Debug};
 use std::iter::zip;
 use std::ops::Deref;
+use std::time::{Duration, Instant};
 use url::Url;
 
-use loam_sdk_core::types::{MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, UnlockTag};
+use loam_sdk_core::types::{
+    MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, SessionId, UnlockTag,
+};
+use loam_sdk_noise::client as noise;
 
 /// A remote service that the client interacts with directly.
 #[derive(Clone)]
@@ -18,7 +23,6 @@ pub struct Realm {
     /// A long-lived public key for which the service has the matching private
     /// key.
     pub public_key: Vec<u8>,
-    /// Temp hack
     pub id: RealmId,
 }
 
@@ -61,12 +65,30 @@ impl CheckedConfiguration {
             "Client needs at least one realm in Configuration"
         );
 
+        assert_eq!(
+            c.realms
+                .iter()
+                .map(|realm| realm.id)
+                .collect::<HashSet<_>>()
+                .len(),
+            c.realms.len(),
+            "realm IDs must be unique in Configuration"
+        );
+
         // The secret sharing implementation (`sharks`) doesn't support more
         // than 255 shares.
         assert!(
             u8::try_from(c.realms.len()).is_ok(),
             "too many realms in Client configuration"
         );
+
+        for realm in &c.realms {
+            assert_eq!(
+                realm.public_key.len(),
+                32,
+                "realm public keys must be 32 bytes" // (x25519 for now)
+            );
+        }
 
         assert!(
             1 <= c.recover_threshold,
@@ -189,4 +211,16 @@ impl TgkShare {
 
 pub(crate) fn oprf_output_size() -> usize {
     <OprfCipherSuite as voprf::CipherSuite>::Hash::output_size()
+}
+
+/// An established Noise communication channel.
+///
+/// After `last_used + lifetime`, the session is considered expired and should
+/// be discarded.
+#[derive(Debug)]
+pub(crate) struct Session {
+    pub session_id: SessionId,
+    pub transport: noise::Transport,
+    pub lifetime: Duration,
+    pub last_used: Instant,
 }

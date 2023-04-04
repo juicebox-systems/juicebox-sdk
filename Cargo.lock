@@ -725,12 +725,15 @@ dependencies = [
  "hmac",
  "loam-sdk-core",
  "loam-sdk-networking",
+ "loam-sdk-noise",
  "rand",
  "sha2",
  "sharks",
+ "tokio",
  "tracing",
  "url",
  "voprf",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -739,6 +742,7 @@ version = "0.1.0"
 dependencies = [
  "ciborium",
  "digest 0.10.6",
+ "loam-sdk-noise",
  "serde",
  "subtle",
  "voprf",

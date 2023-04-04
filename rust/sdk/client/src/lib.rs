@@ -1,11 +1,19 @@
 //! Register and recover PIN-protected secrets on behalf of a particular user.
 //! See [`Client`].
 
+use std::collections::HashMap;
+use std::fmt::Debug;
+use tokio::sync::Mutex;
+use tracing::instrument;
+
 mod delete;
 mod recover;
 mod register;
 mod request;
 mod types;
+
+use loam_sdk_core::types::RealmId;
+use types::{CheckedConfiguration, Session};
 
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy};
@@ -14,18 +22,14 @@ pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use types::{Configuration, Pin, Realm, UserSecret};
 
-use std::fmt::Debug;
-use tracing::instrument;
-
-use crate::types::CheckedConfiguration;
-
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
 #[derive(Debug)]
 pub struct Client<Http: http::Client> {
-    pub(crate) configuration: CheckedConfiguration,
-    pub auth_token: AuthToken,
-    pub http: Http,
+    configuration: CheckedConfiguration,
+    auth_token: AuthToken,
+    http: Http,
+    sessions: HashMap<RealmId, Mutex<Option<Session>>>,
 }
 
 impl<Http: http::Client> Client<Http> {
@@ -36,10 +40,17 @@ impl<Http: http::Client> Client<Http> {
     /// The `auth_token` represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
     pub fn new(configuration: Configuration, auth_token: AuthToken, http: Http) -> Self {
+        let configuration = CheckedConfiguration::from(configuration);
+        let sessions = configuration
+            .realms
+            .iter()
+            .map(|realm| (realm.id, Mutex::new(None)))
+            .collect();
         Self {
-            configuration: CheckedConfiguration::from(configuration),
+            configuration,
             auth_token,
             http,
+            sessions,
         }
     }
 
