@@ -114,7 +114,9 @@ typedef void (*LoamHttpSendFn)(const LoamHttpClient *context, const LoamHttpRequ
  * This send should be performed asynchronously. `http_send` should not
  * block on performing the request, and the response should be returned
  * to the `response` function pointer argument when the asynchronous work
- * has completed.
+ * has completed. The request parameter is only valid for the lifetime
+ * of the `http_send` function and should not be accessed after returning
+ * from the function.
  */
 LoamClient *loam_client_create(LoamConfiguration configuration,
                                LoamAuthToken auth_token,

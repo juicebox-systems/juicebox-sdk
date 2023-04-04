@@ -128,7 +128,9 @@ impl From<AuthToken> for sdk::AuthToken {
 /// This send should be performed asynchronously. `http_send` should not
 /// block on performing the request, and the response should be returned
 /// to the `response` function pointer argument when the asynchronous work
-/// has completed.
+/// has completed. The request parameter is only valid for the lifetime
+/// of the `http_send` function and should not be accessed after returning
+/// from the function.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_create(
