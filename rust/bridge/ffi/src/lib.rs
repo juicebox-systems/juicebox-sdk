@@ -15,7 +15,7 @@ pub struct Client {
     runtime: Runtime,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct Configuration {
     pub realms: UnmanagedArray<Realm>,
@@ -25,12 +25,7 @@ pub struct Configuration {
 
 impl From<Configuration> for sdk::Configuration {
     fn from(ffi: Configuration) -> Self {
-        let ffi_realms: Vec<Realm> = match ffi.realms.to_vec() {
-            Ok(value) => value,
-            Err(_) => panic!("realms pointer is unexpectedly null."),
-        };
-
-        let realms = ffi_realms.into_iter().map(sdk::Realm::from).collect();
+        let realms = ffi.realms.as_slice().iter().map(sdk::Realm::from).collect();
 
         sdk::Configuration {
             realms,
@@ -40,7 +35,7 @@ impl From<Configuration> for sdk::Configuration {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct Realm {
     pub id: [u8; 16],
@@ -48,26 +43,15 @@ pub struct Realm {
     pub public_key: UnmanagedArray<u8>,
 }
 
-impl From<Realm> for sdk::Realm {
-    fn from(ffi: Realm) -> Self {
-        if ffi.address.is_null() {
-            panic!("address pointer unexpectedly null.");
-        }
+impl From<&Realm> for sdk::Realm {
+    fn from(ffi: &Realm) -> Self {
+        assert!(!ffi.address.is_null());
+        let address_str = unsafe { CStr::from_ptr(ffi.address) }
+            .to_str()
+            .expect("invalid string for address");
+        let address = Url::from_str(address_str).expect("invalid URL for address");
 
-        let address_str = match unsafe { CStr::from_ptr(ffi.address) }.to_str() {
-            Ok(value) => value,
-            Err(_) => panic!("Invalid string for address"),
-        };
-
-        let address = match Url::from_str(address_str) {
-            Ok(value) => value,
-            Err(_) => panic!("Invalid url for address"),
-        };
-
-        let public_key = match ffi.public_key.to_vec() {
-            Ok(value) => value,
-            Err(_) => panic!("public_key pointer unexpectedly null."),
-        };
+        let public_key = ffi.public_key.to_vec();
 
         sdk::Realm {
             address,
@@ -77,7 +61,7 @@ impl From<Realm> for sdk::Realm {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct AuthToken {
     pub tenant: *const c_char,
@@ -85,32 +69,21 @@ pub struct AuthToken {
     pub signature: UnmanagedArray<u8>,
 }
 
-impl From<AuthToken> for sdk::AuthToken {
-    fn from(ffi: AuthToken) -> Self {
-        if ffi.tenant.is_null() {
-            panic!("tenant pointer unexpectedly null.");
-        }
+impl From<&AuthToken> for sdk::AuthToken {
+    fn from(ffi: &AuthToken) -> Self {
+        assert!(!ffi.tenant.is_null());
+        let tenant = unsafe { CStr::from_ptr(ffi.tenant) }
+            .to_str()
+            .expect("invalid string for tenant")
+            .to_owned();
 
-        let tenant = match unsafe { CStr::from_ptr(ffi.tenant) }.to_str() {
-            Ok(value) => value,
-            Err(_) => panic!("Invalid string for tenant"),
-        }
-        .to_string();
+        assert!(!ffi.user.is_null());
+        let user = unsafe { CStr::from_ptr(ffi.user) }
+            .to_str()
+            .expect("invalid string for user")
+            .to_owned();
 
-        if ffi.user.is_null() {
-            panic!("user pointer unexpectedly null.");
-        }
-
-        let user = match unsafe { CStr::from_ptr(ffi.user) }.to_str() {
-            Ok(value) => value,
-            Err(_) => panic!("Invalid string for user"),
-        }
-        .to_string();
-
-        let signature = match ffi.signature.to_vec() {
-            Ok(value) => value,
-            Err(_) => panic!("signature pointer unexpectedly null."),
-        };
+        let signature = ffi.signature.to_vec();
 
         sdk::AuthToken {
             tenant,
@@ -144,7 +117,7 @@ pub unsafe extern "C" fn loam_client_create(
     http_send: HttpSendFn,
 ) -> *mut Client {
     let configuration = sdk::Configuration::from(configuration);
-    let auth_token = sdk::AuthToken::from(auth_token);
+    let auth_token = sdk::AuthToken::from(&auth_token);
     let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
     Box::into_raw(Box::new(Client {
         sdk: client,
@@ -155,9 +128,8 @@ pub unsafe extern "C" fn loam_client_create(
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_destroy(client: *mut Client) {
-    if !client.is_null() {
-        drop(Box::from_raw(client))
-    }
+    assert!(!client.is_null());
+    drop(Box::from_raw(client))
 }
 
 #[repr(C)]
@@ -198,26 +170,20 @@ pub unsafe extern "C" fn loam_client_register(
 ) {
     assert!(!client.is_null());
     let context = &*context;
-    let pin = pin.to_vec().expect("pin pointer unexpectedly null");
-    let secret = secret.to_vec().expect("secret pointer unexpectedly null");
+    let pin = pin.to_vec();
+    let secret = secret.to_vec();
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client.runtime.block_on(async {
-            client
-                .sdk
-                .register(
-                    &sdk::Pin(pin),
-                    &sdk::UserSecret(secret),
-                    sdk::Policy { num_guesses },
-                )
-                .await
-        }) {
+        match client.runtime.block_on(client.sdk.register(
+            &sdk::Pin(pin),
+            &sdk::UserSecret(secret),
+            sdk::Policy { num_guesses },
+        )) {
             Ok(_) => (response)(context, ptr::null()),
             Err(err) => {
-                let error_ptr = Box::into_raw(Box::new(RegisterError::from(err)));
-                response(context, error_ptr);
-                drop(Box::from_raw(error_ptr));
+                let error = RegisterError::from(err);
+                response(context, &error);
             }
         };
     });
@@ -260,23 +226,18 @@ pub unsafe extern "C" fn loam_client_recover(
 ) {
     assert!(!client.is_null());
     let context = &*context;
-    let pin = pin.to_vec().expect("pin pointer unexpectedly null");
+    let pin = pin.to_vec();
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client
-            .runtime
-            .block_on(async { client.sdk.recover(&sdk::Pin(pin)).await })
-        {
+        match client.runtime.block_on(client.sdk.recover(&sdk::Pin(pin))) {
             Ok(secret) => {
-                let secret = ManagedArray(secret.0).to_unmanaged();
-                (response)(context, secret, ptr::null());
-                drop(secret.to_managed());
+                let mut secret = ManagedArray(secret.0);
+                (response)(context, secret.unmanaged_borrow(), ptr::null());
             }
             Err(err) => {
-                let error_ptr = Box::into_raw(Box::new(RecoverError::from(err)));
-                (response)(context, UnmanagedArray::null(), error_ptr);
-                drop(Box::from_raw(error_ptr));
+                let error = RecoverError::from(err);
+                (response)(context, UnmanagedArray::null(), &error);
             }
         };
     });
@@ -314,15 +275,11 @@ pub unsafe extern "C" fn loam_client_delete_all(
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client
-            .runtime
-            .block_on(async { client.sdk.delete_all().await })
-        {
+        match client.runtime.block_on(client.sdk.delete_all()) {
             Ok(_) => (response)(context, ptr::null()),
             Err(err) => {
-                let error_ptr = Box::into_raw(Box::new(DeleteError::from(err)));
-                (response)(context, error_ptr);
-                drop(Box::from_raw(error_ptr));
+                let error = DeleteError::from(err);
+                (response)(context, &error);
             }
         };
     });

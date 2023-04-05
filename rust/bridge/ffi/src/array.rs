@@ -1,17 +1,19 @@
 use libc::size_t;
-use std::clone::Clone;
 use std::ptr;
 
-/// Represents a memory managed reference in Rust
-/// that may be converted to an unmanaged reference
+/// Represents a memory-managed array in Rust that may be converted to an
+/// unmanaged array.
 #[derive(Debug)]
-pub struct ManagedArray<Instance: Clone>(pub Vec<Instance>);
+pub struct ManagedArray<Instance>(pub Vec<Instance>);
 
-impl<Instance: Clone> ManagedArray<Instance> {
-    /// Converts a managed array into an unmanaged array. After calling this function,
-    /// the caller is responsible for the memory previously managed by this array. The
-    /// only way to safely free that memory is to convert the UnmanagedArray<Instance>
-    /// back into a ManagedArray<Instance>, allowing the destructor to perform the cleanup.
+impl<Instance> ManagedArray<Instance> {
+    /// Converts a managed array into an unmanaged array.
+    ///
+    /// After calling this function, the caller is responsible for the memory
+    /// previously managed by this array. The only way to safely free that
+    /// memory is to convert the `UnmanagedArray<Instance>` back into a
+    /// `ManagedArray<Instance>`, allowing the destructor to perform the
+    /// cleanup.
     pub fn to_unmanaged(self) -> UnmanagedArray<Instance> {
         let length = self.0.len();
         UnmanagedArray {
@@ -19,16 +21,35 @@ impl<Instance: Clone> ManagedArray<Instance> {
             length,
         }
     }
+
+    /// Returns an unmanaged array that points into this managed array.
+    ///
+    /// The managed array must not be dropped while this borrow is outstanding
+    /// (Rust lifetimes won't help you here).
+    pub fn unmanaged_borrow(&mut self) -> UnmanagedArray<Instance> {
+        let length = self.0.len();
+        UnmanagedArray {
+            data: self.0.as_ptr(),
+            length,
+        }
+    }
 }
 
-#[derive(Clone, Copy, Debug)]
+/// Represents an raw array that may be converted to a managed array.
+#[derive(Debug)]
 #[repr(C)]
-pub struct UnmanagedArray<Instance: Clone> {
+pub struct UnmanagedArray<Instance> {
     pub data: *const Instance,
     pub length: size_t,
 }
 
-impl<Instance: Clone> UnmanagedArray<Instance> {
+impl<Instance> Default for UnmanagedArray<Instance> {
+    fn default() -> Self {
+        Self::null()
+    }
+}
+
+impl<Instance> UnmanagedArray<Instance> {
     pub fn is_null(&self) -> bool {
         self.data.is_null()
     }
@@ -40,31 +61,34 @@ impl<Instance: Clone> UnmanagedArray<Instance> {
         }
     }
 
-    /// Converts a managed array into an unmanaged array. The ownership of the underlying
-    /// array is effectively transferred to the ManagedArray<Instance> which may then deallocate,
-    /// reallocate or change the contents of memory pointed to by the array at will. Ensure that
-    /// nothing else uses the array after calling this function.
-    pub fn to_managed(self) -> Result<ManagedArray<Instance>, &'static str> {
-        if self.is_null() {
-            return Err("Unmanaged data is unexpectedly null.");
-        }
-
-        Ok(ManagedArray(unsafe {
+    /// Converts an unmanaged array into an managed array.
+    ///
+    /// The ownership of the underlying array is effectively transferred to the
+    /// `ManagedArray`, which may then deallocate, reallocate or change the
+    /// contents of memory pointed to by the array at will. Ensure that nothing
+    /// else uses the array after calling this function.
+    pub fn to_managed(self) -> ManagedArray<Instance> {
+        assert!(!self.is_null());
+        ManagedArray(unsafe {
             Vec::from_raw_parts(self.data as *mut Instance, self.length, self.length)
-        }))
+        })
     }
 
-    /// Clones the underlying unmanaged array into a new vector. The data referenced by
-    /// the unmanaged array remains unaltered and unmanaged.
-    pub fn to_vec(&self) -> Result<Vec<Instance>, &'static str> {
+    /// Returns a slice view of this array.
+    pub fn as_slice(&self) -> &[Instance] {
         if self.length == 0 {
-            return Ok(vec![]);
+            return &[];
         }
+        assert!(!self.data.is_null());
+        unsafe { std::slice::from_raw_parts(self.data, self.length) }
+    }
+}
 
-        if self.data.is_null() {
-            return Err("Array data is unexpectedly null");
-        }
-
-        Ok(unsafe { std::slice::from_raw_parts(self.data, self.length) }.to_vec())
+impl<Instance: Clone> UnmanagedArray<Instance> {
+    /// Clones the elements of the array into a new vector.
+    ///
+    /// The unmanaged array remains unaltered and unmanaged.
+    pub fn to_vec(&self) -> Vec<Instance> {
+        self.as_slice().to_vec()
     }
 }

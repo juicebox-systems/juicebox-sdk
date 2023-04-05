@@ -1,13 +1,14 @@
-use crate::array::{ManagedArray, UnmanagedArray};
+use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
 use libc::c_char;
+use loam_sdk as sdk;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
+use std::mem::take;
 use std::sync::Mutex;
 use uuid::Uuid;
 
-use async_trait::async_trait;
-use loam_sdk as sdk;
+use crate::array::{ManagedArray, UnmanagedArray};
 
 #[derive(Debug)]
 #[repr(C)]
@@ -47,8 +48,8 @@ impl Drop for HttpRequest {
             }
 
             if !self.headers.is_null() {
-                let headers = self.headers.to_managed().unwrap();
-                for header in headers.0.iter() {
+                let headers = take(&mut self.headers).to_managed();
+                for header in headers.0.into_iter() {
                     if !header.name.is_null() {
                         drop(CString::from_raw(header.name as *mut c_char));
                     }
@@ -57,11 +58,10 @@ impl Drop for HttpRequest {
                         drop(CString::from_raw(header.value as *mut c_char));
                     }
                 }
-                drop(headers);
             }
 
             if !self.body.is_null() {
-                drop(self.body.to_managed().unwrap());
+                drop(take(&mut self.body).to_managed());
             }
         }
     }
@@ -88,7 +88,7 @@ impl From<sdk::http::Request> for HttpRequest {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct HttpResponse {
     pub id: [u8; 16],
@@ -97,29 +97,23 @@ pub struct HttpResponse {
     pub body: UnmanagedArray<u8>,
 }
 
-impl From<HttpResponse> for sdk::http::Response {
-    fn from(ffi: HttpResponse) -> Self {
-        let body = ffi
-            .body
-            .to_vec()
-            .expect("body pointer is unexpectedly null");
+impl From<&HttpResponse> for sdk::http::Response {
+    fn from(ffi: &HttpResponse) -> Self {
+        let body = ffi.body.to_vec();
 
-        assert!(!ffi.headers.is_null());
-        let headers_vec: Vec<HttpHeader> = ffi
+        let headers = ffi
             .headers
-            .to_vec()
-            .expect("headers pointer is unexpectedly null.");
-        let headers = headers_vec
-            .into_iter()
+            .as_slice()
+            .iter()
             .filter_map(|header| {
-                let name = match unsafe { CStr::from_ptr(header.name) }.to_str() {
-                    Ok(value) => value.to_string(),
-                    Err(_) => return None,
-                };
-                let value = match unsafe { CStr::from_ptr(header.value) }.to_str() {
-                    Ok(value) => value.to_string(),
-                    Err(_) => return None,
-                };
+                let name = unsafe { CStr::from_ptr(header.name) }
+                    .to_str()
+                    .ok()?
+                    .to_owned();
+                let value = unsafe { CStr::from_ptr(header.value) }
+                    .to_str()
+                    .ok()?
+                    .to_owned();
                 Some((name, value))
             })
             .collect::<HashMap<_, _>>();
@@ -187,7 +181,7 @@ unsafe extern "C" fn ffi_http_receive(context: *mut HttpClient, response_ffi: *c
         return;
     }
 
-    let response = match sdk::http::Response::try_from(*response_ffi) {
+    let response = match sdk::http::Response::try_from(&*response_ffi) {
         Ok(response) => Some(response),
         Err(_) => None,
     };
@@ -195,7 +189,7 @@ unsafe extern "C" fn ffi_http_receive(context: *mut HttpClient, response_ffi: *c
     (*context).receive((*response_ffi).id, response);
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct HttpHeader {
     name: *const c_char,
