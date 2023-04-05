@@ -2,6 +2,7 @@ use digest::Digest;
 use hmac::{Hmac, Mac};
 use rand::rngs::OsRng;
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashSet;
 use std::fmt::{self, Debug};
@@ -16,7 +17,7 @@ use loam_sdk_core::types::{
 use loam_sdk_noise::client as noise;
 
 /// A remote service that the client interacts with directly.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Realm {
     /// The network address to connect to the service.
     pub address: Url,
@@ -35,7 +36,7 @@ impl Debug for Realm {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Configuration {
     /// The remote services that the client interacts with.
     ///

@@ -733,6 +733,7 @@ dependencies = [
  "loam-sdk-networking",
  "loam-sdk-noise",
  "rand",
+ "serde",
  "sha2",
  "sharks",
  "tokio",
@@ -1374,6 +1375,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

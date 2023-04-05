@@ -14,6 +14,12 @@ public struct Configuration {
         public let address: URL
         public let publicKey: Data
 
+        public init(id: UUID, address: URL, publicKey: Data) {
+            self.id = id
+            self.address = address
+            self.publicKey = publicKey
+        }
+
         func withUnsafeFfi<Result>(_ body: (LoamRealm) throws -> Result) rethrows -> Result {
             try address.absoluteString.withCString { addressCStr in
                 try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
@@ -29,6 +35,12 @@ public struct Configuration {
     public let realms: [Realm]
     public let registerThreshold: UInt8
     public let recoverThreshold: UInt8
+
+    public init(realms: [Realm], registerThreshold: UInt8, recoverThreshold: UInt8) {
+        self.realms = realms
+        self.registerThreshold = registerThreshold
+        self.recoverThreshold = recoverThreshold
+    }
 
     func withUnsafeFfi<Result>(_ body: (LoamConfiguration) throws -> Result) rethrows -> Result {
         try realms.withUnsafeFfiPointer { realmsBuffer in
