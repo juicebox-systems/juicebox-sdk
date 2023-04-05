@@ -30,14 +30,8 @@ jobs:
         profile: minimal
         toolchain: stable
 
-    - name: Use Rust/Cargo cache
-      uses: actions/cache@v3
-      with:
-        key: cargo-${{ runner.os }}-stable-${{ hashFiles('Cargo.lock') }}
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git/
-        restore-keys: cargo-${{ runner.os }}-stable-
+    - name: Use Rust Cache
+      uses: Swatinem/rust-cache@v2
 
     - name: Install cbindgen
       run: cargo +stable install cbindgen --version 0.24.3
@@ -61,14 +55,8 @@ jobs:
 
       - run: rustup toolchain install stable --profile minimal --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
 
-      - name: Use Rust/Cargo cache
-        uses: actions/cache@v3
-        with:
-          key: cargo-${{ runner.os }}-stable-${{ hashFiles('Cargo.lock') }}
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git/
-          restore-keys: cargo-${{ runner.os }}-stable-
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Run pod lint
         run: pod lib lint --verbose
@@ -87,14 +75,8 @@ jobs:
           profile: minimal
           toolchain: stable
 
-      - name: Use Rust/Cargo cache
-        uses: actions/cache@v3
-        with:
-          key: cargo-${{ runner.os }}-stable-${{ hashFiles('Cargo.lock') }}
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git/
-          restore-keys: cargo-${{ runner.os }}-stable-
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Run cargo build
         uses: actions-rs/cargo@v1

@@ -97,7 +97,7 @@ if [[ -n "${RUN_CBINDGEN}" ]]; then
     echo diff -u "${FFI_HEADER_PATH}" "<(cbindgen -q ${RELEASE:+--profile release} rust/bridge/ffi)"
     if ! diff -u "${FFI_HEADER_PATH}"  <(cbindgen -q ${RELEASE:+--profile release} rust/bridge/ffi); then
       echo
-      echo 'error: loam-sdk-ffi.h not up to date; run' "$0" '--generate-ffi' >&2
+      echo 'error: loam-sdk-ffi.h not up to date; run' "$0" '--generate`' >&2
       exit 1
     fi
   else
