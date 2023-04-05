@@ -1,4 +1,4 @@
-use crate::buffer::{ManagedBuffer, UnmanagedBuffer};
+use crate::array::{ManagedArray, UnmanagedArray};
 use futures::channel::oneshot::{channel, Sender};
 use libc::c_char;
 use std::collections::HashMap;
@@ -35,8 +35,8 @@ pub struct HttpRequest {
     pub id: [u8; 16],
     pub method: HttpRequestMethod,
     pub url: *const c_char,
-    pub headers: UnmanagedBuffer<HttpHeader>,
-    pub body: UnmanagedBuffer<u8>,
+    pub headers: UnmanagedArray<HttpHeader>,
+    pub body: UnmanagedArray<u8>,
 }
 
 impl Drop for HttpRequest {
@@ -72,10 +72,10 @@ impl From<sdk::http::Request> for HttpRequest {
         let method = HttpRequestMethod::from(request.method);
         let url = CString::new(request.url.to_string()).unwrap().into_raw() as *const c_char;
         let body = match request.body {
-            Some(body) => ManagedBuffer(body).to_unmanaged(),
-            None => UnmanagedBuffer::null(),
+            Some(body) => ManagedArray(body).to_unmanaged(),
+            None => UnmanagedArray::null(),
         };
-        let headers = ManagedBuffer::from(request.headers).to_unmanaged();
+        let headers = ManagedArray::from(request.headers).to_unmanaged();
         let id = *Uuid::new_v4().as_bytes();
 
         HttpRequest {
@@ -93,8 +93,8 @@ impl From<sdk::http::Request> for HttpRequest {
 pub struct HttpResponse {
     pub id: [u8; 16],
     pub status_code: u16,
-    pub headers: UnmanagedBuffer<HttpHeader>,
-    pub body: UnmanagedBuffer<u8>,
+    pub headers: UnmanagedArray<HttpHeader>,
+    pub body: UnmanagedArray<u8>,
 }
 
 impl From<HttpResponse> for sdk::http::Response {
@@ -202,9 +202,9 @@ pub struct HttpHeader {
     value: *const c_char,
 }
 
-impl From<HashMap<String, String>> for ManagedBuffer<HttpHeader> {
+impl From<HashMap<String, String>> for ManagedArray<HttpHeader> {
     fn from(value: HashMap<String, String>) -> Self {
-        ManagedBuffer(
+        ManagedArray(
             value
                 .into_iter()
                 .map(|(name, value)| {

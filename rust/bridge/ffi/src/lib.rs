@@ -1,4 +1,4 @@
-pub mod buffer;
+pub mod array;
 pub mod http;
 
 use libc::{c_char, c_void};
@@ -7,7 +7,7 @@ use std::{ffi::CStr, ptr, str::FromStr};
 use tokio::runtime::Runtime;
 use url::Url;
 
-use crate::buffer::{ManagedBuffer, UnmanagedBuffer};
+use crate::array::{ManagedArray, UnmanagedArray};
 use crate::http::{HttpClient, HttpSendFn};
 
 pub struct Client {
@@ -18,7 +18,7 @@ pub struct Client {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Configuration {
-    pub realms: UnmanagedBuffer<Realm>,
+    pub realms: UnmanagedArray<Realm>,
     pub register_threshold: u8,
     pub recover_threshold: u8,
 }
@@ -45,7 +45,7 @@ impl From<Configuration> for sdk::Configuration {
 pub struct Realm {
     pub id: [u8; 16],
     pub address: *const c_char,
-    pub public_key: UnmanagedBuffer<u8>,
+    pub public_key: UnmanagedArray<u8>,
 }
 
 impl From<Realm> for sdk::Realm {
@@ -82,7 +82,7 @@ impl From<Realm> for sdk::Realm {
 pub struct AuthToken {
     pub tenant: *const c_char,
     pub user: *const c_char,
-    pub signature: UnmanagedBuffer<u8>,
+    pub signature: UnmanagedArray<u8>,
 }
 
 impl From<AuthToken> for sdk::AuthToken {
@@ -191,8 +191,8 @@ impl From<sdk::RegisterError> for RegisterError {
 pub unsafe extern "C" fn loam_client_register(
     client: *mut Client,
     context: *const c_void,
-    pin: UnmanagedBuffer<u8>,
-    secret: UnmanagedBuffer<u8>,
+    pin: UnmanagedArray<u8>,
+    secret: UnmanagedArray<u8>,
     num_guesses: u16,
     response: extern "C" fn(context: &c_void, error: *const RegisterError),
 ) {
@@ -251,10 +251,10 @@ impl From<sdk::RecoverError> for RecoverError {
 pub unsafe extern "C" fn loam_client_recover(
     client: *mut Client,
     context: *const c_void,
-    pin: UnmanagedBuffer<u8>,
+    pin: UnmanagedArray<u8>,
     response: extern "C" fn(
         context: &c_void,
-        secret: UnmanagedBuffer<u8>,
+        secret: UnmanagedArray<u8>,
         error: *const RecoverError,
     ),
 ) {
@@ -269,13 +269,13 @@ pub unsafe extern "C" fn loam_client_recover(
             .block_on(async { client.sdk.recover(&sdk::Pin(pin)).await })
         {
             Ok(secret) => {
-                let secret = ManagedBuffer(secret.0).to_unmanaged();
+                let secret = ManagedArray(secret.0).to_unmanaged();
                 (response)(context, secret, ptr::null());
                 drop(secret.to_managed());
             }
             Err(err) => {
                 let error_ptr = Box::into_raw(Box::new(RecoverError::from(err)));
-                (response)(context, UnmanagedBuffer::null(), error_ptr);
+                (response)(context, UnmanagedArray::null(), error_ptr);
                 drop(Box::from_raw(error_ptr));
             }
         };

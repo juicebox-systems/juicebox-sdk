@@ -16,11 +16,11 @@ public struct Configuration {
 
         func withUnsafeFfi<Result>(_ body: (LoamRealm) throws -> Result) rethrows -> Result {
             try address.absoluteString.withCString { addressCStr in
-                try publicKey.withLoamUnmanagedDataBuffer { publicKeyBuffer in
+                try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
                     try body(.init(
                         id: id.uuid,
                         address: addressCStr,
-                        public_key: publicKeyBuffer
+                        public_key: publicKeyArray
                     ))
                 }
             }

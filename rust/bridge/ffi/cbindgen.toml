@@ -16,9 +16,9 @@ prefix = "Loam"
 renaming_overrides_prefixing = true
 
 [export.rename]
-"UnmanagedBufferu8" = "LoamUnmanagedDataBuffer"
-"UnmanagedBufferRealm" = "LoamUnmanagedRealmBuffer"
-"UnmanagedBufferHttpHeader" = "LoamUnmanagedHttpHeaderBuffer"
+"UnmanagedArrayu8" = "LoamUnmanagedDataArray"
+"UnmanagedArrayRealm" = "LoamUnmanagedRealmArray"
+"UnmanagedArrayHttpHeader" = "LoamUnmanagedHttpHeaderArray"
 
 [export.mangle]
 remove_underscores = true

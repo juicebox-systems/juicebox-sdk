@@ -34,13 +34,13 @@ public class Client {
 
     func register(pin: Data, secret: Data, guesses: UInt16) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            pin.withLoamUnmanagedDataBuffer { pinBuffer in
-                secret.withLoamUnmanagedDataBuffer { secretBuffer in
+            pin.withLoamUnmanagedDataArray { pinArray in
+                secret.withLoamUnmanagedDataArray { secretArray in
                     loam_client_register(
                         opaque,
                         Unmanaged.passRetained(Box(continuation)).toOpaque(),
-                        pinBuffer,
-                        secretBuffer,
+                        pinArray,
+                        secretArray,
                         guesses
                     ) { context, error in
                         guard let context = context else { fatalError() }
@@ -59,11 +59,11 @@ public class Client {
 
     func recover(pin: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
-            pin.withLoamUnmanagedDataBuffer { pinBuffer in
+            pin.withLoamUnmanagedDataArray { pinArray in
                 loam_client_recover(
                     opaque,
                     Unmanaged.passRetained(Box(continuation)).toOpaque(),
-                    pinBuffer
+                    pinArray
                 ) { context, secretBuffer, error in
                     guard let context = context else { fatalError() }
                     let box: Box<CheckedContinuation<Data, Error>> = Unmanaged.fromOpaque(context).takeRetainedValue()
@@ -136,12 +136,12 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
 
         withHeadersRecursively { headers in
             headers.withUnsafeBufferPointer { headersBuffer in
-                responseData.withLoamUnmanagedDataBuffer { bodyBuffer in
+                responseData.withLoamUnmanagedDataArray { bodyArray in
                     let response = LoamHttpResponse(
                         id: requestPointer.pointee.id,
                         status_code: UInt16(response.statusCode),
                         headers: .init(data: headersBuffer.baseAddress, length: headersBuffer.count),
-                        body: bodyBuffer
+                        body: bodyArray
                     )
                     withUnsafePointer(to: response) {
                         responseCallback(context, $0)

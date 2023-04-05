@@ -42,21 +42,21 @@ typedef struct LoamHttpClient LoamHttpClient;
 typedef struct {
   const uint8_t *data;
   size_t length;
-} LoamUnmanagedDataBuffer;
+} LoamUnmanagedDataArray;
 
 typedef struct {
   uint8_t id[16];
   const char *address;
-  LoamUnmanagedDataBuffer public_key;
+  LoamUnmanagedDataArray public_key;
 } LoamRealm;
 
 typedef struct {
   const LoamRealm *data;
   size_t length;
-} LoamUnmanagedRealmBuffer;
+} LoamUnmanagedRealmArray;
 
 typedef struct {
-  LoamUnmanagedRealmBuffer realms;
+  LoamUnmanagedRealmArray realms;
   uint8_t register_threshold;
   uint8_t recover_threshold;
 } LoamConfiguration;
@@ -64,7 +64,7 @@ typedef struct {
 typedef struct {
   const char *tenant;
   const char *user;
-  LoamUnmanagedDataBuffer signature;
+  LoamUnmanagedDataArray signature;
 } LoamAuthToken;
 
 typedef struct {
@@ -75,21 +75,21 @@ typedef struct {
 typedef struct {
   const LoamHttpHeader *data;
   size_t length;
-} LoamUnmanagedHttpHeaderBuffer;
+} LoamUnmanagedHttpHeaderArray;
 
 typedef struct {
   uint8_t id[16];
   LoamHttpRequestMethod method;
   const char *url;
-  LoamUnmanagedHttpHeaderBuffer headers;
-  LoamUnmanagedDataBuffer body;
+  LoamUnmanagedHttpHeaderArray headers;
+  LoamUnmanagedDataArray body;
 } LoamHttpRequest;
 
 typedef struct {
   uint8_t id[16];
   uint16_t status_code;
-  LoamUnmanagedHttpHeaderBuffer headers;
-  LoamUnmanagedDataBuffer body;
+  LoamUnmanagedHttpHeaderArray headers;
+  LoamUnmanagedDataArray body;
 } LoamHttpResponse;
 
 typedef void (*LoamHttpResponseFn)(LoamHttpClient *context, const LoamHttpResponse *response);
@@ -132,8 +132,8 @@ void loam_client_destroy(LoamClient *client);
  */
 void loam_client_register(LoamClient *client,
                           const void *context,
-                          LoamUnmanagedDataBuffer pin,
-                          LoamUnmanagedDataBuffer secret,
+                          LoamUnmanagedDataArray pin,
+                          LoamUnmanagedDataArray secret,
                           uint16_t num_guesses,
                           void (*response)(const void *context, const LoamRegisterError *error));
 
@@ -145,8 +145,8 @@ void loam_client_register(LoamClient *client,
  */
 void loam_client_recover(LoamClient *client,
                          const void *context,
-                         LoamUnmanagedDataBuffer pin,
-                         void (*response)(const void *context, LoamUnmanagedDataBuffer secret, const LoamRecoverError *error));
+                         LoamUnmanagedDataArray pin,
+                         void (*response)(const void *context, LoamUnmanagedDataArray secret, const LoamRecoverError *error));
 
 /**
  * Deletes all secrets for this user.
