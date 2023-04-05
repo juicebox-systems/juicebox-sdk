@@ -17,6 +17,7 @@ struct Demo: AsyncParsableCommand {
     )
     var tlsCertificate: URL?
 
+    // swiftlint:disable cyclomatic_complexity
     // swiftlint:disable:next function_body_length
     mutating func run() async throws {
         let client = Client(configuration: configuration, authToken: authToken)
@@ -39,7 +40,23 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 1)")
         do {
             let secret = try await client.recover(pin: "4321".data(using: .utf8)!)
-            print("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+        } catch RecoverError.unsuccessful {
+            print("[Swift] Recover expectedly unsuccessful")
+        }
+
+        print("[Swift] Starting recover with correct PIN (guess 2)")
+        do {
+            let secret = try await client.recover(pin: "1234".data(using: .utf8)!)
+            print("[Swift] Recovered secret: \(String(data: secret, encoding: .utf8)!)")
+        } catch RecoverError.unsuccessful {
+            fatalError("[Swift] Recover unexpectedly failed")
+        }
+
+        print("[Swift] Starting recover with wrong PIN (guess 1)")
+        do {
+            let secret = try await client.recover(pin: "4321".data(using: .utf8)!)
+            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
         } catch RecoverError.unsuccessful {
             print("[Swift] Recover expectedly unsuccessful")
         }
@@ -47,7 +64,7 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 2)")
         do {
             let secret = try await client.recover(pin: "4321".data(using: .utf8)!)
-            print("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
         } catch RecoverError.unsuccessful {
             print("[Swift] Recover expectedly unsuccessful")
         }
@@ -55,7 +72,7 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with correct PIN (guess 3)")
         do {
             let secret = try await client.recover(pin: "1234".data(using: .utf8)!)
-            print("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
         } catch RecoverError.unsuccessful {
             print("[Swift] Recover expectedly unsuccessful")
         }
@@ -75,7 +92,7 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 1)")
         do {
             let secret = try await client.recover(pin: "4321".data(using: .utf8)!)
-            print("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
         } catch RecoverError.unsuccessful {
             print("[Swift] Recover expectedly unsuccessful")
         }
@@ -85,25 +102,26 @@ struct Demo: AsyncParsableCommand {
             let secret = try await client.recover(pin: "1234".data(using: .utf8)!)
             print("[Swift] Recovered secret: \(String(data: secret, encoding: .utf8)!)")
         } catch RecoverError.unsuccessful {
-            print("[Swift] Recover unexpectedly failed")
+            fatalError("[Swift] Recover unexpectedly failed")
         }
 
         print("[Swift] Deleting secret")
         do {
             try await client.deleteAll()
         } catch let error as DeleteError {
-            print("[Swift] Delete unexpectedly failed \(error)")
+            fatalError("[Swift] Delete unexpectedly failed \(error)")
         }
         print("[Swift] Delete succeeded")
 
         print("[Swift] Starting recover with correct PIN after delete")
         do {
             let secret = try await client.recover(pin: "1234".data(using: .utf8)!)
-            print("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
         } catch RecoverError.unsuccessful {
             print("[Swift] Recover expectedly unsuccessful")
         }
     }
+    // swiftlint:enable cyclomatic_complexity
 }
 
 let jsonDecoder: JSONDecoder = {
