@@ -34,9 +34,8 @@ Pod::Spec.new do |s|
 
   s.prepare_command = %Q(
     set -euo pipefail
-    CARGO_BUILD_TARGET=aarch64-apple-ios swift/build-ffi.sh --release
-    CARGO_BUILD_TARGET=x86_64-apple-ios swift/build-ffi.sh --release
-    CARGO_BUILD_TARGET=aarch64-apple-ios-sim swift/build-ffi.sh --release
-    swift/build-ffi.sh --generate-ffi
+    CARGO_BUILD_TARGET=aarch64-apple-ios swift/ffi.sh --release
+    CARGO_BUILD_TARGET=x86_64-apple-ios swift/ffi.sh --release
+    CARGO_BUILD_TARGET=aarch64-apple-ios-sim swift/ffi.sh --release
   )
 end

@@ -44,7 +44,7 @@ jobs:
       run: cargo +stable install cbindgen --version 0.24.3
 
     - name: Build loam-sdk-ffi
-      run: swift/build-ffi.sh -d -v --verify-ffi
+      run: swift/ffi.sh --debug --verbose --verify
 
     - name: Build and Test
       run: swift test -v
