@@ -35,7 +35,10 @@ impl<Instance> ManagedArray<Instance> {
     }
 }
 
-/// Represents an raw array that may be converted to a managed array.
+// Represents a raw array that may be converted to a managed array.
+//
+// (This is not a triple-slash Rust doc comment because it ends up being
+// unhelpful in the C header file.)
 #[derive(Debug)]
 #[repr(C)]
 pub struct UnmanagedArray<Instance> {
