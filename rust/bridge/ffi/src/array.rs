@@ -79,9 +79,6 @@ impl<Instance> UnmanagedArray<Instance> {
 
     /// Returns a slice view of this array.
     pub fn as_slice(&self) -> &[Instance] {
-        if self.length == 0 {
-            return &[];
-        }
         assert!(!self.data.is_null());
         unsafe { std::slice::from_raw_parts(self.data, self.length) }
     }
