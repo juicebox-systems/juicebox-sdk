@@ -35,7 +35,7 @@ impl Debug for Realm {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Configuration {
     /// The remote services that the client interacts with.
     ///

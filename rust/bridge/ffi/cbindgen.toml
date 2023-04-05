@@ -13,6 +13,15 @@ prefix_with_name = true
 include = []
 item_types = ["enums", "functions", "opaque", "structs", "typedefs"]
 prefix = "Loam"
+renaming_overrides_prefixing = true
+
+[export.rename]
+"UnmanagedArrayu8" = "LoamUnmanagedDataArray"
+"UnmanagedArrayRealm" = "LoamUnmanagedRealmArray"
+"UnmanagedArrayHttpHeader" = "LoamUnmanagedHttpHeaderArray"
+
+[export.mangle]
+remove_underscores = true
 
 [fn]
 sort_by = "None"
@@ -20,6 +29,3 @@ sort_by = "None"
 [parse]
 parse_deps = true
 include = ["loam-sdk"]
-
-[parse.expand]
-crates = ["loam-sdk-ffi"]

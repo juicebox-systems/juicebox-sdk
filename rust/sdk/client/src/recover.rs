@@ -30,11 +30,15 @@ pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
+    // TODO: Figure out a clean way to surface unsuccessful details to clients
+    // without externally exposing implementation details like `GenerationNumber`
     /// A list of attempts explaining why the recovery failed.
     ///
     /// Each entry in the vector corresponds to an attempt at recovery with
     /// a particular realm at a particular generation number.
     Unsuccessful(Vec<(GenerationNumber, UnsuccessfulRecoverReason)>),
+
+    ProtocolError,
 }
 
 /// An explanation for a [`RecoverError::Unsuccessful`] entry.
@@ -112,7 +116,10 @@ impl<Http: http::Client> Client<Http> {
 
                 Err(
                     e @ RecoverGenError {
-                        error: RecoverError::NetworkError | RecoverError::InvalidAuth,
+                        error:
+                            RecoverError::NetworkError
+                            | RecoverError::InvalidAuth
+                            | RecoverError::ProtocolError,
                         retry: _,
                     },
                 ) => Err(e.error),
@@ -174,7 +181,7 @@ impl<Http: http::Client> Client<Http> {
 
                 Err(
                     e @ RecoverGenError {
-                        error: RecoverError::InvalidAuth,
+                        error: RecoverError::InvalidAuth | RecoverError::ProtocolError,
                         retry: _,
                     },
                 ) => {
@@ -346,7 +353,12 @@ impl<Http: http::Client> Client<Http> {
                     retry: None,
                 })
             }
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => todo!(),
+            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
+                return Err(RecoverGenError {
+                    error: RecoverError::ProtocolError,
+                    retry: None,
+                })
+            }
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
@@ -462,7 +474,9 @@ impl<Http: http::Client> Client<Http> {
 
         match recover2_request.await {
             Err(RequestError::Network) => Err(RecoverError::NetworkError),
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => todo!(),
+            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
+                Err(RecoverError::ProtocolError)
+            }
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
