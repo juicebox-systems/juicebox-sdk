@@ -3,6 +3,7 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
+use secrecy::SecretString;
 use std::{ffi::CStr, ptr, str::FromStr};
 use tokio::runtime::Runtime;
 use url::Url;
@@ -61,63 +62,37 @@ impl From<&Realm> for sdk::Realm {
     }
 }
 
-#[derive(Debug)]
-#[repr(C)]
-pub struct AuthToken {
-    pub tenant: *const c_char,
-    pub user: *const c_char,
-    pub signature: UnmanagedArray<u8>,
-}
-
-impl From<&AuthToken> for sdk::AuthToken {
-    fn from(ffi: &AuthToken) -> Self {
-        assert!(!ffi.tenant.is_null());
-        let tenant = unsafe { CStr::from_ptr(ffi.tenant) }
-            .to_str()
-            .expect("invalid string for tenant")
-            .to_owned();
-
-        assert!(!ffi.user.is_null());
-        let user = unsafe { CStr::from_ptr(ffi.user) }
-            .to_str()
-            .expect("invalid string for user")
-            .to_owned();
-
-        let signature = ffi.signature.to_vec();
-
-        sdk::AuthToken {
-            tenant,
-            user,
-            signature,
-        }
-    }
-}
-
 /// Creates a new opaque `LoamClient` reference.
 ///
 /// The configuration provided must include at least one realm.
 ///
-/// The `auth_token` represents the authority to act as a particular user
-/// and should be valid for the lifetime of the `LoamClient`.
+/// The `auth_token` represents the authority to act as a particular user and
+/// should be valid for the lifetime of the `LoamClient`. It should be a
+/// base64-encoded JWT.
 ///
-/// The function pointer `http_send` will be called when the client wishes
-/// to make a network request. The appropriate request should be executed
-/// by you, and the the response provided to the response function pointer.
-/// This send should be performed asynchronously. `http_send` should not
-/// block on performing the request, and the response should be returned
-/// to the `response` function pointer argument when the asynchronous work
-/// has completed. The request parameter is only valid for the lifetime
-/// of the `http_send` function and should not be accessed after returning
-/// from the function.
+/// The function pointer `http_send` will be called when the client wishes to
+/// make a network request. The appropriate request should be executed by you,
+/// and the the response provided to the response function pointer. This send
+/// should be performed asynchronously. `http_send` should not block on
+/// performing the request, and the response should be returned to the
+/// `response` function pointer argument when the asynchronous work has
+/// completed. The request parameter is only valid for the lifetime of the
+/// `http_send` function and should not be accessed after returning from the
+/// function.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_create(
     configuration: Configuration,
-    auth_token: AuthToken,
+    auth_token: *const c_char,
     http_send: HttpSendFn,
 ) -> *mut Client {
     let configuration = sdk::Configuration::from(configuration);
-    let auth_token = sdk::AuthToken::from(&auth_token);
+    let auth_token = sdk::AuthToken(SecretString::from(
+        unsafe { CStr::from_ptr(auth_token) }
+            .to_str()
+            .unwrap()
+            .to_owned(),
+    ));
     let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
     Box::into_raw(Box::new(Client {
         sdk: client,

@@ -45,11 +45,7 @@ final class LoamSdkTests: XCTestCase {
                 registerThreshold: 1,
                 recoverThreshold: 1
             ),
-            authToken: .init(
-                tenant: "abc",
-                user: "123",
-                signature: Data()
-            )
+            authToken: "abc.123"
         )
     }
 }

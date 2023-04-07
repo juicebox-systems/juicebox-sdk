@@ -26,6 +26,7 @@ libc = "0.2.140"
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
+secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.152", default-features = false, features = [
     "alloc",
     "derive",

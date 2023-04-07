@@ -1,10 +1,12 @@
 extern crate alloc;
 
-use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Display};
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
+
+use super::marshalling::serialize_secret;
 
 pub type OprfCipherSuite = voprf::Ristretto255;
 pub type OprfBlindedInput = voprf::BlindedElement<OprfCipherSuite>;
@@ -31,18 +33,20 @@ impl Debug for RealmId {
 }
 
 /// Represents the authority to act as a particular user.
-#[derive(Clone, Deserialize, Serialize)]
-pub struct AuthToken {
-    pub tenant: String,
-    pub user: String,
-    pub signature: Vec<u8>,
-}
-
-impl Debug for AuthToken {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(auth token for {:?})", self.user)
-    }
-}
+///
+/// Tokens use the base64-encoded JWT format with the HS256 hash-based
+/// validation algorithm. The keys used to generate and verify tokens are
+/// specific to each tenant. To be acceptable, a token must include the
+/// following claims:
+///
+/// - an issuer (`iss`) set to the tenant's ID,
+/// - a subject (`sub`) set to the user's ID,
+/// - an audience (`aud`) of "loam.me",
+/// - an expiration time (`exp`) in the future,
+/// - a not-valid before time (`nbf`) in the past, and
+/// - a lifetime (difference between `nbf` and `exp`) of less than 1 day.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
 
 /// Used to distinguish different secure communication channels for a single
 /// user.
