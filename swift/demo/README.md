@@ -9,7 +9,7 @@ OPTIONS:
   -c, --configuration <configuration>
                           The configuration for the client SDK, in JSON format
   -a, --auth-token <auth-token>
-                          The auth token for the client SDK, in JSON format
+                          The auth token for the client SDK, as a base64-encoded JWT
   -t, --tls-certificate <tls-certificate>
                           The path to the TLS certificate used by the realms
   -h, --help              Show help information.
