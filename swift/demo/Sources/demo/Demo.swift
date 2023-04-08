@@ -22,7 +22,11 @@ struct Demo: AsyncParsableCommand {
     mutating func run() async throws {
         let client = Client(configuration: configuration, authToken: authToken)
         if let tlsCertificate = tlsCertificate {
+            #if os(Linux)
+            print("[Swift] WARNING: pinned TLS certificates unsupported on Linux")
+            #else
             client.pinnedCertificatePaths = [tlsCertificate]
+            #endif
         }
 
         print("[Swift] Starting register (allowing 2 guesses)")
