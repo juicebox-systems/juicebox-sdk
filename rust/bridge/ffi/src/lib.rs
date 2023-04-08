@@ -90,7 +90,7 @@ pub unsafe extern "C" fn loam_client_create(
     let auth_token = sdk::AuthToken(SecretString::from(
         unsafe { CStr::from_ptr(auth_token) }
             .to_str()
-            .unwrap()
+            .expect("invalid string for auth token")
             .to_owned(),
     ));
     let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
