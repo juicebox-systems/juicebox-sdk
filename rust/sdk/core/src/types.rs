@@ -1,5 +1,6 @@
 extern crate alloc;
 
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Display};
 use secrecy::SecretString;
@@ -47,6 +48,18 @@ impl Debug for RealmId {
 /// - a lifetime (difference between `nbf` and `exp`) of less than 1 day.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
+
+impl From<SecretString> for AuthToken {
+    fn from(value: SecretString) -> Self {
+        AuthToken(value)
+    }
+}
+
+impl From<String> for AuthToken {
+    fn from(value: String) -> Self {
+        AuthToken(SecretString::from(value))
+    }
+}
 
 /// Used to distinguish different secure communication channels for a single
 /// user.

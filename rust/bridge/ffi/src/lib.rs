@@ -3,7 +3,6 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
-use secrecy::SecretString;
 use std::{ffi::CStr, ptr, str::FromStr};
 use tokio::runtime::Runtime;
 use url::Url;
@@ -87,12 +86,12 @@ pub unsafe extern "C" fn loam_client_create(
     http_send: HttpSendFn,
 ) -> *mut Client {
     let configuration = sdk::Configuration::from(configuration);
-    let auth_token = sdk::AuthToken(SecretString::from(
+    let auth_token = sdk::AuthToken::from(
         unsafe { CStr::from_ptr(auth_token) }
             .to_str()
             .expect("invalid string for auth token")
             .to_owned(),
-    ));
+    );
     let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
     Box::into_raw(Box::new(Client {
         sdk: client,
