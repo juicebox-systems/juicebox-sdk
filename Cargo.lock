@@ -1055,7 +1055,7 @@ dependencies = [
 [[package]]
 name = "secrecy"
 version = "0.8.0"
-source = "git+ssh://git@github.com/Loam-Security/secrecy.git?branch=loam-dev#bcc7221cd6b486a3030445d2d7a605ed6f93521c"
+source = "git+ssh://git@github.com/Loam-Security/secrecy.git?branch=loam-main#b50e54817d6c4b919a8062e024bebe34aa3165c5"
 dependencies = [
  "serde",
  "zeroize",
