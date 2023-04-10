@@ -62,12 +62,6 @@ typedef struct {
 } LoamConfiguration;
 
 typedef struct {
-  const char *tenant;
-  const char *user;
-  LoamUnmanagedDataArray signature;
-} LoamAuthToken;
-
-typedef struct {
   const char *name;
   const char *value;
 } LoamHttpHeader;
@@ -101,21 +95,22 @@ typedef void (*LoamHttpSendFn)(const LoamHttpClient *context, const LoamHttpRequ
  *
  * The configuration provided must include at least one realm.
  *
- * The `auth_token` represents the authority to act as a particular user
- * and should be valid for the lifetime of the `LoamClient`.
+ * The `auth_token` represents the authority to act as a particular user and
+ * should be valid for the lifetime of the `LoamClient`. It should be a
+ * base64-encoded JWT.
  *
- * The function pointer `http_send` will be called when the client wishes
- * to make a network request. The appropriate request should be executed
- * by you, and the the response provided to the response function pointer.
- * This send should be performed asynchronously. `http_send` should not
- * block on performing the request, and the response should be returned
- * to the `response` function pointer argument when the asynchronous work
- * has completed. The request parameter is only valid for the lifetime
- * of the `http_send` function and should not be accessed after returning
- * from the function.
+ * The function pointer `http_send` will be called when the client wishes to
+ * make a network request. The appropriate request should be executed by you,
+ * and the the response provided to the response function pointer. This send
+ * should be performed asynchronously. `http_send` should not block on
+ * performing the request, and the response should be returned to the
+ * `response` function pointer argument when the asynchronous work has
+ * completed. The request parameter is only valid for the lifetime of the
+ * `http_send` function and should not be accessed after returning from the
+ * function.
  */
 LoamClient *loam_client_create(LoamConfiguration configuration,
-                               LoamAuthToken auth_token,
+                               const char *auth_token,
                                LoamHttpSendFn http_send);
 
 void loam_client_destroy(LoamClient *client);

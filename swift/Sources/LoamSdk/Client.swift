@@ -13,7 +13,7 @@ import LoamSdkFfi
 
 public class Client {
     public let configuration: Configuration
-    public let authToken: AuthToken
+    public let authToken: String
 
     #if !os(Linux)
     // TODO: I hate that this references a global, but
@@ -28,13 +28,13 @@ public class Client {
 
     private let opaque: OpaquePointer
 
-    public init(configuration: Configuration, authToken: AuthToken) {
+    public init(configuration: Configuration, authToken: String) {
         self.configuration = configuration
         self.authToken = authToken
 
         self.opaque = configuration.withUnsafeFfi({ ffiConfig in
-            authToken.withUnsafeFfi { ffiToken in
-                loam_client_create(ffiConfig, ffiToken, httpSend)
+            authToken.withCString { authTokenCString in
+                loam_client_create(ffiConfig, authTokenCString, httpSend)
             }
         })
     }

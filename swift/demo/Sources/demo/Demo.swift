@@ -7,8 +7,8 @@ struct Demo: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "The configuration for the client SDK, in JSON format")
     var configuration: Configuration
 
-    @Option(name: .shortAndLong, help: "The auth token for the client SDK, in JSON format")
-    var authToken: AuthToken
+    @Option(name: .shortAndLong, help: "The auth token for the client SDK, as a base64-encoded JWT")
+    var authToken: String
 
     @Option(
         name: .shortAndLong,
@@ -22,7 +22,11 @@ struct Demo: AsyncParsableCommand {
     mutating func run() async throws {
         let client = Client(configuration: configuration, authToken: authToken)
         if let tlsCertificate = tlsCertificate {
+            #if os(Linux)
+            print("[Swift] WARNING: pinned TLS certificates unsupported on Linux")
+            #else
             client.pinnedCertificatePaths = [tlsCertificate]
+            #endif
         }
 
         print("[Swift] Starting register (allowing 2 guesses)")
@@ -173,30 +177,6 @@ extension Configuration.Realm: Decodable {
             id: rawId.withUnsafeBufferPointer { NSUUID(uuidBytes: $0.baseAddress!) as UUID },
             address: try container.decode(URL.self, forKey: .address),
             publicKey: try container.decode(Data.self, forKey: .publicKey)
-        )
-    }
-}
-
-extension AuthToken: ExpressibleByArgument, Decodable {
-    public init?(argument: String) {
-        guard let authToken = try? jsonDecoder.decode(Self.self, from: argument.data(using: .utf8)!) else {
-            return nil
-        }
-        self = authToken
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case tenant
-        case user
-        case signature
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            tenant: try container.decode(String.self, forKey: .tenant),
-            user: try container.decode(String.self, forKey: .user),
-            signature: try container.decode(Data.self, forKey: .signature)
         )
     }
 }

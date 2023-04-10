@@ -750,6 +750,7 @@ dependencies = [
  "ciborium",
  "digest 0.10.6",
  "loam-sdk-noise",
+ "secrecy",
  "serde",
  "subtle",
  "voprf",
@@ -764,6 +765,7 @@ dependencies = [
  "futures",
  "libc",
  "loam-sdk",
+ "secrecy",
  "tokio",
  "url",
  "uuid",
@@ -1047,6 +1049,15 @@ dependencies = [
  "der",
  "generic-array",
  "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.8.0"
+source = "git+ssh://git@github.com/Loam-Security/secrecy.git?branch=loam-main#b50e54817d6c4b919a8062e024bebe34aa3165c5"
+dependencies = [
+ "serde",
  "zeroize",
 ]
 
