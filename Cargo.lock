@@ -1055,8 +1055,7 @@ dependencies = [
 [[package]]
 name = "secrecy"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+source = "git+ssh://git@github.com/Loam-Security/secrecy.git?branch=loam-dev#bcc7221cd6b486a3030445d2d7a605ed6f93521c"
 dependencies = [
  "serde",
  "zeroize",

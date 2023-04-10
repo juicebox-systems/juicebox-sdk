@@ -50,3 +50,6 @@ x25519-dalek = { version = "2.0.0-pre.1", default-features = false, features = [
     "serde",
     "u64_backend",      # TODO: need 32-bit on HSMs
 ] }
+
+[patch.crates-io]
+secrecy = { git = "ssh://git@github.com/Loam-Security/secrecy.git", branch = "loam-main" }
