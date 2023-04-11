@@ -83,9 +83,14 @@ for target in "${TARGETS[@]}"; do
     echo cargo build -p loam-sdk-jni ${RELEASE:+--release} ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
     cargo build -p loam-sdk-jni ${RELEASE:+--release} ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
 
-    echo mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
-    mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    echo mkdir -p "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
+    mkdir -p "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
 
-    echo mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
-    mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    echo mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
+    mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
+
+    if [[ -z "${RELEASE}" ]]; then
+        echo mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.d" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
+        mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.d" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
+    fi
 done

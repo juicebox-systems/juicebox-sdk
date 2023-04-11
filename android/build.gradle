@@ -26,8 +26,19 @@ android {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
     }
 
+    buildTypes {
+        debug {
+            debuggable true
+        }
+    }
+
     sourceSets {
-        main.jniLibs.srcDirs = ['libs']
+        debug {
+            jniLibs.srcDirs = ['libs/debug']
+        }
+        main {
+            jniLibs.srcDirs = ['libs/release']
+        }
     }
 }
 
@@ -39,13 +50,26 @@ dependencies {
     androidTestImplementation 'org.assertj:assertj-core:3.11.1'
 }
 
-preBuild {
-    dependsOn 'buildRustJni'
+gradle.projectsEvaluated {
+    android.libraryVariants.all { variant ->
+        if (variant.buildType.name == 'debug') {
+            variant.preBuildProvider.get().dependsOn 'buildDebugRustJni'
+        } else {
+            variant.preBuildProvider.get().dependsOn 'buildReleaseRustJni'
+        }
+    }
 }
 
-task buildRustJni(type:Exec) {
+task buildReleaseRustJni(type:Exec) {
   group 'Rust'
-  description 'Build the Rust JNI libraries'
+  description 'Build the release Rust JNI libraries'
 
   commandLine 'bash', 'jni.sh', '--release'
+}
+
+task buildDebugRustJni(type:Exec) {
+    group 'Rust'
+    description 'Build the debug Rust JNI libraries'
+
+    commandLine 'bash', 'jni.sh', '--debug'
 }
