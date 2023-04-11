@@ -25,7 +25,7 @@ struct Demo: AsyncParsableCommand {
             #if os(Linux)
             print("[Swift] WARNING: pinned TLS certificates unsupported on Linux")
             #else
-            client.pinnedCertificatePaths = [tlsCertificate]
+            Client.pinnedCertificatePaths = [tlsCertificate]
             #endif
         }
 

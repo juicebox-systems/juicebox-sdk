@@ -16,14 +16,7 @@ public class Client {
     public let authToken: String
 
     #if !os(Linux)
-    // TODO: I hate that this references a global, but
-    // it's a byproduct of http-send being a C function pointer.
-    // Could/should be cleaned up by passing around even *more* context
-    // pointers.
-    public var pinnedCertificatePaths: [URL]? {
-        get { LoamSdk.pinnedCertificatePaths }
-        set { LoamSdk.pinnedCertificatePaths = newValue }
-    }
+    public static var pinnedCertificatePaths: [URL]?
     #endif
 
     private let opaque: OpaquePointer
@@ -108,7 +101,6 @@ public class Client {
     }
 }
 
-private var pinnedCertificatePaths: [URL]?
 private let httpSession = URLSession(
     configuration: .ephemeral,
     delegate: TLSSessionPinningDelegate(),
@@ -204,7 +196,7 @@ private class TLSSessionPinningDelegate: NSObject, URLSessionDelegate {
             return false
         }
 
-        if let pinnedCertificatePaths = pinnedCertificatePaths, !pinnedCertificatePaths.isEmpty {
+        if let pinnedCertificatePaths = Client.pinnedCertificatePaths, !pinnedCertificatePaths.isEmpty {
             let pinnedCertificates = pinnedCertificatePaths
                 .lazy
                 .compactMap { try? Data(contentsOf: $0) }
