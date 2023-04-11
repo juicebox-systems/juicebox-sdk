@@ -744,6 +744,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "loam-sdk-bridge"
+version = "0.1.0"
+dependencies = [
+ "loam-sdk",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "loam-sdk-core"
 version = "0.1.0"
 dependencies = [
@@ -765,6 +775,7 @@ dependencies = [
  "futures",
  "libc",
  "loam-sdk",
+ "loam-sdk-bridge",
  "secrecy",
  "tokio",
  "url",

@@ -16,6 +16,7 @@ prefix = "Loam"
 renaming_overrides_prefixing = true
 
 [export.rename]
+"ClientHttpClient" = "LoamClient"
 "UnmanagedArrayu8" = "LoamUnmanagedDataArray"
 "UnmanagedArrayRealm" = "LoamUnmanagedRealmArray"
 "UnmanagedArrayHttpHeader" = "LoamUnmanagedHttpHeaderArray"
@@ -28,4 +29,5 @@ sort_by = "None"
 
 [parse]
 parse_deps = true
-include = ["loam-sdk"]
+include = ["loam-sdk", "loam-sdk-bridge"]
+extra_bindings = ["loam-sdk-bridge"]

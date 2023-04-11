@@ -1,0 +1,11 @@
+[package]
+name = "loam-sdk-bridge"
+version = "0.1.0"
+authors = ["Nora Trapp <nora@loam.me>"]
+edition = "2021"
+
+[dependencies]
+loam-sdk = { path = "../../sdk/client" }
+tokio = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
