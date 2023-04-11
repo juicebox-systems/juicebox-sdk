@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.library' version '7.4.2'
+    id 'org.jetbrains.kotlin.android' version '1.8.0'
+}
+
+repositories {
+    google()
+    mavenCentral()
+    mavenLocal()
+}
+
+android {
+    compileSdk 33
+
+    defaultConfig {
+        minSdk 24
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
+    }
+
+    sourceSets {
+        main.jniLibs.srcDirs = ['libs']
+    }
+}
+
+dependencies {
+    androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'org.assertj:assertj-core:3.11.1'
+}
+
+preBuild {
+    dependsOn 'buildRustJni'
+}
+
+task buildRustJni(type:Exec) {
+  group 'Rust'
+  description 'Build the Rust JNI libraries'
+
+  commandLine 'bash', 'jni.sh', '--release'
+}
