@@ -13,32 +13,32 @@ public final class Native {
    }
 
    public static native @NotNull long clientCreate(
-           @NotNull Configuration configuration,
-           @NotNull String authToken,
-           @NotNull HttpSendFn httpSend
+       @NotNull Configuration configuration,
+       @NotNull String authToken,
+       @NotNull HttpSendFn httpSend
    );
 
    public static native void clientDestroy(@NotNull long client);
 
    public static native void clientRegister(
-           @NotNull long client,
-           @NotNull byte[] pin,
-           @NotNull byte[] secret,
-           @NotNull short numGuesses
+       @NotNull long client,
+       @NotNull byte[] pin,
+       @NotNull byte[] secret,
+       @NotNull short numGuesses
    ) throws RegisterException;
 
    public static native @NotNull byte[] clientRecover(
-           @NotNull long client,
-           @NotNull byte[] pin
+       @NotNull long client,
+       @NotNull byte[] pin
    ) throws RecoverException;
 
    public static native void clientDeleteAll(
-           @NotNull long client
+       @NotNull long client
    ) throws DeleteException;
 
    public static native void httpClientRequestComplete(
-           @NotNull long httpClient,
-           @NotNull HttpResponse response
+       @NotNull long httpClient,
+       @NotNull HttpResponse response
    );
 
    public static class HttpHeader {

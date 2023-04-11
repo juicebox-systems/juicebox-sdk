@@ -1,9 +1,12 @@
 package me.loam.sdk
 import me.loam.sdk.internal.Native
-import kotlin.concurrent.thread
-import java.net.HttpURLConnection
 import java.net.URL
-
+import java.security.KeyStore
+import java.security.cert.Certificate
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import kotlin.concurrent.thread
 public final class Client(
     val configuration: Configuration,
     val authToken: String,
@@ -33,12 +36,32 @@ public final class Client(
     protected fun finalize() {
         Native.clientDestroy(native)
     }
-    private companion object {
-        fun createNative(configuration: Configuration, authToken: String): Long {
+
+    companion object {
+        public var pinnedCertificates: Array<Certificate>? = null
+
+        private fun createNative(configuration: Configuration, authToken: String): Long {
             val httpSend = object : Native.HttpSendFn {
                 override fun send(httpClient: Long, request: Native.HttpRequest) {
                     thread {
-                        val urlConnection = URL(request.url).openConnection() as HttpURLConnection
+                        val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
+
+                        Client.pinnedCertificates?.let {
+                            val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
+                            keyStore.load(null, null)
+                            it.forEachIndexed { index, certificate ->
+                                keyStore.setCertificateEntry(index.toString(), certificate)
+                            }
+
+                            val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                            trustManagerFactory.init(keyStore)
+                            val trustManagers = trustManagerFactory.trustManagers
+
+                            val sslContext = SSLContext.getInstance("TLS")
+                            sslContext.init(null, trustManagers, null)
+                            urlConnection.sslSocketFactory = sslContext.socketFactory
+                        }
+
                         urlConnection.requestMethod = request.method
 
                         request.headers?.forEach {
