@@ -5,6 +5,7 @@ members = [
     "rust/sdk/networking",
     "rust/sdk/noise",
     "rust/bridge/ffi",
+    "rust/bridge/jni",
     "rust/bridge/common",
 ]
 default-members = ["rust/sdk/client"]

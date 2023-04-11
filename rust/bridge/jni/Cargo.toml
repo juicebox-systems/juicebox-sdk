@@ -1,0 +1,21 @@
+[package]
+name = "loam-sdk-jni"
+version = "0.1.0"
+authors = ["Nora Trapp <nora@loam.me>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+async-trait = { workspace = true }
+futures = { workspace = true }
+jni = { workspace = true }
+loam-sdk = { path = "../../sdk/client" }
+loam-sdk-bridge = { path = "../common" }
+tokio = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
+[build-dependencies]
+cbindgen = { workspace = true }
