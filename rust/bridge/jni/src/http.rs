@@ -10,6 +10,14 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
+use crate::{
+    jni_array, jni_object, jni_signature,
+    types::{
+        JNI_BYTE_TYPE, JNI_LONG_TYPE, JNI_STRING_TYPE, JNI_VOID_TYPE, LOAM_JNI_HTTP_HEADER_TYPE,
+        LOAM_JNI_HTTP_REQUEST_TYPE,
+    },
+};
+
 pub struct HttpClient {
     send_function: GlobalRef,
     jvm: JavaVM,
@@ -39,10 +47,10 @@ impl sdk::http::Client for HttpClient {
         {
             let mut env = self.jvm.attach_current_thread().unwrap();
 
-            let java_request_class = env
-                .find_class("me/loam/sdk/internal/Native$HttpRequest")
+            let java_request_class = env.find_class(LOAM_JNI_HTTP_REQUEST_TYPE).unwrap();
+            let java_request = env
+                .new_object(java_request_class, jni_signature!(""; JNI_VOID_TYPE), &[])
                 .unwrap();
-            let java_request = env.new_object(java_request_class, "()V", &[]).unwrap();
 
             let id = *Uuid::new_v4().as_bytes();
 
@@ -67,14 +75,14 @@ impl sdk::http::Client for HttpClient {
                 set_byte_array(&mut env, &java_request, "body", &body);
             }
 
-            let java_header_class = env
-                .find_class("me/loam/sdk/internal/Native$HttpHeader")
-                .unwrap();
+            let java_header_class = env.find_class(LOAM_JNI_HTTP_HEADER_TYPE).unwrap();
 
             let mut headers_array: Option<JObjectArray> = None;
 
             for (index, (name, value)) in request.headers.iter().enumerate() {
-                let java_header = env.new_object(&java_header_class, "()V", &[]).unwrap();
+                let java_header = env
+                    .new_object(&java_header_class, jni_signature!(""; JNI_VOID_TYPE), &[])
+                    .unwrap();
 
                 set_string(&mut env, &java_header, "name", name);
                 set_string(&mut env, &java_header, "value", value);
@@ -88,7 +96,7 @@ impl sdk::http::Client for HttpClient {
                         headers_array = Some(
                             env.new_object_array(
                                 request.headers.len().try_into().unwrap(),
-                                "Lme/loam/sdk/internal/Native$HttpHeader;",
+                                jni_object!(LOAM_JNI_HTTP_HEADER_TYPE),
                                 java_header,
                             )
                             .unwrap(),
@@ -101,7 +109,7 @@ impl sdk::http::Client for HttpClient {
                 env.set_field(
                     &java_request,
                     "headers",
-                    "[Lme/loam/sdk/internal/Native$HttpHeader;",
+                    jni_array!(jni_object!(LOAM_JNI_HTTP_HEADER_TYPE)),
                     JValue::Object(&array),
                 )
                 .unwrap();
@@ -110,7 +118,7 @@ impl sdk::http::Client for HttpClient {
             env.call_method(
                 &self.send_function,
                 "send",
-                "(JLme/loam/sdk/internal/Native$HttpRequest;)V",
+                jni_signature!(JNI_LONG_TYPE, jni_object!(LOAM_JNI_HTTP_REQUEST_TYPE); JNI_VOID_TYPE),
                 &[
                     (self as *const HttpClient as jlong).into(),
                     JValue::Object(&java_request),
@@ -128,7 +136,7 @@ fn set_string(env: &mut JNIEnv, obj: &JObject, name: &str, string: &str) {
     env.set_field(
         obj,
         name,
-        "Ljava/lang/String;",
+        jni_object!(JNI_STRING_TYPE),
         JValue::Object(&java_string),
     )
     .unwrap();
@@ -136,6 +144,11 @@ fn set_string(env: &mut JNIEnv, obj: &JObject, name: &str, string: &str) {
 
 fn set_byte_array(env: &mut JNIEnv, obj: &JObject, name: &str, array: &[u8]) {
     let java_array = env.byte_array_from_slice(array).unwrap();
-    env.set_field(obj, name, "[B", JValue::Object(&java_array))
-        .unwrap();
+    env.set_field(
+        obj,
+        name,
+        jni_array!(JNI_BYTE_TYPE),
+        JValue::Object(&java_array),
+    )
+    .unwrap();
 }

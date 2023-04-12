@@ -1,5 +1,8 @@
 pub mod http;
 
+#[macro_use]
+mod types;
+
 use jni::{
     objects::{JByteArray, JClass, JObject, JObjectArray, JString, JThrowable, JValue},
     sys::{jlong, jshort},
@@ -12,6 +15,10 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::http::HttpClient;
+use crate::types::{
+    JNI_BYTE_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE, JNI_VOID_TYPE, LOAM_JNI_HTTP_HEADER_TYPE,
+    LOAM_JNI_REALM_TYPE,
+};
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
@@ -27,7 +34,11 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
     let recover_threshold = get_byte(&mut env, &configuration, "recoverThreshold");
 
     let jrealms: JObjectArray = env
-        .get_field(&configuration, "realms", "[Lme/loam/sdk/Realm;")
+        .get_field(
+            &configuration,
+            "realms",
+            jni_array!(jni_object!(LOAM_JNI_REALM_TYPE)),
+        )
         .unwrap()
         .l()
         .unwrap()
@@ -97,31 +108,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRegister(
         sdk::Policy { num_guesses },
     )) {
         let error = RegisterError::from(err);
-        let java_error_class = env.find_class("me/loam/sdk/RegisterError").unwrap();
-        let java_error_values: JObjectArray = env
-            .call_static_method(
-                java_error_class,
-                "values",
-                "()[Lme/loam/sdk/RegisterError;",
-                &[],
-            )
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
-        let java_error = env
-            .get_object_array_element(&java_error_values, error as i32)
-            .unwrap();
-        let java_exception_class = env.find_class("me/loam/sdk/RegisterException").unwrap();
-        let java_exception: JThrowable = env
-            .new_object(
-                java_exception_class,
-                "(Lme/loam/sdk/RegisterError;)V",
-                &[JValue::Object(&java_error)],
-            )
-            .unwrap()
-            .into();
-        env.throw(java_exception).unwrap();
+        throw(&mut env, error as i32, "Register");
     }
 }
 
@@ -140,31 +127,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
         Ok(secret) => env.byte_array_from_slice(&secret.0).unwrap() as JByteArray,
         Err(err) => {
             let error = RecoverError::from(err);
-            let java_error_class = env.find_class("me/loam/sdk/RecoverError").unwrap();
-            let java_error_values: JObjectArray = env
-                .call_static_method(
-                    java_error_class,
-                    "values",
-                    "()[Lme/loam/sdk/RecoverError;",
-                    &[],
-                )
-                .unwrap()
-                .l()
-                .unwrap()
-                .into();
-            let java_error = env
-                .get_object_array_element(&java_error_values, error as i32)
-                .unwrap();
-            let java_exception_class = env.find_class("me/loam/sdk/RecoverException").unwrap();
-            let java_exception: JThrowable = env
-                .new_object(
-                    java_exception_class,
-                    "(Lme/loam/sdk/RecoverError;)V",
-                    &[JValue::Object(&java_error)],
-                )
-                .unwrap()
-                .into();
-            env.throw(java_exception).unwrap();
+            throw(&mut env, error as i32, "Recover");
             JByteArray::default()
         }
     }
@@ -181,31 +144,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDeleteAll(
 
     if let Err(err) = client.runtime.block_on(client.sdk.delete_all()) {
         let error = DeleteError::from(err);
-        let java_error_class = env.find_class("me/loam/sdk/DeleteError").unwrap();
-        let java_error_values: JObjectArray = env
-            .call_static_method(
-                java_error_class,
-                "values",
-                "()[Lme/loam/sdk/DeleteError;",
-                &[],
-            )
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
-        let java_error = env
-            .get_object_array_element(&java_error_values, error as i32)
-            .unwrap();
-        let java_exception_class = env.find_class("me/loam/sdk/DeleteException").unwrap();
-        let java_exception: JThrowable = env
-            .new_object(
-                java_exception_class,
-                "(Lme/loam/sdk/DeleteError;)V",
-                &[JValue::Object(&java_error)],
-            )
-            .unwrap()
-            .into();
-        env.throw(java_exception).unwrap();
+        throw(&mut env, error as i32, "Delete");
     }
 }
 
@@ -227,7 +166,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestCompl
         .get_field(
             &response,
             "headers",
-            "[Lme/loam/sdk/internal/Native$HttpHeader;",
+            jni_array!(jni_object!(LOAM_JNI_HTTP_HEADER_TYPE)),
         )
         .unwrap()
         .l()
@@ -258,7 +197,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestCompl
 
 fn get_string(env: &mut JNIEnv, obj: &JObject, name: &str) -> String {
     let jstring: JString = env
-        .get_field(obj, name, "Ljava/lang/String;")
+        .get_field(obj, name, jni_object!(JNI_STRING_TYPE))
         .unwrap()
         .l()
         .unwrap()
@@ -267,12 +206,17 @@ fn get_string(env: &mut JNIEnv, obj: &JObject, name: &str) -> String {
 }
 
 fn get_byte_array(env: &mut JNIEnv, obj: &JObject, name: &str) -> Vec<u8> {
-    let jbytearray: JByteArray = env.get_field(obj, name, "[B").unwrap().l().unwrap().into();
+    let jbytearray: JByteArray = env
+        .get_field(obj, name, jni_array!(JNI_BYTE_TYPE))
+        .unwrap()
+        .l()
+        .unwrap()
+        .into();
     env.convert_byte_array(jbytearray).unwrap()
 }
 
 fn get_byte(env: &mut JNIEnv, obj: &JObject, name: &str) -> u8 {
-    env.get_field(obj, name, "B")
+    env.get_field(obj, name, JNI_BYTE_TYPE)
         .unwrap()
         .b()
         .unwrap()
@@ -281,10 +225,41 @@ fn get_byte(env: &mut JNIEnv, obj: &JObject, name: &str) -> u8 {
 }
 
 fn get_short(env: &mut JNIEnv, obj: &JObject, name: &str) -> u16 {
-    env.get_field(obj, name, "S")
+    env.get_field(obj, name, JNI_SHORT_TYPE)
         .unwrap()
         .s()
         .unwrap()
         .try_into()
         .unwrap()
+}
+
+fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {
+    let java_error_type = format!("me/loam/sdk/{}Error", name);
+    let java_error_class = env.find_class(&java_error_type).unwrap();
+    let java_error_values: JObjectArray = env
+        .call_static_method(
+            java_error_class,
+            "values",
+            jni_signature!(""; jni_array!(jni_object!(java_error_type))),
+            &[],
+        )
+        .unwrap()
+        .l()
+        .unwrap()
+        .into();
+    let java_error = env
+        .get_object_array_element(&java_error_values, error_code)
+        .unwrap();
+    let java_exception_class = env
+        .find_class(format!("me/loam/sdk/{}Exception", name))
+        .unwrap();
+    let java_exception: JThrowable = env
+        .new_object(
+            java_exception_class,
+            jni_signature!(jni_object!(java_error_type); JNI_VOID_TYPE),
+            &[JValue::Object(&java_error)],
+        )
+        .unwrap()
+        .into();
+    env.throw(java_exception).unwrap();
 }
