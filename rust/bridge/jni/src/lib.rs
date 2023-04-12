@@ -240,7 +240,7 @@ fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {
         .call_static_method(
             java_error_class,
             "values",
-            jni_signature!(""; jni_array!(jni_object!(java_error_type))),
+            jni_signature!(() => jni_array!(jni_object!(java_error_type))),
             &[],
         )
         .unwrap()
@@ -256,7 +256,7 @@ fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {
     let java_exception: JThrowable = env
         .new_object(
             java_exception_class,
-            jni_signature!(jni_object!(java_error_type); JNI_VOID_TYPE),
+            jni_signature!((jni_object!(java_error_type)) => JNI_VOID_TYPE),
             &[JValue::Object(&java_error)],
         )
         .unwrap()

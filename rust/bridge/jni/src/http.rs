@@ -49,7 +49,7 @@ impl sdk::http::Client for HttpClient {
 
             let java_request_class = env.find_class(LOAM_JNI_HTTP_REQUEST_TYPE).unwrap();
             let java_request = env
-                .new_object(java_request_class, jni_signature!(""; JNI_VOID_TYPE), &[])
+                .new_object(java_request_class, jni_signature!(() => JNI_VOID_TYPE), &[])
                 .unwrap();
 
             let id = *Uuid::new_v4().as_bytes();
@@ -81,7 +81,7 @@ impl sdk::http::Client for HttpClient {
 
             for (index, (name, value)) in request.headers.iter().enumerate() {
                 let java_header = env
-                    .new_object(&java_header_class, jni_signature!(""; JNI_VOID_TYPE), &[])
+                    .new_object(&java_header_class, jni_signature!(() => JNI_VOID_TYPE), &[])
                     .unwrap();
 
                 set_string(&mut env, &java_header, "name", name);
@@ -118,7 +118,7 @@ impl sdk::http::Client for HttpClient {
             env.call_method(
                 &self.send_function,
                 "send",
-                jni_signature!(JNI_LONG_TYPE, jni_object!(LOAM_JNI_HTTP_REQUEST_TYPE); JNI_VOID_TYPE),
+                jni_signature!((JNI_LONG_TYPE, jni_object!(LOAM_JNI_HTTP_REQUEST_TYPE)) => JNI_VOID_TYPE),
                 &[
                     (self as *const HttpClient as jlong).into(),
                     JValue::Object(&java_request),

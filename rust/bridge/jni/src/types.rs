@@ -24,7 +24,8 @@ macro_rules! jni_object {
 
 #[macro_export]
 macro_rules! jni_signature {
-    ($($arg:expr),* ; $ret:expr) => {{
+    (($($arg:expr),*) => $ret:expr) => {{
+        #[allow(unused_mut)]
         let mut args = String::new();
         $(args.push_str(&$arg);)*
         format!("({}){}", args, $ret)
