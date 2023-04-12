@@ -78,12 +78,8 @@ public final class Client(
 
                         response.id = request.id
                         response.statusCode = urlConnection.responseCode.toShort()
-                        response.headers = urlConnection.headerFields.flatMap { (key, values) ->
-                            if (key != null) {
-                                values.map { Native.HttpHeader(key, it) }
-                            } else {
-                                emptyList()
-                            }
+                        response.headers = urlConnection.headerFields.filterKeys { it != null }.map { (key, values) ->
+                            Native.HttpHeader(key, values.joinToString(","))
                         }.toTypedArray()
 
                         if (response.statusCode == 200.toShort()) {
