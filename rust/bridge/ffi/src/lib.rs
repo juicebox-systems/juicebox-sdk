@@ -3,17 +3,12 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
+use loam_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError};
 use std::{ffi::CStr, ptr, str::FromStr};
-use tokio::runtime::Runtime;
 use url::Url;
 
 use crate::array::{ManagedArray, UnmanagedArray};
 use crate::http::{HttpClient, HttpSendFn};
-
-pub struct Client {
-    sdk: sdk::Client<HttpClient>,
-    runtime: Runtime,
-}
 
 #[derive(Debug)]
 #[repr(C)]
@@ -84,7 +79,7 @@ pub unsafe extern "C" fn loam_client_create(
     configuration: Configuration,
     auth_token: *const c_char,
     http_send: HttpSendFn,
-) -> *mut Client {
+) -> *mut Client<HttpClient> {
     let configuration = sdk::Configuration::from(configuration);
     let auth_token = sdk::AuthToken::from(
         unsafe { CStr::from_ptr(auth_token) }
@@ -92,36 +87,15 @@ pub unsafe extern "C" fn loam_client_create(
             .expect("invalid string for auth token")
             .to_owned(),
     );
-    let client = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
-    Box::into_raw(Box::new(Client {
-        sdk: client,
-        runtime: Runtime::new().unwrap(),
-    }))
+    let sdk = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
+    Box::into_raw(Box::new(Client::new(sdk)))
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_destroy(client: *mut Client) {
+pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient>) {
     assert!(!client.is_null());
     drop(Box::from_raw(client))
-}
-
-#[repr(C)]
-pub enum RegisterError {
-    InvalidAuth = 0,
-    NetworkError,
-    ProtocolError,
-    Unavailable,
-}
-
-impl From<sdk::RegisterError> for RegisterError {
-    fn from(value: sdk::RegisterError) -> Self {
-        match value {
-            sdk::RegisterError::InvalidAuth => Self::InvalidAuth,
-            sdk::RegisterError::NetworkError => Self::NetworkError,
-            sdk::RegisterError::ProtocolError => Self::ProtocolError,
-        }
-    }
 }
 
 /// Stores a new PIN-protected secret.
@@ -135,7 +109,7 @@ impl From<sdk::RegisterError> for RegisterError {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_register(
-    client: *mut Client,
+    client: *mut Client<HttpClient>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
     secret: UnmanagedArray<u8>,
@@ -163,25 +137,6 @@ pub unsafe extern "C" fn loam_client_register(
     });
 }
 
-#[repr(C)]
-pub enum RecoverError {
-    InvalidAuth = 0,
-    NetworkError,
-    Unsuccessful,
-    ProtocolError,
-}
-
-impl From<sdk::RecoverError> for RecoverError {
-    fn from(value: sdk::RecoverError) -> Self {
-        match value {
-            sdk::RecoverError::InvalidAuth => RecoverError::InvalidAuth,
-            sdk::RecoverError::NetworkError => RecoverError::NetworkError,
-            sdk::RecoverError::Unsuccessful(_) => RecoverError::Unsuccessful,
-            sdk::RecoverError::ProtocolError => RecoverError::ProtocolError,
-        }
-    }
-}
-
 /// Retrieves a PIN-protected secret.
 ///
 /// If it's successful, this also deletes any earlier secrets for this
@@ -189,7 +144,7 @@ impl From<sdk::RecoverError> for RecoverError {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_recover(
-    client: *mut Client,
+    client: *mut Client<HttpClient>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
     response: extern "C" fn(
@@ -217,30 +172,13 @@ pub unsafe extern "C" fn loam_client_recover(
     });
 }
 
-#[repr(C)]
-pub enum DeleteError {
-    InvalidAuth = 0,
-    NetworkError,
-    ProtocolError,
-}
-
-impl From<sdk::DeleteError> for DeleteError {
-    fn from(value: sdk::DeleteError) -> Self {
-        match value {
-            sdk::DeleteError::InvalidAuth => DeleteError::InvalidAuth,
-            sdk::DeleteError::NetworkError => DeleteError::NetworkError,
-            sdk::DeleteError::ProtocolError => DeleteError::ProtocolError,
-        }
-    }
-}
-
 /// Deletes all secrets for this user.
 ///
 /// Note: This does not delete the user's audit log.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_delete_all(
-    client: *mut Client,
+    client: *mut Client<HttpClient>,
     context: *const c_void,
     response: extern "C" fn(context: &c_void, error: *const DeleteError),
 ) {

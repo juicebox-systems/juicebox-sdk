@@ -1,20 +1,18 @@
 [package]
-name = "loam-sdk-ffi"
+name = "loam-sdk-jni"
 version = "0.1.0"
-authors = ["Nora Trapp <nora@loam.me>", "Diego Ongaro <diego@loam.me>"]
+authors = ["Nora Trapp <nora@loam.me>"]
 edition = "2021"
-build = "build.rs"
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 async-trait = { workspace = true }
 futures = { workspace = true }
-libc = { workspace = true }
+jni = { workspace = true }
 loam-sdk = { path = "../../sdk/client" }
 loam-sdk-bridge = { path = "../common" }
-secrecy = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

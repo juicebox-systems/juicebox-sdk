@@ -16,8 +16,8 @@ public enum DeleteError: Error {
     init(_ error: LoamDeleteError) {
         switch error {
         case LoamDeleteErrorInvalidAuth: self = .invalidAuth
-        case LoamDeleteErrorNetworkError: self = .networkError
-        case LoamDeleteErrorProtocolError: self = .protocolError
+        case LoamDeleteErrorNetwork: self = .networkError
+        case LoamDeleteErrorProtocol: self = .protocolError
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -32,9 +32,9 @@ public enum RecoverError: Error {
     init(_ error: LoamRecoverError) {
         switch error {
         case LoamRecoverErrorInvalidAuth: self = .invalidAuth
-        case LoamRecoverErrorNetworkError: self = .networkError
+        case LoamRecoverErrorNetwork: self = .networkError
         case LoamRecoverErrorUnsuccessful: self = .unsuccessful
-        case LoamRecoverErrorProtocolError: self = .protocolError
+        case LoamRecoverErrorProtocol: self = .protocolError
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -49,9 +49,9 @@ public enum RegisterError: Error {
     init(_ error: LoamRegisterError) {
         switch error {
         case LoamRegisterErrorInvalidAuth: self = .invalidAuth
-        case LoamRegisterErrorNetworkError: self = .networkError
+        case LoamRegisterErrorNetwork: self = .networkError
         case LoamRegisterErrorUnavailable: self = .unavailable
-        case LoamRegisterErrorProtocolError: self = .protocolError
+        case LoamRegisterErrorProtocol: self = .protocolError
         default: fatalError("Unexpected error type \(error)")
         }
     }

@@ -10,8 +10,8 @@
 
 typedef enum {
   LoamDeleteErrorInvalidAuth = 0,
-  LoamDeleteErrorNetworkError,
-  LoamDeleteErrorProtocolError,
+  LoamDeleteErrorNetwork,
+  LoamDeleteErrorProtocol,
 } LoamDeleteError;
 
 typedef enum {
@@ -23,18 +23,22 @@ typedef enum {
 
 typedef enum {
   LoamRecoverErrorInvalidAuth = 0,
-  LoamRecoverErrorNetworkError,
+  LoamRecoverErrorNetwork,
   LoamRecoverErrorUnsuccessful,
-  LoamRecoverErrorProtocolError,
+  LoamRecoverErrorProtocol,
 } LoamRecoverError;
 
 typedef enum {
   LoamRegisterErrorInvalidAuth = 0,
-  LoamRegisterErrorNetworkError,
-  LoamRegisterErrorProtocolError,
+  LoamRegisterErrorNetwork,
+  LoamRegisterErrorProtocol,
   LoamRegisterErrorUnavailable,
 } LoamRegisterError;
 
+/**
+ * Used to register and recover PIN-protected secrets on behalf of a
+ * particular user.
+ */
 typedef struct LoamClient LoamClient;
 
 typedef struct LoamHttpClient LoamHttpClient;
