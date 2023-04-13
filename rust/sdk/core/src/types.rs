@@ -46,6 +46,10 @@ impl Debug for RealmId {
 /// - an expiration time (`exp`) in the future,
 /// - a not-valid before time (`nbf`) in the past, and
 /// - a lifetime (difference between `nbf` and `exp`) of less than 1 day.
+///
+/// Additionally, the token must include the key ID (`kid`) in the JWT header.
+/// This uses the format `{issuer}:{version}`, like "acme:32" and should be
+/// provided to the issuer alongside the key.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
 
