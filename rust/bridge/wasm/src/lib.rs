@@ -3,7 +3,7 @@ use js_sys::{try_iter, Array, Uint8Array};
 use loam_sdk as sdk;
 use loam_sdk_bridge::{DeleteError, RecoverError, RegisterError};
 use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::{from_value, to_value};
+use serde_wasm_bindgen::from_value;
 
 use std::str::FromStr;
 use url::Url;
@@ -13,12 +13,13 @@ use web_sys::{Blob, Request, RequestInit, Response};
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "Realm[]")]
+    #[wasm_bindgen(extends = :: js_sys :: Object, typescript_type = "Realm[]")]
+    #[derive(Clone, Debug, Eq, PartialEq)]
     pub type RealmArray;
 }
 
 #[wasm_bindgen(getter_with_clone)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Realm {
     pub address: String,
     pub public_key: Vec<u8>,
@@ -48,10 +49,9 @@ impl From<Realm> for sdk::Realm {
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(getter_with_clone)]
 pub struct Configuration {
-    #[wasm_bindgen(skip)]
-    pub realms: Vec<Realm>,
+    pub realms: RealmArray,
     pub register_threshold: u8,
     pub recover_threshold: u8,
 }
@@ -61,37 +61,21 @@ impl Configuration {
     #[wasm_bindgen(constructor)]
     pub fn new(realms: RealmArray, register_threshold: u8, recover_threshold: u8) -> Self {
         console_error_panic_hook::set_once();
-        let realms = Array::from(&realms)
-            .iter()
-            .map(|value| from_value(value).unwrap())
-            .collect();
         Self {
             realms,
             register_threshold,
             recover_threshold,
         }
     }
-
-    #[wasm_bindgen(getter)]
-    pub fn realms(&self) -> RealmArray {
-        RealmArray {
-            obj: to_value(&self.realms).unwrap(),
-        }
-    }
-
-    #[wasm_bindgen(setter)]
-    pub fn set_realms(&mut self, value: RealmArray) {
-        self.realms = Array::from(&value)
-            .iter()
-            .map(|value| from_value(value).unwrap())
-            .collect();
-    }
 }
 
 impl From<Configuration> for sdk::Configuration {
     fn from(value: Configuration) -> Self {
         sdk::Configuration {
-            realms: value.realms.into_iter().map(sdk::Realm::from).collect(),
+            realms: Array::from(&value.realms)
+                .iter()
+                .map(|value| sdk::Realm::from(from_value::<Realm>(value).unwrap()))
+                .collect(),
             register_threshold: value.register_threshold,
             recover_threshold: value.recover_threshold,
         }
@@ -238,8 +222,9 @@ impl sdk::http::Client for HttpClient {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Client, Configuration, Realm};
+    use crate::{Client, Configuration, Realm, RealmArray};
     use loam_sdk_bridge::{DeleteError, RecoverError, RegisterError};
+    use serde_wasm_bindgen::to_value;
     use wasm_bindgen_test::*;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -270,11 +255,15 @@ mod tests {
     fn client(url: &str) -> Client {
         Client::new(
             Configuration {
-                realms: vec![Realm {
-                    address: url.to_string(),
-                    public_key: vec![0; 32],
-                    id: vec![0; 16],
-                }],
+                realms: RealmArray {
+                    obj: to_value(&vec![Realm {
+                        address: url.to_string(),
+                        public_key: vec![0; 32],
+                        id: vec![0; 16],
+                    }])
+                    .unwrap()
+                    .into(),
+                },
                 register_threshold: 1,
                 recover_threshold: 1,
             },
