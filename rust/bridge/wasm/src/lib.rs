@@ -9,7 +9,7 @@ use std::str::FromStr;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Request, RequestInit, Response};
+use web_sys::{Blob, Request, RequestInit, Response};
 
 #[wasm_bindgen]
 extern "C" {
@@ -183,6 +183,13 @@ impl sdk::http::Client for HttpClient {
             sdk::http::Method::Put => "PUT",
             sdk::http::Method::Post => "POST",
         });
+        opts.mode(web_sys::RequestMode::Cors);
+
+        if let Some(body) = &request.body {
+            let array = Uint8Array::new_with_length(body.len() as u32);
+            array.copy_from(body);
+            opts.body(Some(&array));
+        }
 
         let js_request = Request::new_with_str_and_init(request.url.as_str(), &opts)
             .expect("Failed to initialze request");
@@ -210,7 +217,11 @@ impl sdk::http::Client for HttpClient {
                     .collect();
 
                 let body = match JsFuture::from(response.blob().unwrap()).await {
-                    Ok(body) => Uint8Array::new(&body).to_vec(),
+                    Ok(value) => {
+                        let blob: Blob = value.dyn_into().unwrap();
+                        let array_buffer = JsFuture::from(blob.array_buffer()).await.unwrap();
+                        Uint8Array::new(&array_buffer).to_vec()
+                    }
                     Err(_) => vec![],
                 };
 
