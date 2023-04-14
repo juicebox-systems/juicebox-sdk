@@ -2,8 +2,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
-use tracing::Span;
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 use url::Url;
 
 use crate::http;
@@ -72,19 +70,13 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     request: R,
 ) -> Result<R::Response, RpcError> {
     let url = base_url.join(R::PATH).unwrap();
-
-    let mut headers = HashMap::new();
-    opentelemetry::global::get_text_map_propagator(|propagator| {
-        propagator.inject_context(&Span::current().context(), &mut headers)
-    });
-
     let body = marshalling::to_vec(&request).map_err(RpcError::Serialization)?;
 
     match http
         .send(http::Request {
             method: http::Method::Post,
             url: url.to_string(),
-            headers,
+            headers: HashMap::new(),
             body: Some(body),
         })
         .await

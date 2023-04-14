@@ -6,6 +6,11 @@ edition = "2021"
 
 [dependencies]
 loam-sdk = { path = "../../sdk/client" }
-tokio = { workspace = true }
+tokio = { workspace = true, optional = true }
 url = { workspace = true }
 uuid = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true }
+
+[features]
+"tokio" = ["tokio/rt-multi-thread"]
+"wasm" = ["wasm-bindgen"]

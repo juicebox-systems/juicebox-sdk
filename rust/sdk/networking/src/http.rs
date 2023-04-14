@@ -31,7 +31,7 @@ impl Response {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Client: Sync {
     async fn send(&self, request: Request) -> Option<Response>;
 }
