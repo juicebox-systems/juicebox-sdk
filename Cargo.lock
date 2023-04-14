@@ -842,18 +842,14 @@ name = "loam-sdk-wasm"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "cbindgen",
  "console_error_panic_hook",
- "futures",
  "getrandom",
- "jni",
  "js-sys",
  "loam-sdk",
  "loam-sdk-bridge",
  "serde",
  "serde-wasm-bindgen",
  "url",
- "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
