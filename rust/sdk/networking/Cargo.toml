@@ -20,3 +20,4 @@ url = { workspace = true }
 
 [features]
 "header-tracing" = ["tracing", "tracing-opentelemetry", "opentelemetry"]
+"threadsafe-futures" = []

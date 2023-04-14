@@ -31,6 +31,13 @@ impl Response {
     }
 }
 
+#[cfg(feature = "threadsafe-futures")]
+#[async_trait]
+pub trait Client: Sync {
+    async fn send(&self, request: Request) -> Option<Response>;
+}
+
+#[cfg(not(feature = "threadsafe-futures"))]
 #[async_trait(?Send)]
 pub trait Client: Sync {
     async fn send(&self, request: Request) -> Option<Response>;
