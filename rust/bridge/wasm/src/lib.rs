@@ -224,3 +224,50 @@ impl sdk::http::Client for HttpClient {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Client, Configuration, Realm};
+    use loam_sdk_bridge::{DeleteError, RecoverError, RegisterError};
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn test_register() {
+        let client = client("https://httpbin.org/anything/");
+        let result = client
+            .register(Vec::from("1234"), Vec::from("apollo"), 2)
+            .await;
+        assert!(matches!(result, Err(RegisterError::Protocol)));
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_recover() {
+        let client = client("https://httpbin.org/anything/");
+        let result = client.recover(Vec::from("1234")).await;
+        assert!(matches!(result, Err(RecoverError::Protocol)));
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_delete() {
+        let client = client("https://httpbin.org/anything/");
+        let result = client.delete_all().await;
+        assert!(matches!(result, Err(DeleteError::Protocol)));
+    }
+
+    fn client(url: &str) -> Client {
+        Client::new(
+            Configuration {
+                realms: vec![Realm {
+                    address: url.to_string(),
+                    public_key: vec![0; 32],
+                    id: vec![0; 16],
+                }],
+                register_threshold: 1,
+                recover_threshold: 1,
+            },
+            "token".to_string(),
+        )
+    }
+}
