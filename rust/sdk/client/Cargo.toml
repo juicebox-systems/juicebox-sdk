@@ -12,6 +12,7 @@ edition = "2021"
 digest = { workspace = true }
 futures = { workspace = true }
 hmac = { workspace = true }
+instant = { workspace = true }
 loam-sdk-core = { path = "../../sdk/core" }
 loam-sdk-networking = { path = "../../sdk/networking" }
 loam-sdk-noise = { path = "../../sdk/noise" }

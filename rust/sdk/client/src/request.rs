@@ -1,5 +1,5 @@
+use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
-use std::time::Instant;
 use x25519_dalek as x25519;
 
 use crate::{http, types::Session, Client, Realm};
