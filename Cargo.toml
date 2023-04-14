@@ -54,7 +54,7 @@ voprf = { version = "0.4.0" }
 wasm-bindgen = { version = "0.2.84", features = ["serde"] }
 wasm-bindgen-futures = "0.4.34"
 wasm-bindgen-test = "0.3.34"
-web-sys = { version = "0.3.4", features = ["Headers", "Request", "RequestInit", "RequestMode", "Response", "Window", "Blob"] }
+web-sys = { version = "0.3.4", features = ["Headers", "Request", "RequestInit", "RequestMode", "Response", "Blob"] }
 x25519-dalek = { version = "2.0.0-pre.1", default-features = false, features = [
     "reusable_secrets",
     "serde",

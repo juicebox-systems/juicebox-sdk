@@ -16,6 +16,9 @@ extern "C" {
     #[wasm_bindgen(extends = :: js_sys :: Object, typescript_type = "Realm[]")]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub type RealmArray;
+
+    #[wasm_bindgen(js_name = fetch)]
+    pub fn fetch_with_request(input: &Request) -> ::js_sys::Promise;
 }
 
 #[wasm_bindgen(getter_with_clone)]
@@ -182,9 +185,7 @@ impl sdk::http::Client for HttpClient {
             js_request.headers().set(name, value).unwrap();
         });
 
-        let window = web_sys::window().unwrap();
-
-        match JsFuture::from(window.fetch_with_request(&js_request)).await {
+        match JsFuture::from(fetch_with_request(&js_request)).await {
             Ok(value) => {
                 let response: Response = value.dyn_into().unwrap();
 
@@ -202,7 +203,7 @@ impl sdk::http::Client for HttpClient {
 
                 let body = match JsFuture::from(response.blob().unwrap()).await {
                     Ok(value) => {
-                        let blob: Blob = value.dyn_into().unwrap();
+                        let blob: Blob = value.into();
                         let array_buffer = JsFuture::from(blob.array_buffer()).await.unwrap();
                         Uint8Array::new(&array_buffer).to_vec()
                     }
