@@ -72,11 +72,24 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     let url = base_url.join(R::PATH).unwrap();
     let body = marshalling::to_vec(&request).map_err(RpcError::Serialization)?;
 
+    #[allow(unused_mut)]
+    let mut headers = HashMap::new();
+
+    #[cfg(feature = "header-tracing")]
+    {
+        use tracing::Span;
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+        opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.inject_context(&Span::current().context(), &mut headers)
+        });
+    }
+
     match http
         .send(http::Request {
             method: http::Method::Post,
             url: url.to_string(),
-            headers: HashMap::new(),
+            headers,
             body: Some(body),
         })
         .await
