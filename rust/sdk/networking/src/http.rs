@@ -10,6 +10,17 @@ pub enum Method {
     Delete,
 }
 
+impl Method {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Get => "GET",
+            Self::Put => "PUT",
+            Self::Post => "POST",
+            Self::Delete => "DELETE",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Request {
     pub method: Method,

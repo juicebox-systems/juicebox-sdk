@@ -1,24 +1,23 @@
 use async_trait::async_trait;
-use js_sys::{try_iter, Array, Uint8Array};
+use js_sys::{try_iter, Array, Object, Promise, Uint8Array};
 use loam_sdk as sdk;
 use loam_sdk_bridge::{DeleteError, RecoverError, RegisterError};
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
-
 use std::str::FromStr;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Blob, Request, RequestInit, Response};
+use web_sys::{Blob, Request, RequestInit, RequestMode, Response};
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(extends = :: js_sys :: Object, typescript_type = "Realm[]")]
+    #[wasm_bindgen(extends = Object, typescript_type = "Realm[]")]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub type RealmArray;
 
     #[wasm_bindgen(js_name = fetch)]
-    pub fn fetch_with_request(input: &Request) -> ::js_sys::Promise;
+    pub fn fetch_with_request(input: &Request) -> Promise;
 }
 
 #[wasm_bindgen(getter_with_clone)]
@@ -141,11 +140,7 @@ impl Client {
     /// Upon failure, a `RecoverError` will be provided.
     pub async fn recover(&self, pin: Vec<u8>) -> Result<Uint8Array, RecoverError> {
         match self.0.recover(&sdk::Pin(pin)).await {
-            Ok(secret) => {
-                let array = Uint8Array::new_with_length(secret.0.len() as u32);
-                array.copy_from(&secret.0);
-                Ok(array)
-            }
+            Ok(secret) => Ok(Uint8Array::from(secret.0.as_slice())),
             Err(err) => Err(RecoverError::from(err)),
         }
     }
@@ -164,18 +159,11 @@ struct HttpClient();
 impl sdk::http::Client for HttpClient {
     async fn send(&self, request: sdk::http::Request) -> Option<sdk::http::Response> {
         let mut opts = RequestInit::new();
-        opts.method(match request.method {
-            sdk::http::Method::Get => "GET",
-            sdk::http::Method::Delete => "DELETE",
-            sdk::http::Method::Put => "PUT",
-            sdk::http::Method::Post => "POST",
-        });
-        opts.mode(web_sys::RequestMode::Cors);
+        opts.method(request.method.as_str());
+        opts.mode(RequestMode::Cors);
 
         if let Some(body) = &request.body {
-            let array = Uint8Array::new_with_length(body.len() as u32);
-            array.copy_from(body);
-            opts.body(Some(&array));
+            opts.body(Some(&Uint8Array::from(body.as_slice())));
         }
 
         let js_request = Request::new_with_str_and_init(request.url.as_str(), &opts)

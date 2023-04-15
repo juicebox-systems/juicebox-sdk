@@ -44,7 +44,7 @@ impl From<sdk::RegisterError> for RegisterError {
 #[cfg(feature = "wasm")]
 impl From<RegisterError> for JsValue {
     fn from(value: RegisterError) -> Self {
-        JsValue::from_f64(value as u8 as f64)
+        JsValue::from(value as u8)
     }
 }
 
@@ -71,7 +71,7 @@ impl From<sdk::RecoverError> for RecoverError {
 #[cfg(feature = "wasm")]
 impl From<RecoverError> for JsValue {
     fn from(value: RecoverError) -> Self {
-        JsValue::from_f64(value as u8 as f64)
+        JsValue::from(value as u8)
     }
 }
 
@@ -96,6 +96,6 @@ impl From<sdk::DeleteError> for DeleteError {
 #[cfg(feature = "wasm")]
 impl From<DeleteError> for JsValue {
     fn from(value: DeleteError) -> Self {
-        JsValue::from_f64(value as u8 as f64)
+        JsValue::from(value as u8)
     }
 }

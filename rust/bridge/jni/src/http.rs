@@ -61,13 +61,7 @@ impl sdk::http::Client for HttpClient {
 
         set_byte_array(&mut env, &java_request, "id", &id);
 
-        let method = match request.method {
-            sdk::http::Method::Get => "GET",
-            sdk::http::Method::Delete => "DELETE",
-            sdk::http::Method::Put => "PUT",
-            sdk::http::Method::Post => "POST",
-        };
-        set_string(&mut env, &java_request, "method", method);
+        set_string(&mut env, &java_request, "method", request.method.as_str());
 
         set_string(&mut env, &java_request, "url", request.url.as_str());
 
