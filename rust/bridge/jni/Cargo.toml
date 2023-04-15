@@ -12,7 +12,7 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 jni = { workspace = true }
 loam-sdk = { path = "../../sdk/client" }
-loam-sdk-bridge = { path = "../common" }
+loam-sdk-bridge = { path = "../common", features = ["tokio"] }
 tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

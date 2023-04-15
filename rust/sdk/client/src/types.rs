@@ -1,5 +1,6 @@
 use digest::Digest;
 use hmac::{Hmac, Mac};
+use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,6 @@ use std::collections::HashSet;
 use std::fmt::{self, Debug};
 use std::iter::zip;
 use std::ops::Deref;
-use std::time::{Duration, Instant};
 use url::Url;
 
 use loam_sdk_core::types::{

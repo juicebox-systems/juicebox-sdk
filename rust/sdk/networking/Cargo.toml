@@ -12,8 +12,12 @@ edition = "2021"
 async-trait = { workspace = true }
 http = { workspace = true }
 loam-sdk-core = { path = "../../sdk/core" }
-opentelemetry = { workspace = true }
+opentelemetry = { workspace = true, optional = true }
 serde = { workspace = true }
-tracing = { workspace = true }
-tracing-opentelemetry = { workspace = true }
+tracing = { workspace = true, optional = true }
+tracing-opentelemetry = { workspace = true, optional = true }
 url = { workspace = true }
+
+[features]
+"distributed-tracing" = ["tracing", "tracing-opentelemetry", "opentelemetry"]
+"threadsafe-futures" = []

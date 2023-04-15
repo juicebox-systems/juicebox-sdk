@@ -200,3 +200,40 @@ jobs:
           toolchain: nightly
           args: -p loam-sdk-core -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
           command: build
+
+  wasm:
+    name: Wasm
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: Set up Git
+        run: |
+          # Configures the global `git` CLI to be able to access private repos.
+          # `cargo` will make use of this.
+          git config --global url.'https://github.com/'.insteadOf 'ssh://git@github.com/'
+          # Copy the encoded auth token from local config that actions/checkout configured.
+          git config --global http.'https://github.com/'.extraHeader "$(git config --local http.'https://github.com/'.extraHeader)"
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rustfmt, clippy
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Run Tests
+        run: cd rust/bridge/wasm && wasm-pack test --firefox --headless
