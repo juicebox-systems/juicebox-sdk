@@ -75,7 +75,7 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     #[allow(unused_mut)]
     let mut headers = HashMap::new();
 
-    #[cfg(feature = "header-tracing")]
+    #[cfg(feature = "distributed-tracing")]
     {
         use tracing::Span;
         use tracing_opentelemetry::OpenTelemetrySpanExt;

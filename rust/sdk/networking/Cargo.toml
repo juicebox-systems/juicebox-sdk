@@ -19,5 +19,5 @@ tracing-opentelemetry = { workspace = true, optional = true }
 url = { workspace = true }
 
 [features]
-"header-tracing" = ["tracing", "tracing-opentelemetry", "opentelemetry"]
+"distributed-tracing" = ["tracing", "tracing-opentelemetry", "opentelemetry"]
 "threadsafe-futures" = []
