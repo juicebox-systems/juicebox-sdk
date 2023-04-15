@@ -20,18 +20,24 @@ globalThis.Response = Response;
 async function main() {
     const program = new Command();
     program
-      .requiredOption('-c, --configuration <value>', 'The configuration for the client SDK, in JSON format')
-      .requiredOption('-a, --auth-token <value>', 'The auth token for the client SDK, as a base64-encoded JWT')
-      .option('t, --tls-certificate <value>', 'The path to the TLS certificate used by the realms in DER format')
-      .parse(process.argv);
+        .requiredOption('-c, --configuration <value>', 'The configuration for the client SDK, in JSON format')
+        .requiredOption('-a, --auth-token <value>', 'The auth token for the client SDK, as a base64-encoded JWT')
+        .option('-t, --tls-certificate <value>', 'The path to the TLS certificate used by the realms in DER format')
+        .parse(process.argv);
 
     const options = program.opts();
 
     const jsonConfiguration = JSON.parse(program.opts().configuration) as Configuration;
-    const configuration = new Configuration(jsonConfiguration.realms, jsonConfiguration.register_threshold, jsonConfiguration.recover_threshold);
+    const configuration = new Configuration(
+        jsonConfiguration.realms,
+        jsonConfiguration.register_threshold,
+        jsonConfiguration.recover_threshold
+    );
 
     if (options.tlsCertificate != null) {
-        const ca = '-----BEGIN CERTIFICATE-----\n' + fs.readFileSync(options.tlsCertificate).toString('base64') + '\n-----END CERTIFICATE-----';
+        const ca = '-----BEGIN CERTIFICATE-----\n'
+            + fs.readFileSync(options.tlsCertificate).toString('base64')
+            + '\n-----END CERTIFICATE-----';
         const agent = new https.Agent({ ca });
 
         // @ts-ignore
