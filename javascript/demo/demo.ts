@@ -4,7 +4,7 @@ import assert from 'assert';
 import { Command } from 'commander';
 import fs from 'fs';
 import https from 'https';
-import { Client, Configuration, Realm, RecoverError } from 'loam-sdk';
+import { Client, Configuration, Realm, RecoverError, RecoverErrorReason } from 'loam-sdk';
 import { Headers, Request, Response } from 'node-fetch';
 import fetch from 'node-fetch';
 
@@ -62,8 +62,12 @@ async function main() {
         const secret = await client.recover(encoder.encode("4321"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
-        assert.strictEqual(error, RecoverError.Unsuccessful);
-        console.log("[JavaScript] Recover expectedly unsuccessful");
+        if (error instanceof RecoverError && error.reason === RecoverErrorReason.Unsuccessful) {
+            assert.strictEqual(error.guesses_remaining, 1);
+            console.log("[JavaScript] Recover expectedly unsuccessful");
+        } else {
+            assert.fail("[JavaScript] Recover failed with unexpected error: " + error);
+        }
     }
 
     console.log("[JavaScript] Starting recover with correct PIN (guess 2)");
@@ -75,8 +79,12 @@ async function main() {
         const secret = await client.recover(encoder.encode("4321"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
-        assert.strictEqual(error, RecoverError.Unsuccessful);
-        console.log("[JavaScript] Recover expectedly unsuccessful");
+        if (error instanceof RecoverError && error.reason === RecoverErrorReason.Unsuccessful) {
+            assert.strictEqual(error.guesses_remaining, 1);
+            console.log("[JavaScript] Recover expectedly unsuccessful");
+        } else {
+            assert.fail("[JavaScript] Recover failed with unexpected error: " + error);
+        }
     }
 
     console.log("[JavaScript] Starting recover with wrong PIN (guess 2)");
@@ -84,8 +92,12 @@ async function main() {
         const secret = await client.recover(encoder.encode("4321"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
-        assert.strictEqual(error, RecoverError.Unsuccessful);
-        console.log("[JavaScript] Recover expectedly unsuccessful");
+        if (error instanceof RecoverError && error.reason === RecoverErrorReason.Unsuccessful) {
+            assert.strictEqual(error.guesses_remaining, 0);
+            console.log("[JavaScript] Recover expectedly unsuccessful");
+        } else {
+            assert.fail("[JavaScript] Recover failed with unexpected error: " + error);
+        }
     }
 
     console.log("[JavaScript] Starting recover with correct PIN (guess 3)");
@@ -93,8 +105,12 @@ async function main() {
         const secret = await client.recover(encoder.encode("1234"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
-        assert.strictEqual(error, RecoverError.Unsuccessful);
-        console.log("[JavaScript] Recover expectedly unsuccessful");
+        if (error instanceof RecoverError && error.reason === RecoverErrorReason.Unsuccessful) {
+            assert.strictEqual(error.guesses_remaining, undefined);
+            console.log("[JavaScript] Recover expectedly unsuccessful");
+        } else {
+            assert.fail("[JavaScript] Recover failed with unexpected error: " + error);
+        }
     }
 
     console.log("[JavaScript] Starting register (allowing 2 guesses)");
@@ -106,8 +122,12 @@ async function main() {
         const secret = await client.recover(encoder.encode("zyxw"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
-        assert.strictEqual(error, RecoverError.Unsuccessful);
-        console.log("[JavaScript] Recover expectedly unsuccessful");
+        if (error instanceof RecoverError && error.reason === RecoverErrorReason.Unsuccessful) {
+            assert.strictEqual(error.guesses_remaining, 1);
+            console.log("[JavaScript] Recover expectedly unsuccessful");
+        } else {
+            assert.fail("[JavaScript] Recover failed with unexpected error: " + error);
+        }
     }
 
     console.log("[JavaScript] Starting recover with correct PIN (guess 2)");
@@ -123,8 +143,12 @@ async function main() {
         const secret = await client.recover(encoder.encode("abcd"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
-        assert.strictEqual(error, RecoverError.Unsuccessful);
-        console.log("[JavaScript] Recover expectedly unsuccessful");
+        if (error instanceof RecoverError && error.reason === RecoverErrorReason.Unsuccessful) {
+            assert.strictEqual(error.guesses_remaining, undefined);
+            console.log("[JavaScript] Recover expectedly unsuccessful");
+        } else {
+            assert.fail("[JavaScript] Recover failed with unexpected error: " + error);
+        }
     }
 }
 
