@@ -76,7 +76,7 @@ public class Client {
                     } else if let secret = Data(secretBuffer) {
                         box.value.resume(returning: secret)
                     } else {
-                        box.value.resume(throwing: RecoverError.unsuccessful)
+                        box.value.resume(throwing: RecoverError.unsuccessful(guessesRemaining: nil))
                     }
                 }
             }

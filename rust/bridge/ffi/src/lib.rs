@@ -142,7 +142,8 @@ pub unsafe extern "C" fn loam_client_register(
 /// Retrieves a PIN-protected secret.
 ///
 /// If it's successful, this also deletes any earlier secrets for this
-/// user.
+/// user. If there's an error, the number of `guesses_remaining` may
+/// be provided.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_recover(

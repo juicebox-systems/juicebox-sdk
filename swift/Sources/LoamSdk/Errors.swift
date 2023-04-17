@@ -26,15 +26,16 @@ public enum DeleteError: Error {
 public enum RecoverError: Error {
     case invalidAuth
     case networkError
-    case unsuccessful
+    case unsuccessful(guessesRemaining: UInt16?)
     case protocolError
 
     init(_ error: LoamRecoverError) {
-        switch error {
-        case LoamRecoverErrorInvalidAuth: self = .invalidAuth
-        case LoamRecoverErrorNetwork: self = .networkError
-        case LoamRecoverErrorUnsuccessful: self = .unsuccessful
-        case LoamRecoverErrorProtocol: self = .protocolError
+        switch error.reason {
+        case LoamRecoverErrorReasonInvalidAuth: self = .invalidAuth
+        case LoamRecoverErrorReasonNetwork: self = .networkError
+        case LoamRecoverErrorReasonUnsuccessful: self =
+                .unsuccessful(guessesRemaining: error.guesses_remaining?.pointee)
+        case LoamRecoverErrorReasonProtocol: self = .protocolError
         default: fatalError("Unexpected error type \(error)")
         }
     }
