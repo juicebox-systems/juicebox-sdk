@@ -7,4 +7,4 @@ public enum class RecoverError {
     PROTOCOL,
 }
 
-public class RecoverException(val error: RecoverError) : Exception(error.name)
+public class RecoverException(val error: RecoverError, val guessesRemaining: Short?) : Exception(error.name)

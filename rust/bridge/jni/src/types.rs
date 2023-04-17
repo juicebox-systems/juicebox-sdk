@@ -4,6 +4,7 @@ pub const LOAM_JNI_REALM_TYPE: &str = "me/loam/sdk/Realm";
 pub const LOAM_JNI_PIN_HASHING_MODE_TYPE: &str = "me/loam/sdk/PinHashingMode";
 
 pub const JNI_STRING_TYPE: &str = "java/lang/String";
+pub const JNI_SHORT_OBJECT_TYPE: &str = "java/lang/Short";
 pub const JNI_LONG_TYPE: &str = "J";
 pub const JNI_BYTE_TYPE: &str = "B";
 pub const JNI_SHORT_TYPE: &str = "S";
