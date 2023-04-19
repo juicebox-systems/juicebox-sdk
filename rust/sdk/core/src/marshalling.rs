@@ -2,12 +2,12 @@ extern crate alloc;
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Deserialize, de::DeserializeOwned, Serialize};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SerializationError(String);
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DeserializationError(String);
 
 pub fn to_vec<T: Serialize>(val: &T) -> Result<Vec<u8>, SerializationError> {
