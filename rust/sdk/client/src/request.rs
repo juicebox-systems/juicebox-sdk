@@ -230,6 +230,11 @@ impl<Http: http::Client> Client<Http> {
                     return marshalling::from_slice::<SecretsResponse>(response.as_slice())
                         .map_err(RequestError::Deserialization);
                 }
+                Err(RequestErrorOrMissingSession::RequestError(RequestError::Unavailable)) => {
+                    // This is most likely due to an in progress leadership transfer.
+                    // We can retry this as it'll likely need a new session anyway.
+                    continue;
+                }
                 Err(RequestErrorOrMissingSession::RequestError(e)) => return Err(e),
                 Err(RequestErrorOrMissingSession::MissingSession) => {
                     // The next iteration will open a new session and
