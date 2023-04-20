@@ -239,7 +239,9 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => todo!(),
+            Err(RequestError::Unavailable) => {
+                Err(RegisterGenError::Error(RegisterError::NetworkError))
+            }
             Err(RequestError::InvalidAuth) => {
                 Err(RegisterGenError::Error(RegisterError::InvalidAuth))
             }
@@ -304,7 +306,7 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => todo!(),
+            Err(RequestError::Unavailable) => Err(RegisterError::NetworkError),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
 
             Ok(SecretsResponse::Register2(rr)) => match rr {
