@@ -224,21 +224,30 @@ mod tests {
         let result = client
             .register(Vec::from("1234"), Vec::from("apollo"), 2)
             .await;
-        assert!(matches!(result, Err(RegisterError::Protocol)));
+        assert!(
+            matches!(result, Err(RegisterError::Protocol)),
+            "got {result:?}"
+        );
     }
 
     #[wasm_bindgen_test]
     async fn test_recover() {
         let client = client("https://httpbin.org/anything/");
         let result = client.recover(Vec::from("1234")).await;
-        assert!(matches!(result, Err(RecoverError::Protocol)));
+        assert!(
+            matches!(result, Err(RecoverError::Protocol)),
+            "got {result:?}"
+        );
     }
 
     #[wasm_bindgen_test]
     async fn test_delete() {
         let client = client("https://httpbin.org/anything/");
         let result = client.delete_all().await;
-        assert!(matches!(result, Err(DeleteError::Protocol)));
+        assert!(
+            matches!(result, Err(DeleteError::Protocol)),
+            "got {result:?}"
+        );
     }
 
     fn client(url: &str) -> Client {
