@@ -21,7 +21,7 @@ impl Debug for OprfResult {
     }
 }
 
-#[derive(Copy, Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RealmId(pub [u8; 16]);
 
 impl Debug for RealmId {
