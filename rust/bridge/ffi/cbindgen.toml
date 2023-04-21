@@ -20,6 +20,7 @@ renaming_overrides_prefixing = true
 "UnmanagedArrayu8" = "LoamUnmanagedDataArray"
 "UnmanagedArrayRealm" = "LoamUnmanagedRealmArray"
 "UnmanagedArrayHttpHeader" = "LoamUnmanagedHttpHeaderArray"
+"UnmanagedArrayConfiguration" = "LoamUnmanagedConfigurationArray"
 
 [export.mangle]
 remove_underscores = true
