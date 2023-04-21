@@ -27,7 +27,7 @@ impl From<Configuration> for sdk::Configuration {
             realms,
             register_threshold: ffi.register_threshold,
             recover_threshold: ffi.recover_threshold,
-            pin_hashing_mode: sdk::PinHashingMode::from(ffi.pin_hashing_mode),
+            pin_hashing_mode: sdk::PinHashingMode::from(ffi.pin_hashing_mode as u8),
         }
     }
 }

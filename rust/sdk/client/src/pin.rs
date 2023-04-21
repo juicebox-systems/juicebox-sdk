@@ -17,6 +17,17 @@ pub enum PinHashingMode {
     FastInsecure,
 }
 
+impl From<u8> for PinHashingMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::None,
+            1 => Self::Standard2019,
+            2 => Self::FastInsecure,
+            _ => panic!("unexected value {:?}", value),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct Claims {
     iss: String,

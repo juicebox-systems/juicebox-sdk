@@ -121,13 +121,3 @@ impl From<PinHashingMode> for JsValue {
         JsValue::from(value as u8)
     }
 }
-
-impl From<PinHashingMode> for sdk::PinHashingMode {
-    fn from(value: PinHashingMode) -> Self {
-        match value {
-            PinHashingMode::None => sdk::PinHashingMode::None,
-            PinHashingMode::Standard2019 => sdk::PinHashingMode::Standard2019,
-            PinHashingMode::FastInsecure => sdk::PinHashingMode::FastInsecure,
-        }
-    }
-}
