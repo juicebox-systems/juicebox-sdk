@@ -103,7 +103,7 @@ impl From<DeleteError> for JsValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub enum PinHashingMode {

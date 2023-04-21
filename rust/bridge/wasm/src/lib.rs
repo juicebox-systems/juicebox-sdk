@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use js_sys::{try_iter, Array, Object, Promise, Uint8Array};
 use loam_sdk as sdk;
-use loam_sdk_bridge::{DeleteError, RecoverError, RegisterError};
+use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverError, RegisterError};
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
 use std::str::FromStr;
@@ -56,17 +56,24 @@ pub struct Configuration {
     pub realms: RealmArray,
     pub register_threshold: u8,
     pub recover_threshold: u8,
+    pub pin_hashing_mode: PinHashingMode,
 }
 
 #[wasm_bindgen]
 impl Configuration {
     #[wasm_bindgen(constructor)]
-    pub fn new(realms: RealmArray, register_threshold: u8, recover_threshold: u8) -> Self {
+    pub fn new(
+        realms: RealmArray,
+        register_threshold: u8,
+        recover_threshold: u8,
+        pin_hashing_mode: PinHashingMode,
+    ) -> Self {
         console_error_panic_hook::set_once();
         Self {
             realms,
             register_threshold,
             recover_threshold,
+            pin_hashing_mode,
         }
     }
 }
@@ -80,6 +87,7 @@ impl From<Configuration> for sdk::Configuration {
                 .collect(),
             register_threshold: value.register_threshold,
             recover_threshold: value.recover_threshold,
+            pin_hashing_mode: sdk::PinHashingMode::from(value.pin_hashing_mode as u8),
         }
     }
 }
@@ -212,7 +220,7 @@ impl sdk::http::Client for HttpClient {
 #[cfg(test)]
 mod tests {
     use crate::{Client, Configuration, Realm, RealmArray};
-    use loam_sdk_bridge::{DeleteError, RecoverError, RegisterError};
+    use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverError, RegisterError};
     use serde_wasm_bindgen::to_value;
     use wasm_bindgen_test::*;
 
@@ -264,6 +272,7 @@ mod tests {
                 },
                 register_threshold: 1,
                 recover_threshold: 1,
+                pin_hashing_mode: PinHashingMode::None,
             },
             "token".to_string(),
         )
