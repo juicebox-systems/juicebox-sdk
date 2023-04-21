@@ -222,7 +222,10 @@ impl<Http: http::Client> Client<Http> {
         generation: GenerationNumber,
         pin: &Pin,
     ) -> Result<OprfResult, RegisterGenError> {
-        let blinded_pin = OprfClient::blind(&pin.0, &mut OsRng).expect("voprf blinding error");
+        let hashed_pin = pin
+            .hash(&self.configuration.pin_hashing_mode, &self.auth_token)
+            .expect("pin hashing error");
+        let blinded_pin = OprfClient::blind(&hashed_pin, &mut OsRng).expect("voprf blinding error");
 
         let register1_request = self.make_request(
             realm,
@@ -248,7 +251,7 @@ impl<Http: http::Client> Client<Http> {
                 Register1Response::Ok { blinded_oprf_pin } => {
                     let oprf_pin = blinded_pin
                         .state
-                        .finalize(&pin.0, &blinded_oprf_pin)
+                        .finalize(&hashed_pin, &blinded_oprf_pin)
                         .map_err(|e| {
                             println!("failed to unblind oprf result: {e:?}");
                             RegisterGenError::Error(RegisterError::ProtocolError)

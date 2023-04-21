@@ -12,7 +12,9 @@ members = [
 default-members = ["rust/sdk/client"]
 
 [workspace.dependencies]
+argon2 = "0.5.0"
 async-trait = "0.1.64"
+base64 = "0.21.0"
 blake2 = { version = "0.10.6", default-features = false }
 console_error_panic_hook = "0.1.6"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [

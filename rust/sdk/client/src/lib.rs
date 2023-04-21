@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 mod delete;
+mod pin;
 mod recover;
 mod register;
 mod request;
@@ -17,9 +18,10 @@ use types::{CheckedConfiguration, Session};
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
+pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
-pub use types::{Configuration, Pin, Realm, UserSecret};
+pub use types::{Configuration, Realm, UserSecret};
 
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.

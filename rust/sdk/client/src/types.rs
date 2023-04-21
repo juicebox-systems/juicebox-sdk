@@ -16,6 +16,8 @@ use loam_sdk_core::types::{
 };
 use loam_sdk_noise::client as noise;
 
+use crate::PinHashingMode;
+
 /// A remote service that the client interacts with directly.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Realm {
@@ -54,6 +56,12 @@ pub struct Configuration {
     ///
     /// Must be between `1` and `realms.len()`, inclusive.
     pub recover_threshold: u8,
+
+    /// Defines how the provided PIN will be hashed before register and recover
+    /// operations. Changing modes will make previous secrets stored on the realms
+    /// inaccessible with the same PIN and should not be done without re-registering
+    /// secrets.
+    pub pin_hashing_mode: PinHashingMode,
 }
 
 #[derive(Debug)]
@@ -118,16 +126,6 @@ impl Deref for CheckedConfiguration {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-/// A user-chosen password that may be low in entropy.
-#[derive(Clone)]
-pub struct Pin(pub Vec<u8>);
-
-impl Debug for Pin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
     }
 }
 
