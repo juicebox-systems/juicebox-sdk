@@ -1,10 +1,10 @@
+use blake2::Blake2s256;
 use digest::Digest;
-use hmac::{Hmac, Mac};
+use hmac::{Mac, SimpleHmac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use std::collections::HashSet;
 use std::fmt::{self, Debug};
 use std::iter::zip;
@@ -164,7 +164,8 @@ impl TagGeneratingKey {
 
     /// Computes a derived secret-unlocking tag for the realm.
     pub fn tag(&self, realm_id: &[u8]) -> UnlockTag {
-        let mut mac = Hmac::<Sha256>::new_from_slice(&self.0).expect("failed to initialize HMAC");
+        let mut mac =
+            SimpleHmac::<Blake2s256>::new_from_slice(&self.0).expect("failed to initialize HMAC");
         mac.update(realm_id);
         UnlockTag(mac.finalize().into_bytes().to_vec())
     }

@@ -22,6 +22,7 @@ impl<HttpClient: sdk::http::Client> Client<HttpClient> {
     }
 }
 
+#[derive(Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub enum RegisterError {
@@ -48,6 +49,7 @@ impl From<RegisterError> for JsValue {
     }
 }
 
+#[derive(Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub enum RecoverError {
@@ -75,6 +77,7 @@ impl From<RecoverError> for JsValue {
     }
 }
 
+#[derive(Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub enum DeleteError {

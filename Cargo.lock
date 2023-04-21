@@ -779,6 +779,7 @@ checksum = "f051f77a7c8e6957c0696eac88f26b0117e54f52d3fc682ab19397a8812846a4"
 name = "loam-sdk"
 version = "0.1.0"
 dependencies = [
+ "blake2",
  "digest 0.10.6",
  "futures",
  "hmac",
@@ -788,7 +789,6 @@ dependencies = [
  "loam-sdk-noise",
  "rand",
  "serde",
- "sha2",
  "sharks",
  "tokio",
  "tracing",
