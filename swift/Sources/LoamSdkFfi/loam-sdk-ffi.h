@@ -22,6 +22,21 @@ typedef enum {
 } LoamHttpRequestMethod;
 
 typedef enum {
+  /**
+   * No hashing, ensure a PIN of sufficient entropy is provided.
+   */
+  LoamPinHashingModeNone = 0,
+  /**
+   * A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
+   */
+  LoamPinHashingModeStandard2019 = 1,
+  /**
+   * A fast hash used for testing. Do not use in production.
+   */
+  LoamPinHashingModeFastInsecure = 2,
+} LoamPinHashingMode;
+
+typedef enum {
   LoamRecoverErrorInvalidAuth = 0,
   LoamRecoverErrorNetwork = 1,
   LoamRecoverErrorUnsuccessful = 2,
@@ -63,6 +78,7 @@ typedef struct {
   LoamUnmanagedRealmArray realms;
   uint8_t register_threshold;
   uint8_t recover_threshold;
+  LoamPinHashingMode pin_hashing_mode;
 } LoamConfiguration;
 
 typedef struct {

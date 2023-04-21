@@ -3,7 +3,7 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
-use loam_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError};
+use loam_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -16,6 +16,7 @@ pub struct Configuration {
     pub realms: UnmanagedArray<Realm>,
     pub register_threshold: u8,
     pub recover_threshold: u8,
+    pub pin_hashing_mode: PinHashingMode,
 }
 
 impl From<Configuration> for sdk::Configuration {
@@ -26,6 +27,7 @@ impl From<Configuration> for sdk::Configuration {
             realms,
             register_threshold: ffi.register_threshold,
             recover_threshold: ffi.recover_threshold,
+            pin_hashing_mode: sdk::PinHashingMode::from(ffi.pin_hashing_mode),
         }
     }
 }

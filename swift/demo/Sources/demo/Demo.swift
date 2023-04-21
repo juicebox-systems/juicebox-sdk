@@ -151,6 +151,7 @@ extension Configuration: ExpressibleByArgument, Decodable {
         case realms
         case registerThreshold
         case recoverThreshold
+        case pinHashingMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -158,7 +159,8 @@ extension Configuration: ExpressibleByArgument, Decodable {
         self.init(
             realms: try container.decode([Configuration.Realm].self, forKey: .realms),
             registerThreshold: try container.decode(UInt8.self, forKey: .registerThreshold),
-            recoverThreshold: try container.decode(UInt8.self, forKey: .recoverThreshold)
+            recoverThreshold: try container.decode(UInt8.self, forKey: .recoverThreshold),
+            pinHashingMode: PinHashingMode(rawValue: try container.decode(UInt32.self, forKey: .pinHashingMode))!
         )
     }
 }

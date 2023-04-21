@@ -102,3 +102,32 @@ impl From<DeleteError> for JsValue {
         JsValue::from(value as u8)
     }
 }
+
+#[derive(Debug)]
+#[repr(C)]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub enum PinHashingMode {
+    /// No hashing, ensure a PIN of sufficient entropy is provided.
+    None = 0,
+    /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
+    Standard2019 = 1,
+    /// A fast hash used for testing. Do not use in production.
+    FastInsecure = 2,
+}
+
+#[cfg(feature = "wasm")]
+impl From<PinHashingMode> for JsValue {
+    fn from(value: PinHashingMode) -> Self {
+        JsValue::from(value as u8)
+    }
+}
+
+impl From<PinHashingMode> for sdk::PinHashingMode {
+    fn from(value: PinHashingMode) -> Self {
+        match value {
+            PinHashingMode::None => sdk::PinHashingMode::None,
+            PinHashingMode::Standard2019 => sdk::PinHashingMode::Standard2019,
+            PinHashingMode::FastInsecure => sdk::PinHashingMode::FastInsecure,
+        }
+    }
+}

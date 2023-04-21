@@ -43,7 +43,8 @@ final class LoamSdkTests: XCTestCase {
                     )
                 ],
                 registerThreshold: 1,
-                recoverThreshold: 1
+                recoverThreshold: 1,
+                pinHashingMode: .none
             ),
             authToken: "abc.123"
         )

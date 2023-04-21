@@ -1,14 +1,16 @@
 use argon2::{Algorithm, Argon2, ParamsBuilder, Version};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use secrecy::ExposeSecret;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::AuthToken;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize_repr, Serialize_repr)]
+#[repr(u8)]
 pub enum PinHashingMode {
     /// No hashing, ensure a PIN of sufficient entropy is provided.
-    None,
+    None = 0,
     /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
     Standard2019,
     /// A fast hash used for testing. Do not use in production.
