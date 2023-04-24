@@ -1,6 +1,6 @@
 //
 //  Errors.swift
-//  
+//
 //
 //  Created by Nora Trapp on 4/3/23.
 //
@@ -10,14 +10,14 @@ import LoamSdkFfi
 
 public enum DeleteError: Error {
     case invalidAuth
-    case networkError
-    case protocolError
+    case transient
+    case assertion
 
     init(_ error: LoamDeleteError) {
         switch error {
         case LoamDeleteErrorInvalidAuth: self = .invalidAuth
-        case LoamDeleteErrorNetwork: self = .networkError
-        case LoamDeleteErrorProtocol: self = .protocolError
+        case LoamDeleteErrorTransient: self = .transient
+        case LoamDeleteErrorAssertion: self = .assertion
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -25,17 +25,19 @@ public enum DeleteError: Error {
 
 public enum RecoverError: Error {
     case invalidAuth
-    case networkError
-    case unsuccessful(guessesRemaining: UInt16?)
-    case protocolError
+    case invalidPin(guessesRemaining: UInt16)
+    case notRegistered
+    case transient
+    case assertion
 
     init(_ error: LoamRecoverError) {
         switch error.reason {
         case LoamRecoverErrorReasonInvalidAuth: self = .invalidAuth
-        case LoamRecoverErrorReasonNetwork: self = .networkError
-        case LoamRecoverErrorReasonUnsuccessful: self =
-                .unsuccessful(guessesRemaining: error.guesses_remaining?.pointee)
-        case LoamRecoverErrorReasonProtocol: self = .protocolError
+        case LoamRecoverErrorReasonInvalidPin: self =
+                .invalidPin(guessesRemaining: error.guesses_remaining.pointee)
+        case LoamRecoverErrorReasonNotRegistered: self = .notRegistered
+        case LoamRecoverErrorReasonTransient: self = .transient
+        case LoamRecoverErrorReasonAssertion: self = .assertion
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -43,16 +45,14 @@ public enum RecoverError: Error {
 
 public enum RegisterError: Error {
     case invalidAuth
-    case networkError
-    case protocolError
-    case unavailable
+    case transient
+    case assertion
 
     init(_ error: LoamRegisterError) {
         switch error {
         case LoamRegisterErrorInvalidAuth: self = .invalidAuth
-        case LoamRegisterErrorNetwork: self = .networkError
-        case LoamRegisterErrorUnavailable: self = .unavailable
-        case LoamRegisterErrorProtocol: self = .protocolError
+        case LoamRegisterErrorTransient: self = .transient
+        case LoamRegisterErrorAssertion: self = .assertion
         default: fatalError("Unexpected error type \(error)")
         }
     }

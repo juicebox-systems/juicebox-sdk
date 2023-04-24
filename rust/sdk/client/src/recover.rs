@@ -22,60 +22,27 @@ use crate::{
 };
 
 /// Error return type for [`Client::recover`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum RecoverError {
-    /// A transient error in sending or receiving requests to a realm.
-    NetworkError,
-
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// A state object representing why recovery failed.
-    Unsuccessful(UnsuccessfulRecoverState),
+    /// The secret could not be unlocked, but you can try again
+    /// with a different PIN if you have guesses remaining. If no
+    /// guesses remain, this secret is locked and unaccessible.
+    InvalidPin { guesses_remaining: u16 },
 
-    ProtocolError,
-}
-
-/// An explanation for a [`RecoverError::Unsuccessful`] entry.
-#[derive(Eq, PartialEq, Debug)]
-pub enum UnsuccessfulRecoverReason {
-    /// The secret was not registered or not fully registered.
+    /// The secret was not registered or not fully registered with the
+    /// provided realms.
     NotRegistered,
 
-    /// The secret was locked due to too many failed recovery attempts.
-    NoGuesses,
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
 
-    /// The secret could not be unlocked, most likely due to an incorrect PIN.
-    FailedUnlock { guesses_remaining: u16 },
-
-    /// An error representing an assumption was not met in executing the
-    /// registration protocol.
-    ///
-    /// This can arise if any servers are misbehaving or running an unexpected
-    /// version of the protocol, or if the user is concurrently executing
-    /// requests or has previously executed requests with a misbehaving client.
-    ProtocolError,
-}
-
-#[derive(Debug)]
-pub struct UnsuccessfulRecoverState(Vec<(GenerationNumber, UnsuccessfulRecoverReason)>);
-
-impl UnsuccessfulRecoverState {
-    /// Gets the minimum guesses remaining. This number is only valid if
-    /// the client has registered without error and there is a single
-    /// registered generation.
-    pub fn guesses_remaining(&self) -> Option<u16> {
-        self.0
-            .iter()
-            .filter_map(|(_, reason)| match reason {
-                UnsuccessfulRecoverReason::FailedUnlock { guesses_remaining } => {
-                    Some(guesses_remaining)
-                }
-                _ => None,
-            })
-            .min()
-            .copied()
-    }
+    /// A software error has occured. This request should not be retried
+    /// with the same parameters. Verify your inputs and try again.
+    Assertion,
 }
 
 /// Successful return type of [`Client::recover_generation`].
@@ -89,6 +56,7 @@ struct RecoverGenSuccess {
 #[derive(Debug)]
 struct RecoverGenError {
     error: RecoverError,
+    generation: GenerationNumber,
     retry: Option<GenerationNumber>,
 }
 
@@ -113,18 +81,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 .await
             {
                 Ok(secret) => Ok(secret),
-                Err(RecoverError::Unsuccessful(state)) => {
-                    let configuration_not_registered = state
-                        .0
-                        .iter()
-                        .all(|(_, reason)| *reason == UnsuccessfulRecoverReason::NotRegistered);
-                    match (configuration_not_registered, iter.next()) {
-                        (true, Some(next_configuration)) => {
-                            configuration = next_configuration;
-                            continue;
-                        }
-                        _ => Err(RecoverError::Unsuccessful(state)),
+                Err(RecoverError::NotRegistered) => {
+                    if let Some(next_configuration) = iter.next() {
+                        configuration = next_configuration;
+                        continue;
                     }
+
+                    Err(RecoverError::NotRegistered)
                 }
                 Err(err) => Err(err),
             };
@@ -148,7 +111,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         // heading towards generation 0.
 
         let mut generation: Option<GenerationNumber> = None;
-        let mut unsuccessful: Vec<(GenerationNumber, UnsuccessfulRecoverReason)> = Vec::new();
 
         loop {
             return match self
@@ -168,29 +130,17 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     Ok(secret)
                 }
 
-                Err(
-                    e @ RecoverGenError {
-                        error:
-                            RecoverError::NetworkError
-                            | RecoverError::InvalidAuth
-                            | RecoverError::ProtocolError,
-                        retry: _,
-                    },
-                ) => Err(e.error),
-
                 Err(RecoverGenError {
-                    error: RecoverError::Unsuccessful(detail),
+                    error,
+                    generation: _,
                     retry,
                 }) => {
-                    unsuccessful.extend(detail.0);
                     if retry.is_some() {
                         assert!(retry < generation);
                         generation = retry;
                         continue;
                     }
-                    Err(RecoverError::Unsuccessful(UnsuccessfulRecoverState(
-                        unsuccessful,
-                    )))
+                    Err(error)
                 }
             };
         }
@@ -213,7 +163,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let mut generations_found = BTreeSet::new();
         let mut tgk_shares: Vec<(GenerationNumber, TgkShare)> = Vec::new();
-        let mut unsuccessful: Vec<(GenerationNumber, UnsuccessfulRecoverReason)> = Vec::new();
+        let mut latest_error: Option<RecoverError> = None;
         for result in join_all(recover1_requests).await {
             match result {
                 Ok(Recover1Success {
@@ -228,16 +178,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     tgk_shares.push((generation, tgk_share));
                 }
 
-                Err(RecoverGenError {
-                    error: error @ RecoverError::NetworkError,
-                    retry: _,
-                }) => {
-                    println!("client: warning: transient error during recover1: {error:?}");
-                }
-
                 Err(
                     e @ RecoverGenError {
-                        error: RecoverError::InvalidAuth | RecoverError::ProtocolError,
+                        error:
+                            RecoverError::InvalidAuth
+                            | RecoverError::Assertion
+                            | RecoverError::Transient,
+                        generation: _,
                         retry: _,
                     },
                 ) => {
@@ -245,16 +192,15 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 }
 
                 Err(RecoverGenError {
-                    error: RecoverError::Unsuccessful(detail),
+                    error,
+                    generation,
                     retry,
                 }) => {
-                    for (generation, _reason) in &detail.0 {
-                        generations_found.insert(*generation);
-                    }
-                    unsuccessful.extend(detail.0);
+                    generations_found.insert(generation);
                     if let Some(generation) = retry {
                         generations_found.insert(generation);
                     }
+                    latest_error = Some(error);
                 }
             }
         }
@@ -263,9 +209,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let current_generation = iter.next().unwrap();
         let previous_generation = iter.next();
 
-        if !unsuccessful.is_empty() {
+        if let Some(latest_error) = latest_error {
             return Err(RecoverGenError {
-                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(unsuccessful)),
+                error: latest_error,
+                generation: current_generation,
                 retry: previous_generation,
             });
         }
@@ -287,10 +234,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         if tgk_shares.len() < usize::from(configuration.recover_threshold) {
             return Err(RecoverGenError {
-                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                    current_generation,
-                    UnsuccessfulRecoverReason::NotRegistered,
-                )])),
+                error: RecoverError::NotRegistered,
+                generation: current_generation,
                 retry: previous_generation,
             });
         }
@@ -300,10 +245,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
             Err(_) => {
                 return Err(RecoverGenError {
-                    error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                        current_generation,
-                        UnsuccessfulRecoverReason::ProtocolError,
-                    )])),
+                    error: RecoverError::Transient,
+                    generation: current_generation,
                     retry: previous_generation,
                 });
             }
@@ -326,22 +269,17 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
                     Err(_) => {
                         return Err(RecoverGenError {
-                            error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                                current_generation,
-                                UnsuccessfulRecoverReason::ProtocolError,
-                            )])),
+                            error: RecoverError::Transient,
+                            generation: current_generation,
                             retry: previous_generation,
                         })
                     }
                 },
 
-                Err(error @ RecoverError::NetworkError) => {
-                    println!("client: warning: transient error during recover2: {error:?}");
-                }
-
                 Err(error) => {
                     return Err(RecoverGenError {
                         error,
+                        generation: current_generation,
                         retry: previous_generation,
                     })
                 }
@@ -356,10 +294,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
 
             Err(_) => Err(RecoverGenError {
-                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                    current_generation,
-                    UnsuccessfulRecoverReason::ProtocolError,
-                )])),
+                error: RecoverError::Transient,
+                generation: current_generation,
                 retry: previous_generation,
             }),
         }
@@ -388,6 +324,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
         );
 
+        let current_generation = generation.unwrap_or(GenerationNumber(0));
+
         // This is a verbose way to copy some fields out to this outer scope.
         // It helps avoid having to process these fields at a high level of
         // indentation.
@@ -405,28 +343,51 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         } = match recover1_request.await {
             Err(RequestError::Network) => {
                 return Err(RecoverGenError {
-                    error: RecoverError::NetworkError,
+                    error: RecoverError::Transient,
+                    generation: current_generation,
                     retry: None,
                 })
             }
             Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
                 return Err(RecoverGenError {
-                    error: RecoverError::ProtocolError,
+                    error: RecoverError::Transient,
+                    generation: current_generation,
                     retry: None,
                 })
             }
-            Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::Session) => todo!(),
-            Err(RequestError::Decoding) => todo!(),
+            Err(RequestError::HttpStatus(_status)) => {
+                return Err(RecoverGenError {
+                    error: RecoverError::Transient,
+                    generation: current_generation,
+                    retry: None,
+                })
+            }
+            Err(RequestError::Session) => {
+                return Err(RecoverGenError {
+                    error: RecoverError::Transient,
+                    generation: current_generation,
+                    retry: None,
+                })
+            }
+            Err(RequestError::Decoding) => {
+                return Err(RecoverGenError {
+                    error: RecoverError::Assertion,
+                    generation: current_generation,
+                    retry: None,
+                })
+            }
             Err(RequestError::Unavailable) => {
                 return Err(RecoverGenError {
-                    error: RecoverError::NetworkError,
+                    error: RecoverError::Transient,
+                    generation: current_generation,
                     retry: None,
                 })
             }
+
             Err(RequestError::InvalidAuth) => {
                 return Err(RecoverGenError {
                     error: RecoverError::InvalidAuth,
+                    generation: current_generation,
                     retry: None,
                 })
             }
@@ -449,10 +410,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     previous_generation,
                 } => {
                     return Err(RecoverGenError {
-                        error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                            generation.unwrap_or(GenerationNumber(0)),
-                            UnsuccessfulRecoverReason::NotRegistered,
-                        )])),
+                        error: RecoverError::NotRegistered,
+                        generation: generation.unwrap_or(GenerationNumber(0)),
                         retry: previous_generation,
                     });
                 }
@@ -463,10 +422,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     ..
                 } => {
                     return Err(RecoverGenError {
-                        error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                            generation,
-                            UnsuccessfulRecoverReason::NotRegistered,
-                        )])),
+                        error: RecoverError::NotRegistered,
+                        generation,
                         retry: previous_generation,
                     });
                 }
@@ -476,16 +433,22 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     previous_generation,
                 } => {
                     return Err(RecoverGenError {
-                        error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                            generation,
-                            UnsuccessfulRecoverReason::NoGuesses,
-                        )])),
+                        error: RecoverError::InvalidPin {
+                            guesses_remaining: 0,
+                        },
+                        generation,
                         retry: previous_generation,
                     });
                 }
             },
 
-            Ok(_) => todo!(),
+            Ok(_) => {
+                return Err(RecoverGenError {
+                    error: RecoverError::Assertion,
+                    generation: current_generation,
+                    retry: None,
+                })
+            }
         };
 
         let oprf_pin = blinded_pin
@@ -494,20 +457,16 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map_err(|e| {
                 println!("failed to unblind oprf result: {e:?}");
                 RecoverGenError {
-                    error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                        generation,
-                        UnsuccessfulRecoverReason::ProtocolError,
-                    )])),
+                    error: RecoverError::Transient,
+                    generation,
                     retry: previous_generation,
                 }
             })?;
 
         let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin).map_err(|_| {
             RecoverGenError {
-                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
-                    generation,
-                    UnsuccessfulRecoverReason::ProtocolError,
-                )])),
+                error: RecoverError::Transient,
+                generation,
                 retry: previous_generation,
             }
         })?;
@@ -534,33 +493,24 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         );
 
         match recover2_request.await {
-            Err(RequestError::Network) => Err(RecoverError::NetworkError),
+            Err(RequestError::Network) => Err(RecoverError::Transient),
             Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                Err(RecoverError::ProtocolError)
+                Err(RecoverError::Transient)
             }
-            Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::Session) => todo!(),
-            Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => Err(RecoverError::NetworkError),
+            Err(RequestError::HttpStatus(_status)) => Err(RecoverError::Transient),
+            Err(RequestError::Session) => Err(RecoverError::Transient),
+            Err(RequestError::Decoding) => Err(RecoverError::Assertion),
+            Err(RequestError::Unavailable) => Err(RecoverError::Transient),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {
                 Recover2Response::Ok(secret_share) => Ok(secret_share),
-                Recover2Response::NotRegistered => {
-                    Err(RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![
-                        (generation, UnsuccessfulRecoverReason::NotRegistered),
-                    ])))
-                }
+                Recover2Response::NotRegistered => Err(RecoverError::NotRegistered),
                 Recover2Response::BadUnlockTag { guesses_remaining } => {
-                    Err(RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![
-                        (
-                            generation,
-                            UnsuccessfulRecoverReason::FailedUnlock { guesses_remaining },
-                        ),
-                    ])))
+                    Err(RecoverError::InvalidPin { guesses_remaining })
                 }
             },
-            Ok(_) => todo!(),
+            Ok(_) => Err(RecoverError::Assertion),
         }
     }
 }

@@ -2,8 +2,8 @@ package me.loam.sdk
 
 public enum class DeleteError {
     INVALID_AUTH,
-    NETWORK,
-    PROTOCOL,
+    TRANSIENT,
+    ASSERTION,
 }
 
 public class DeleteException(val error: DeleteError) : Exception(error.name)
