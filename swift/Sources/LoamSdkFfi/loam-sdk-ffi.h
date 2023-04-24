@@ -37,11 +37,11 @@ typedef enum {
 } LoamPinHashingMode;
 
 typedef enum {
-  LoamRecoverErrorInvalidAuth = 0,
-  LoamRecoverErrorNetwork = 1,
-  LoamRecoverErrorUnsuccessful = 2,
-  LoamRecoverErrorProtocol = 3,
-} LoamRecoverError;
+  LoamRecoverErrorReasonInvalidAuth = 0,
+  LoamRecoverErrorReasonNetwork = 1,
+  LoamRecoverErrorReasonUnsuccessful = 2,
+  LoamRecoverErrorReasonProtocol = 3,
+} LoamRecoverErrorReason;
 
 typedef enum {
   LoamRegisterErrorInvalidAuth = 0,
@@ -106,6 +106,14 @@ typedef void (*LoamHttpResponseFn)(LoamHttpClient *context, const LoamHttpRespon
 
 typedef void (*LoamHttpSendFn)(const LoamHttpClient *context, const LoamHttpRequest *request, LoamHttpResponseFn callback);
 
+typedef struct {
+  LoamRecoverErrorReason reason;
+  /**
+   * If non-NULL, the number of guesses remaining after an Unsuccessful attempt.
+   */
+  const uint16_t *guesses_remaining;
+} LoamRecoverError;
+
 /**
  * Creates a new opaque `LoamClient` reference.
  *
@@ -152,7 +160,8 @@ void loam_client_register(LoamClient *client,
  * Retrieves a PIN-protected secret.
  *
  * If it's successful, this also deletes any earlier secrets for this
- * user.
+ * user. If there's an error, the number of `guesses_remaining` may
+ * be provided.
  */
 void loam_client_recover(LoamClient *client,
                          const void *context,

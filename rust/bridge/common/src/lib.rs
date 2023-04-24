@@ -22,9 +22,9 @@ impl<HttpClient: sdk::http::Client> Client<HttpClient> {
     }
 }
 
-#[derive(Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Debug)]
 pub enum RegisterError {
     InvalidAuth = 0,
     Network = 1,
@@ -49,37 +49,70 @@ impl From<RegisterError> for JsValue {
     }
 }
 
-#[derive(Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub enum RecoverError {
+#[derive(Clone, Copy, Debug)]
+pub enum RecoverErrorReason {
     InvalidAuth = 0,
     Network = 1,
     Unsuccessful = 2,
     Protocol = 3,
 }
 
-impl From<sdk::RecoverError> for RecoverError {
-    fn from(value: sdk::RecoverError) -> Self {
-        match value {
-            sdk::RecoverError::InvalidAuth => RecoverError::InvalidAuth,
-            sdk::RecoverError::NetworkError => RecoverError::Network,
-            sdk::RecoverError::Unsuccessful(_) => RecoverError::Unsuccessful,
-            sdk::RecoverError::ProtocolError => RecoverError::Protocol,
-        }
-    }
-}
-
 #[cfg(feature = "wasm")]
-impl From<RecoverError> for JsValue {
-    fn from(value: RecoverError) -> Self {
+impl From<RecoverErrorReason> for JsValue {
+    fn from(value: RecoverErrorReason) -> Self {
         JsValue::from(value as u8)
     }
 }
 
+#[repr(C)]
 #[derive(Debug)]
+pub struct RecoverError {
+    pub reason: RecoverErrorReason,
+    /// If non-NULL, the number of guesses remaining after an Unsuccessful attempt.
+    pub guesses_remaining: *const u16,
+}
+
+impl From<sdk::RecoverError> for RecoverError {
+    fn from(value: sdk::RecoverError) -> Self {
+        match value {
+            sdk::RecoverError::InvalidAuth => Self {
+                reason: RecoverErrorReason::InvalidAuth,
+                guesses_remaining: std::ptr::null(),
+            },
+            sdk::RecoverError::NetworkError => Self {
+                reason: RecoverErrorReason::Network,
+                guesses_remaining: std::ptr::null(),
+            },
+            sdk::RecoverError::Unsuccessful(state) => Self {
+                reason: RecoverErrorReason::Unsuccessful,
+                guesses_remaining: match state.guesses_remaining() {
+                    Some(guesses_remaining) => {
+                        Box::into_raw(Box::from(guesses_remaining)) as *const u16
+                    }
+                    None => std::ptr::null(),
+                },
+            },
+            sdk::RecoverError::ProtocolError => Self {
+                reason: RecoverErrorReason::Protocol,
+                guesses_remaining: std::ptr::null(),
+            },
+        }
+    }
+}
+
+impl Drop for RecoverError {
+    fn drop(&mut self) {
+        if !self.guesses_remaining.is_null() {
+            drop(unsafe { Box::from_raw(self.guesses_remaining as *mut u16) });
+        }
+    }
+}
+
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Debug)]
 pub enum DeleteError {
     InvalidAuth = 0,
     Network = 1,
@@ -103,9 +136,9 @@ impl From<DeleteError> for JsValue {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Copy, Clone, Debug)]
 pub enum PinHashingMode {
     /// No hashing, ensure a PIN of sufficient entropy is provided.
     None = 0,

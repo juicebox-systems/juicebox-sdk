@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use js_sys::{try_iter, Array, Object, Promise, Uint8Array};
 use loam_sdk as sdk;
-use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverError, RegisterError};
+use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
 use std::str::FromStr;
@@ -57,6 +57,39 @@ pub struct Configuration {
     pub register_threshold: u8,
     pub recover_threshold: u8,
     pub pin_hashing_mode: PinHashingMode,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+#[wasm_bindgen]
+pub struct RecoverError {
+    /// The reason recovery failed.
+    pub reason: RecoverErrorReason,
+    /// Guesses remaining is only valid if `reason` is `Unsuccessful`
+    pub guesses_remaining: Option<u16>,
+}
+
+impl From<sdk::RecoverError> for RecoverError {
+    fn from(value: sdk::RecoverError) -> Self {
+        match value {
+            sdk::RecoverError::InvalidAuth => Self {
+                reason: RecoverErrorReason::InvalidAuth,
+                guesses_remaining: None,
+            },
+            sdk::RecoverError::NetworkError => Self {
+                reason: RecoverErrorReason::Network,
+                guesses_remaining: None,
+            },
+            sdk::RecoverError::Unsuccessful(state) => Self {
+                reason: RecoverErrorReason::Unsuccessful,
+                guesses_remaining: state.guesses_remaining(),
+            },
+            sdk::RecoverError::ProtocolError => Self {
+                reason: RecoverErrorReason::Protocol,
+                guesses_remaining: None,
+            },
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -219,8 +252,8 @@ impl sdk::http::Client for HttpClient {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Client, Configuration, Realm, RealmArray};
-    use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverError, RegisterError};
+    use crate::{Client, Configuration, Realm, RealmArray, RecoverError};
+    use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
     use serde_wasm_bindgen::to_value;
     use wasm_bindgen_test::*;
 
@@ -243,7 +276,13 @@ mod tests {
         let client = client("https://httpbin.org/anything/");
         let result = client.recover(Vec::from("1234")).await;
         assert!(
-            matches!(result, Err(RecoverError::Protocol)),
+            matches!(
+                result,
+                Err(RecoverError {
+                    reason: RecoverErrorReason::Protocol,
+                    guesses_remaining: None
+                })
+            ),
             "got {result:?}"
         );
     }

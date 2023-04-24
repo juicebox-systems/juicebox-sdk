@@ -16,8 +16,8 @@ use url::Url;
 
 use crate::http::HttpClient;
 use crate::types::{
-    JNI_BYTE_TYPE, JNI_INTEGER_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE, JNI_VOID_TYPE,
-    LOAM_JNI_HTTP_HEADER_TYPE, LOAM_JNI_PIN_HASHING_MODE_TYPE, LOAM_JNI_REALM_TYPE,
+    JNI_BYTE_TYPE, JNI_INTEGER_TYPE, JNI_SHORT_OBJECT_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE,
+    JNI_VOID_TYPE, LOAM_JNI_HTTP_HEADER_TYPE, LOAM_JNI_PIN_HASHING_MODE_TYPE, LOAM_JNI_REALM_TYPE,
 };
 
 #[no_mangle]
@@ -152,7 +152,47 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
         Ok(secret) => env.byte_array_from_slice(secret.expose_secret()).unwrap() as JByteArray,
         Err(err) => {
             let error = RecoverError::from(err);
-            throw(&mut env, error as i32, "Recover");
+            let java_error_type = "me/loam/sdk/RecoverError";
+            let java_error_class = env.find_class(java_error_type).unwrap();
+            let java_error_values: JObjectArray = env
+                .call_static_method(
+                    java_error_class,
+                    "values",
+                    jni_signature!(() => jni_array!(jni_object!(java_error_type))),
+                    &[],
+                )
+                .unwrap()
+                .l()
+                .unwrap()
+                .into();
+            let java_error = env
+                .get_object_array_element(&java_error_values, error.reason as i32)
+                .unwrap();
+            let java_exception_class = env.find_class("me/loam/sdk/RecoverException").unwrap();
+
+            let guesses_remaining: JObject = if error.guesses_remaining.is_null() {
+                JObject::null()
+            } else {
+                env.new_object(
+                    JNI_SHORT_OBJECT_TYPE,
+                    jni_signature!((JNI_SHORT_TYPE) => JNI_VOID_TYPE),
+                    &[unsafe { *error.guesses_remaining as jshort }.into()],
+                )
+                .unwrap()
+            };
+
+            let java_exception: JThrowable = env
+                .new_object(
+                    java_exception_class,
+                    jni_signature!((jni_object!(java_error_type), jni_object!(JNI_SHORT_OBJECT_TYPE)) => JNI_VOID_TYPE),
+                    &[
+                        JValue::Object(&java_error),
+                        JValue::Object(&guesses_remaining),
+                    ],
+                )
+                .unwrap()
+                .into();
+            env.throw(java_exception).unwrap();
             JByteArray::default()
         }
     }

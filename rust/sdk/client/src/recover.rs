@@ -30,13 +30,8 @@ pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    // TODO: Figure out a clean way to surface unsuccessful details to clients
-    // without externally exposing implementation details like `GenerationNumber`
-    /// A list of attempts explaining why the recovery failed.
-    ///
-    /// Each entry in the vector corresponds to an attempt at recovery with
-    /// a particular realm at a particular generation number.
-    Unsuccessful(Vec<(GenerationNumber, UnsuccessfulRecoverReason)>),
+    /// A state object representing why recovery failed.
+    Unsuccessful(UnsuccessfulRecoverState),
 
     ProtocolError,
 }
@@ -51,7 +46,7 @@ pub enum UnsuccessfulRecoverReason {
     NoGuesses,
 
     /// The secret could not be unlocked, most likely due to an incorrect PIN.
-    FailedUnlock,
+    FailedUnlock { guesses_remaining: u16 },
 
     /// An error representing an assumption was not met in executing the
     /// registration protocol.
@@ -60,6 +55,27 @@ pub enum UnsuccessfulRecoverReason {
     /// version of the protocol, or if the user is concurrently executing
     /// requests or has previously executed requests with a misbehaving client.
     ProtocolError,
+}
+
+#[derive(Debug)]
+pub struct UnsuccessfulRecoverState(Vec<(GenerationNumber, UnsuccessfulRecoverReason)>);
+
+impl UnsuccessfulRecoverState {
+    /// Gets the minimum guesses remaining. This number is only valid if
+    /// the client has registered without error and there is a single
+    /// registered generation.
+    pub fn guesses_remaining(&self) -> Option<u16> {
+        self.0
+            .iter()
+            .filter_map(|(_, reason)| match reason {
+                UnsuccessfulRecoverReason::FailedUnlock { guesses_remaining } => {
+                    Some(guesses_remaining)
+                }
+                _ => None,
+            })
+            .min()
+            .copied()
+    }
 }
 
 /// Successful return type of [`Client::recover_generation`].
@@ -132,13 +148,15 @@ impl<Http: http::Client> Client<Http> {
                     error: RecoverError::Unsuccessful(detail),
                     retry,
                 }) => {
-                    unsuccessful.extend(detail);
+                    unsuccessful.extend(detail.0);
                     if retry.is_some() {
                         assert!(retry < generation);
                         generation = retry;
                         continue;
                     }
-                    Err(RecoverError::Unsuccessful(unsuccessful))
+                    Err(RecoverError::Unsuccessful(UnsuccessfulRecoverState(
+                        unsuccessful,
+                    )))
                 }
             };
         }
@@ -196,10 +214,10 @@ impl<Http: http::Client> Client<Http> {
                     error: RecoverError::Unsuccessful(detail),
                     retry,
                 }) => {
-                    for (generation, _reason) in &detail {
+                    for (generation, _reason) in &detail.0 {
                         generations_found.insert(*generation);
                     }
-                    unsuccessful.extend(detail);
+                    unsuccessful.extend(detail.0);
                     if let Some(generation) = retry {
                         generations_found.insert(generation);
                     }
@@ -213,7 +231,7 @@ impl<Http: http::Client> Client<Http> {
 
         if !unsuccessful.is_empty() {
             return Err(RecoverGenError {
-                error: RecoverError::Unsuccessful(unsuccessful),
+                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(unsuccessful)),
                 retry: previous_generation,
             });
         }
@@ -235,10 +253,10 @@ impl<Http: http::Client> Client<Http> {
 
         if tgk_shares.len() < usize::from(self.configuration.recover_threshold) {
             return Err(RecoverGenError {
-                error: RecoverError::Unsuccessful(vec![(
+                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                     current_generation,
                     UnsuccessfulRecoverReason::NotRegistered,
-                )]),
+                )])),
                 retry: previous_generation,
             });
         }
@@ -248,10 +266,10 @@ impl<Http: http::Client> Client<Http> {
 
             Err(_) => {
                 return Err(RecoverGenError {
-                    error: RecoverError::Unsuccessful(vec![(
+                    error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                         current_generation,
                         UnsuccessfulRecoverReason::ProtocolError,
-                    )]),
+                    )])),
                     retry: previous_generation,
                 });
             }
@@ -275,10 +293,10 @@ impl<Http: http::Client> Client<Http> {
 
                     Err(_) => {
                         return Err(RecoverGenError {
-                            error: RecoverError::Unsuccessful(vec![(
+                            error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                                 current_generation,
                                 UnsuccessfulRecoverReason::ProtocolError,
-                            )]),
+                            )])),
                             retry: previous_generation,
                         })
                     }
@@ -305,10 +323,10 @@ impl<Http: http::Client> Client<Http> {
             }),
 
             Err(_) => Err(RecoverGenError {
-                error: RecoverError::Unsuccessful(vec![(
+                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                     current_generation,
                     UnsuccessfulRecoverReason::ProtocolError,
-                )]),
+                )])),
                 retry: previous_generation,
             }),
         }
@@ -393,10 +411,10 @@ impl<Http: http::Client> Client<Http> {
                     previous_generation,
                 } => {
                     return Err(RecoverGenError {
-                        error: RecoverError::Unsuccessful(vec![(
+                        error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                             generation.unwrap_or(GenerationNumber(0)),
                             UnsuccessfulRecoverReason::NotRegistered,
-                        )]),
+                        )])),
                         retry: previous_generation,
                     });
                 }
@@ -407,10 +425,10 @@ impl<Http: http::Client> Client<Http> {
                     ..
                 } => {
                     return Err(RecoverGenError {
-                        error: RecoverError::Unsuccessful(vec![(
+                        error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                             generation,
                             UnsuccessfulRecoverReason::NotRegistered,
-                        )]),
+                        )])),
                         retry: previous_generation,
                     });
                 }
@@ -420,10 +438,10 @@ impl<Http: http::Client> Client<Http> {
                     previous_generation,
                 } => {
                     return Err(RecoverGenError {
-                        error: RecoverError::Unsuccessful(vec![(
+                        error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                             generation,
                             UnsuccessfulRecoverReason::NoGuesses,
-                        )]),
+                        )])),
                         retry: previous_generation,
                     });
                 }
@@ -438,20 +456,20 @@ impl<Http: http::Client> Client<Http> {
             .map_err(|e| {
                 println!("failed to unblind oprf result: {e:?}");
                 RecoverGenError {
-                    error: RecoverError::Unsuccessful(vec![(
+                    error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                         generation,
                         UnsuccessfulRecoverReason::ProtocolError,
-                    )]),
+                    )])),
                     retry: previous_generation,
                 }
             })?;
 
         let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin).map_err(|_| {
             RecoverGenError {
-                error: RecoverError::Unsuccessful(vec![(
+                error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                     generation,
                     UnsuccessfulRecoverReason::ProtocolError,
-                )]),
+                )])),
                 retry: previous_generation,
             }
         })?;
@@ -490,14 +508,19 @@ impl<Http: http::Client> Client<Http> {
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {
                 Recover2Response::Ok(secret_share) => Ok(secret_share),
-                Recover2Response::NotRegistered => Err(RecoverError::Unsuccessful(vec![(
-                    generation,
-                    UnsuccessfulRecoverReason::NotRegistered,
-                )])),
-                Recover2Response::BadUnlockTag => Err(RecoverError::Unsuccessful(vec![(
-                    generation,
-                    UnsuccessfulRecoverReason::FailedUnlock,
-                )])),
+                Recover2Response::NotRegistered => {
+                    Err(RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![
+                        (generation, UnsuccessfulRecoverReason::NotRegistered),
+                    ])))
+                }
+                Recover2Response::BadUnlockTag { guesses_remaining } => {
+                    Err(RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![
+                        (
+                            generation,
+                            UnsuccessfulRecoverReason::FailedUnlock { guesses_remaining },
+                        ),
+                    ])))
+                }
             },
             Ok(_) => todo!(),
         }

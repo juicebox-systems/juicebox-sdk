@@ -94,6 +94,7 @@ class ClientTest {
             }
         }
         assertEquals(RecoverError.UNSUCCESSFUL, exception1.error)
+        assertEquals(1.toShort(), exception1.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
         Log.i("ClientTest", "Starting recover with correct PIN (guess 2)")
@@ -108,6 +109,7 @@ class ClientTest {
             }
         }
         assertEquals(RecoverError.UNSUCCESSFUL, exception2.error)
+        assertEquals(1.toShort(), exception2.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
         Log.i("ClientTest", "Starting recover with wrong PIN (guess 2)")
@@ -117,6 +119,7 @@ class ClientTest {
             }
         }
         assertEquals(RecoverError.UNSUCCESSFUL, exception3.error)
+        assertEquals(0.toShort(), exception3.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
         Log.i("ClientTest", "Starting recover with correct PIN (guess 3)")
@@ -139,6 +142,7 @@ class ClientTest {
             }
         }
         assertEquals(RecoverError.UNSUCCESSFUL, exception5.error)
+        assertEquals(1.toShort(), exception5.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
         Log.i("ClientTest", "Starting recover with correct PIN (guess 2)")
@@ -157,6 +161,7 @@ class ClientTest {
             }
         }
         assertEquals(RecoverError.UNSUCCESSFUL, exception6.error)
+        assertEquals(null, exception6.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
     }
 

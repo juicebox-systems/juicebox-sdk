@@ -226,7 +226,7 @@ pub struct Recover2Request {
 pub enum Recover2Response {
     Ok(UserSecretShare),
     NotRegistered,
-    BadUnlockTag,
+    BadUnlockTag { guesses_remaining: u16 },
 }
 
 /// Request message to delete registered secrets.
