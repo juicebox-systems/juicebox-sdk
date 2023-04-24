@@ -126,7 +126,7 @@ pub unsafe extern "C" fn loam_client_register(
 
     client.runtime.spawn_blocking(move || {
         match client.runtime.block_on(client.sdk.register(
-            &sdk::Pin(pin),
+            &sdk::Pin::from(pin),
             &sdk::UserSecret(secret),
             sdk::Policy { num_guesses },
         )) {
@@ -161,7 +161,10 @@ pub unsafe extern "C" fn loam_client_recover(
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client.runtime.block_on(client.sdk.recover(&sdk::Pin(pin))) {
+        match client
+            .runtime
+            .block_on(client.sdk.recover(&sdk::Pin::from(pin)))
+        {
             Ok(secret) => {
                 let mut secret = ManagedArray(secret.0);
                 (response)(context, secret.unmanaged_borrow(), ptr::null());

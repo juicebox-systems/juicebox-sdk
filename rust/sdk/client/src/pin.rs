@@ -1,6 +1,6 @@
 use argon2::{Algorithm, Argon2, ParamsBuilder, Version};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, SecretVec};
 use serde::Deserialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -74,8 +74,7 @@ impl TryFrom<&AuthToken> for Salt {
 }
 
 /// A user-chosen password that may be low in entropy.
-#[derive(Clone)]
-pub struct Pin(pub Vec<u8>);
+pub struct Pin(pub SecretVec<u8>);
 
 impl std::fmt::Debug for Pin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -83,10 +82,31 @@ impl std::fmt::Debug for Pin {
     }
 }
 
+impl From<Vec<u8>> for Pin {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretVec::from(value))
+    }
+}
+
+/// The calculated hash of a user-chosen password.
+pub struct HashedPin(pub SecretVec<u8>);
+
+impl From<Vec<u8>> for HashedPin {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretVec::from(value))
+    }
+}
+
+impl std::fmt::Debug for HashedPin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("(redacted)")
+    }
+}
+
 impl Pin {
-    pub fn hash(&self, mode: &PinHashingMode, auth_token: &AuthToken) -> Option<Vec<u8>> {
+    pub fn hash(&self, mode: &PinHashingMode, auth_token: &AuthToken) -> Option<HashedPin> {
         match mode {
-            PinHashingMode::None => Some(self.0.clone()),
+            PinHashingMode::None => Some(HashedPin::from(self.0.expose_secret().clone())),
             PinHashingMode::Standard2019 => {
                 let params = ParamsBuilder::new()
                     .m_cost(1024 * 16)
@@ -108,13 +128,13 @@ impl Pin {
         }
     }
 
-    fn argon2(&self, params: argon2::Params, auth_token: &AuthToken) -> Option<Vec<u8>> {
+    fn argon2(&self, params: argon2::Params, auth_token: &AuthToken) -> Option<HashedPin> {
         let context = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
         let salt = Salt::try_from(auth_token).ok()?;
-        let mut hashed_pin = [0u8; 64];
+        let mut hashed_pin = vec![0u8; 64];
         context
-            .hash_password_into(&self.0, &salt.0, &mut hashed_pin)
+            .hash_password_into(self.0.expose_secret(), &salt.0, &mut hashed_pin)
             .ok()?;
-        Some(hashed_pin.to_vec())
+        Some(HashedPin::from(hashed_pin))
     }
 }

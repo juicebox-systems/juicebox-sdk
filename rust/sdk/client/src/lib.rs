@@ -18,7 +18,7 @@ use types::{CheckedConfiguration, Session};
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
-pub use pin::{Pin, PinHashingMode};
+pub use pin::{HashedPin, Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use types::{Configuration, Realm, UserSecret};
