@@ -2,12 +2,33 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
+
 use core::fmt::{self, Debug, Display};
-use secrecy::SecretString;
+use secrecy::{CloneableSecret, DebugSecret, ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
 use super::marshalling::serialize_secret;
+
+#[derive(Clone, Debug)]
+pub struct SecretBytes(Vec<u8>);
+impl Zeroize for SecretBytes {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+impl CloneableSecret for SecretBytes {}
+impl DebugSecret for SecretBytes {}
+impl ExposeSecret<Vec<u8>> for SecretBytes {
+    fn expose_secret(&self) -> &Vec<u8> {
+        &self.0
+    }
+}
+impl From<Vec<u8>> for SecretBytes {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+}
 
 pub type OprfCipherSuite = voprf::Ristretto255;
 pub type OprfBlindedInput = voprf::BlindedElement<OprfCipherSuite>;

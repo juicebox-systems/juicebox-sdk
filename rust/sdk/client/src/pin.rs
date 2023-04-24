@@ -1,6 +1,7 @@
 use argon2::{Algorithm, Argon2, ParamsBuilder, Version};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use secrecy::{ExposeSecret, SecretVec};
+use loam_sdk_core::types::SecretBytes;
+use secrecy::ExposeSecret;
 use serde::Deserialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -62,51 +63,37 @@ impl TryFrom<&AuthToken> for Salt {
     fn try_from(value: &AuthToken) -> Result<Self, Self::Error> {
         let claims = Claims::try_from(value)?;
         let mut salt = claims.sub.into_bytes();
+        salt.extend_from_slice(b"|");
         salt.extend_from_slice(&claims.iss.into_bytes());
-
-        // pad out to min 8 bytes
-        while salt.len() < 8 {
-            salt.push(0);
-        }
-
+        salt.resize(8, 0);
         Ok(Salt(salt))
     }
 }
 
+#[derive(Debug)]
 /// A user-chosen password that may be low in entropy.
-pub struct Pin(pub SecretVec<u8>);
-
-impl std::fmt::Debug for Pin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("(redacted)")
-    }
-}
+pub struct Pin(pub SecretBytes);
 
 impl From<Vec<u8>> for Pin {
     fn from(value: Vec<u8>) -> Self {
-        Self(SecretVec::from(value))
+        Self(SecretBytes::from(value))
     }
 }
 
+#[derive(Debug)]
 /// The calculated hash of a user-chosen password.
-pub struct HashedPin(pub SecretVec<u8>);
+pub struct HashedPin(pub SecretBytes);
 
 impl From<Vec<u8>> for HashedPin {
     fn from(value: Vec<u8>) -> Self {
-        Self(SecretVec::from(value))
-    }
-}
-
-impl std::fmt::Debug for HashedPin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("(redacted)")
+        Self(SecretBytes::from(value))
     }
 }
 
 impl Pin {
     pub fn hash(&self, mode: &PinHashingMode, auth_token: &AuthToken) -> Option<HashedPin> {
         match mode {
-            PinHashingMode::None => Some(HashedPin::from(self.0.expose_secret().clone())),
+            PinHashingMode::None => Some(HashedPin(self.0.clone())),
             PinHashingMode::Standard2019 => {
                 let params = ParamsBuilder::new()
                     .m_cost(1024 * 16)
