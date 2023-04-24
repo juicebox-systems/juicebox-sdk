@@ -39,6 +39,12 @@ impl<Http: http::Client> Client<Http> {
     ///
     /// The configuration provided must include at least one realm.
     ///
+    /// The `previous_configurations` parameter represents any other
+    /// configurations you have previously registered with that you may not yet
+    /// have migrated the data from. During recovery, they will be tried if the
+    /// current user has not yet registered on the current configuration. They
+    /// should be ordered from newest to oldest.
+    ///
     /// The `auth_token` represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
     pub fn new(
@@ -90,7 +96,7 @@ impl<Http: http::Client> Client<Http> {
     /// user.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
-        self.recover_latest_available_configuration(pin).await
+        self.recover_latest_registered_configuration(pin).await
     }
 
     /// Deletes all secrets for this user.

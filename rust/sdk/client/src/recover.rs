@@ -101,13 +101,13 @@ struct Recover1Success {
 }
 
 impl<Http: http::Client> Client<Http> {
-    pub(crate) async fn recover_latest_available_configuration(
+    pub(crate) async fn recover_latest_registered_configuration(
         &self,
         pin: &Pin,
     ) -> Result<UserSecret, RecoverError> {
-        let mut configuration = &self.configuration;
-        let mut iter = self.previous_configurations.iter();
-        loop {
+        for configuration in
+            std::iter::once(&self.configuration).chain(self.previous_configurations.iter())
+        {
             return match self
                 .recover_latest_available_generation(pin, configuration)
                 .await
@@ -118,17 +118,16 @@ impl<Http: http::Client> Client<Http> {
                         .0
                         .iter()
                         .all(|(_, reason)| *reason == UnsuccessfulRecoverReason::NotRegistered);
-                    match (configuration_not_registered, iter.next()) {
-                        (true, Some(next_configuration)) => {
-                            configuration = next_configuration;
-                            continue;
-                        }
-                        _ => Err(RecoverError::Unsuccessful(state)),
+                    if configuration_not_registered {
+                        continue;
                     }
+
+                    Err(RecoverError::Unsuccessful(state))
                 }
                 Err(err) => Err(err),
             };
         }
+        Err(RecoverError::ProtocolError)
     }
 
     /// Recovers a PIN-protected secret from the latest agreed upon generation.
