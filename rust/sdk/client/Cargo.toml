@@ -9,6 +9,8 @@ authors = [
 edition = "2021"
 
 [dependencies]
+argon2 = { workspace = true }
+base64 = { workspace = true }
 blake2 = { workspace = true }
 digest = { workspace = true }
 futures = { workspace = true }
@@ -18,7 +20,10 @@ loam-sdk-core = { path = "../../sdk/core" }
 loam-sdk-networking = { path = "../../sdk/networking" }
 loam-sdk-noise = { path = "../../sdk/noise" }
 rand = { workspace = true }
+secrecy = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+serde_repr = { workspace = true }
 sharks = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

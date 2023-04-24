@@ -14,7 +14,6 @@ futures = { workspace = true }
 libc = { workspace = true }
 loam-sdk = { path = "../../sdk/client" }
 loam-sdk-bridge = { path = "../common", features = ["tokio"] }
-secrecy = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

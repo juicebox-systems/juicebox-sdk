@@ -36,10 +36,18 @@ public struct Configuration {
     public let registerThreshold: UInt8
     public let recoverThreshold: UInt8
 
-    public init(realms: [Realm], registerThreshold: UInt8, recoverThreshold: UInt8) {
+    public enum PinHashingMode: UInt32 {
+        case none = 0
+        case standard2019 = 1
+        case fastInsecure = 2
+    }
+    public let pinHashingMode: PinHashingMode
+
+    public init(realms: [Realm], registerThreshold: UInt8, recoverThreshold: UInt8, pinHashingMode: PinHashingMode) {
         self.realms = realms
         self.registerThreshold = registerThreshold
         self.recoverThreshold = recoverThreshold
+        self.pinHashingMode = pinHashingMode
     }
 
     func withUnsafeFfi<Result>(_ body: (LoamConfiguration) throws -> Result) rethrows -> Result {
@@ -47,7 +55,8 @@ public struct Configuration {
             try body(.init(
                 realms: .init(data: realmsBuffer, length: realms.count),
                 register_threshold: registerThreshold,
-                recover_threshold: recoverThreshold
+                recover_threshold: recoverThreshold,
+                pin_hashing_mode: LoamPinHashingMode(rawValue: pinHashingMode.rawValue)
             ))
         }
     }

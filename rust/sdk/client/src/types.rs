@@ -4,6 +4,7 @@ use hmac::{Mac, SimpleHmac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::{self, Debug};
@@ -12,9 +13,11 @@ use std::ops::Deref;
 use url::Url;
 
 use loam_sdk_core::types::{
-    MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, SessionId, UnlockTag,
+    MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, SecretBytes, SessionId, UnlockTag,
 };
 use loam_sdk_noise::client as noise;
+
+use crate::PinHashingMode;
 
 /// A remote service that the client interacts with directly.
 #[derive(Clone, Serialize, Deserialize)]
@@ -54,6 +57,12 @@ pub struct Configuration {
     ///
     /// Must be between `1` and `realms.len()`, inclusive.
     pub recover_threshold: u8,
+
+    /// Defines how the provided PIN will be hashed before register and recover
+    /// operations. Changing modes will make previous secrets stored on the realms
+    /// inaccessible with the same PIN and should not be done without re-registering
+    /// secrets.
+    pub pin_hashing_mode: PinHashingMode,
 }
 
 #[derive(Debug)]
@@ -121,16 +130,6 @@ impl Deref for CheckedConfiguration {
     }
 }
 
-/// A user-chosen password that may be low in entropy.
-#[derive(Clone)]
-pub struct Pin(pub Vec<u8>);
-
-impl Debug for Pin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
-    }
-}
-
 /// A user-chosen secret.
 ///
 /// # Warning
@@ -138,12 +137,18 @@ impl Debug for Pin {
 /// If the secrets vary in length (such as passwords), the caller should add
 /// padding to obscure the secrets' length. Values of this type are assumed
 /// to already include such padding.
-#[derive(Clone)]
-pub struct UserSecret(pub Vec<u8>);
+#[derive(Clone, Debug)]
+pub struct UserSecret(pub SecretBytes);
 
-impl Debug for UserSecret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
+impl UserSecret {
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for UserSecret {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
     }
 }
 

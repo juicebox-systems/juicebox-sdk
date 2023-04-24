@@ -16,8 +16,8 @@ use url::Url;
 
 use crate::http::HttpClient;
 use crate::types::{
-    JNI_BYTE_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE, JNI_VOID_TYPE, LOAM_JNI_HTTP_HEADER_TYPE,
-    LOAM_JNI_REALM_TYPE,
+    JNI_BYTE_TYPE, JNI_INTEGER_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE, JNI_VOID_TYPE,
+    LOAM_JNI_HTTP_HEADER_TYPE, LOAM_JNI_PIN_HASHING_MODE_TYPE, LOAM_JNI_REALM_TYPE,
 };
 
 #[no_mangle]
@@ -32,6 +32,27 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
     let auth_token: String = env.get_string(&auth_token).unwrap().into();
     let register_threshold = get_byte(&mut env, &configuration, "registerThreshold");
     let recover_threshold = get_byte(&mut env, &configuration, "recoverThreshold");
+    let java_pin_hashing_mode = env
+        .get_field(
+            &configuration,
+            "pinHashingMode",
+            jni_object!(LOAM_JNI_PIN_HASHING_MODE_TYPE),
+        )
+        .unwrap()
+        .l()
+        .unwrap();
+    let pin_hashing_mode: u8 = env
+        .call_method(
+            &java_pin_hashing_mode,
+            "ordinal",
+            jni_signature!(() => JNI_INTEGER_TYPE),
+            &[],
+        )
+        .unwrap()
+        .i()
+        .unwrap()
+        .try_into()
+        .unwrap();
 
     let jrealms: JObjectArray = env
         .get_field(
@@ -66,6 +87,7 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
             realms,
             register_threshold,
             recover_threshold,
+            pin_hashing_mode: sdk::PinHashingMode::from(pin_hashing_mode),
         },
         sdk::AuthToken::from(auth_token),
         HttpClient::new(
@@ -103,8 +125,8 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRegister(
     let num_guesses = num_guesses.try_into().unwrap();
 
     if let Err(err) = client.runtime.block_on(client.sdk.register(
-        &sdk::Pin(pin),
-        &sdk::UserSecret(secret),
+        &sdk::Pin::from(pin),
+        &sdk::UserSecret::from(secret),
         sdk::Policy { num_guesses },
     )) {
         let error = RegisterError::from(err);
@@ -123,8 +145,11 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
     let client = &*(client as *const Client<HttpClient>);
     let pin = env.convert_byte_array(pin).unwrap();
 
-    match client.runtime.block_on(client.sdk.recover(&sdk::Pin(pin))) {
-        Ok(secret) => env.byte_array_from_slice(&secret.0).unwrap() as JByteArray,
+    match client
+        .runtime
+        .block_on(client.sdk.recover(&sdk::Pin::from(pin)))
+    {
+        Ok(secret) => env.byte_array_from_slice(secret.expose_secret()).unwrap() as JByteArray,
         Err(err) => {
             let error = RecoverError::from(err);
             throw(&mut env, error as i32, "Recover");

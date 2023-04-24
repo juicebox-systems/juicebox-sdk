@@ -3,7 +3,7 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
-use loam_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError};
+use loam_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -16,6 +16,7 @@ pub struct Configuration {
     pub realms: UnmanagedArray<Realm>,
     pub register_threshold: u8,
     pub recover_threshold: u8,
+    pub pin_hashing_mode: PinHashingMode,
 }
 
 impl From<Configuration> for sdk::Configuration {
@@ -26,6 +27,7 @@ impl From<Configuration> for sdk::Configuration {
             realms,
             register_threshold: ffi.register_threshold,
             recover_threshold: ffi.recover_threshold,
+            pin_hashing_mode: sdk::PinHashingMode::from(ffi.pin_hashing_mode as u8),
         }
     }
 }
@@ -124,8 +126,8 @@ pub unsafe extern "C" fn loam_client_register(
 
     client.runtime.spawn_blocking(move || {
         match client.runtime.block_on(client.sdk.register(
-            &sdk::Pin(pin),
-            &sdk::UserSecret(secret),
+            &sdk::Pin::from(pin),
+            &sdk::UserSecret::from(secret),
             sdk::Policy { num_guesses },
         )) {
             Ok(_) => (response)(context, ptr::null()),
@@ -159,9 +161,12 @@ pub unsafe extern "C" fn loam_client_recover(
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client.runtime.block_on(client.sdk.recover(&sdk::Pin(pin))) {
+        match client
+            .runtime
+            .block_on(client.sdk.recover(&sdk::Pin::from(pin)))
+        {
             Ok(secret) => {
-                let mut secret = ManagedArray(secret.0);
+                let mut secret = ManagedArray(secret.expose_secret().to_vec());
                 (response)(context, secret.unmanaged_borrow(), ptr::null());
             }
             Err(err) => {

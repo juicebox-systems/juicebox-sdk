@@ -16,7 +16,7 @@ use crate::{
     http,
     request::RequestError,
     types::{oprf_output_size, TagGeneratingKey, TgkShare},
-    Client, Pin, Policy, Realm, UserSecret,
+    Client, HashedPin, Pin, Policy, Realm, UserSecret,
 };
 
 /// Error return type for [`Client::register`].
@@ -71,11 +71,15 @@ impl<Http: http::Client> Client<Http> {
         secret: &UserSecret,
         policy: Policy,
     ) -> Result<(), RegisterError> {
+        let hashed_pin = pin
+            .hash(&self.configuration.pin_hashing_mode, &self.auth_token)
+            .expect("pin hashing error");
+
         // This first tries to register generation 0. If that generation has
         // already been used, it then tries to register the first generation
         // that was available on all servers.
         match self
-            .register_generation(GenerationNumber(0), pin, secret, policy.clone())
+            .register_generation(GenerationNumber(0), &hashed_pin, secret, policy.clone())
             .await
         {
             Ok(_) => Ok(()),
@@ -84,7 +88,7 @@ impl<Http: http::Client> Client<Http> {
 
             Err(RegisterGenError::Retry(generation)) => {
                 match self
-                    .register_generation(generation, pin, secret, policy)
+                    .register_generation(generation, &hashed_pin, secret, policy)
                     .await
                 {
                     Ok(RegisterGenSuccess {
@@ -110,7 +114,7 @@ impl<Http: http::Client> Client<Http> {
     async fn register_generation(
         &self,
         generation: GenerationNumber,
-        pin: &Pin,
+        hashed_pin: &HashedPin,
         secret: &UserSecret,
         policy: Policy,
     ) -> Result<RegisterGenSuccess, RegisterGenError> {
@@ -118,7 +122,7 @@ impl<Http: http::Client> Client<Http> {
             .configuration
             .realms
             .iter()
-            .map(|realm| self.register1(realm, generation, pin));
+            .map(|realm| self.register1(realm, generation, hashed_pin));
 
         // Wait for and process the results to `register1` from all the servers
         // here. It's technically possible to have all the servers do both
@@ -177,9 +181,9 @@ impl<Http: http::Client> Client<Http> {
 
         let secret_shares: Vec<UserSecretShare> = {
             Sharks(self.configuration.recover_threshold)
-                .dealer_rng(&secret.0, &mut OsRng)
+                .dealer_rng(secret.expose_secret(), &mut OsRng)
                 .take(self.configuration.realms.len())
-                .map(|share| UserSecretShare(Vec::<u8>::from(&share)))
+                .map(|share| UserSecretShare::from(Vec::<u8>::from(&share)))
                 .collect()
         };
 
@@ -220,9 +224,10 @@ impl<Http: http::Client> Client<Http> {
         &self,
         realm: &Realm,
         generation: GenerationNumber,
-        pin: &Pin,
+        hashed_pin: &HashedPin,
     ) -> Result<OprfResult, RegisterGenError> {
-        let blinded_pin = OprfClient::blind(&pin.0, &mut OsRng).expect("voprf blinding error");
+        let blinded_pin = OprfClient::blind(hashed_pin.expose_secret(), &mut OsRng)
+            .expect("voprf blinding error");
 
         let register1_request = self.make_request(
             realm,
@@ -248,7 +253,7 @@ impl<Http: http::Client> Client<Http> {
                 Register1Response::Ok { blinded_oprf_pin } => {
                     let oprf_pin = blinded_pin
                         .state
-                        .finalize(&pin.0, &blinded_oprf_pin)
+                        .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
                         .map_err(|e| {
                             println!("failed to unblind oprf result: {e:?}");
                             RegisterGenError::Error(RegisterError::ProtocolError)

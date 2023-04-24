@@ -18,7 +18,7 @@ use crate::{
     http,
     request::RequestError,
     types::{TagGeneratingKey, TgkShare},
-    Client, Pin, Realm, UserSecret,
+    Client, HashedPin, Pin, Realm, UserSecret,
 };
 
 /// Error return type for [`Client::recover`].
@@ -90,6 +90,10 @@ impl<Http: http::Client> Client<Http> {
         &self,
         pin: &Pin,
     ) -> Result<UserSecret, RecoverError> {
+        let hashed_pin = pin
+            .hash(&self.configuration.pin_hashing_mode, &self.auth_token)
+            .expect("pin hashing error");
+
         // First, try the latest generation on each server (represented as
         // `generation = None`). In the common case, all the servers will
         // agree on the last registered generation. If they don't, step back by
@@ -100,7 +104,7 @@ impl<Http: http::Client> Client<Http> {
         let mut unsuccessful: Vec<(GenerationNumber, UnsuccessfulRecoverReason)> = Vec::new();
 
         loop {
-            return match self.recover_generation(generation, pin).await {
+            return match self.recover_generation(generation, &hashed_pin).await {
                 Ok(RecoverGenSuccess {
                     generation,
                     secret,
@@ -147,13 +151,13 @@ impl<Http: http::Client> Client<Http> {
     async fn recover_generation(
         &self,
         request_generation: Option<GenerationNumber>,
-        pin: &Pin,
+        hashed_pin: &HashedPin,
     ) -> Result<RecoverGenSuccess, RecoverGenError> {
         let recover1_requests = self
             .configuration
             .realms
             .iter()
-            .map(|realm| self.recover1(realm, request_generation, pin));
+            .map(|realm| self.recover1(realm, request_generation, hashed_pin));
 
         let mut generations_found = BTreeSet::new();
         let mut tgk_shares: Vec<(GenerationNumber, TgkShare)> = Vec::new();
@@ -264,7 +268,7 @@ impl<Http: http::Client> Client<Http> {
         let mut secret_shares = Vec::<sharks::Share>::new();
         for result in recover2_results {
             match result {
-                Ok(secret_share) => match sharks::Share::try_from(secret_share.0.as_slice()) {
+                Ok(secret_share) => match sharks::Share::try_from(secret_share.expose_secret()) {
                     Ok(secret_share) => {
                         secret_shares.push(secret_share);
                     }
@@ -296,7 +300,7 @@ impl<Http: http::Client> Client<Http> {
         match Sharks(self.configuration.recover_threshold).recover(&secret_shares) {
             Ok(secret) => Ok(RecoverGenSuccess {
                 generation: current_generation,
-                secret: UserSecret(secret),
+                secret: UserSecret::from(secret),
                 found_earlier_generations: previous_generation.is_some(),
             }),
 
@@ -320,9 +324,10 @@ impl<Http: http::Client> Client<Http> {
         &self,
         realm: &Realm,
         generation: Option<GenerationNumber>,
-        pin: &Pin,
+        hashed_pin: &HashedPin,
     ) -> Result<Recover1Success, RecoverGenError> {
-        let blinded_pin = OprfClient::blind(&pin.0, &mut OsRng).expect("voprf blinding error");
+        let blinded_pin = OprfClient::blind(hashed_pin.expose_secret(), &mut OsRng)
+            .expect("voprf blinding error");
 
         let recover1_request = self.make_request(
             realm,
@@ -429,7 +434,7 @@ impl<Http: http::Client> Client<Http> {
 
         let oprf_pin = blinded_pin
             .state
-            .finalize(&pin.0, &blinded_oprf_pin)
+            .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
             .map_err(|e| {
                 println!("failed to unblind oprf result: {e:?}");
                 RecoverGenError {

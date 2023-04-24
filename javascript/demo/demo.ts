@@ -31,7 +31,8 @@ async function main() {
     const configuration = new Configuration(
         jsonConfiguration.realms,
         jsonConfiguration.register_threshold,
-        jsonConfiguration.recover_threshold
+        jsonConfiguration.recover_threshold,
+        jsonConfiguration.pin_hashing_mode
     );
 
     if (options.tlsCertificate != null) {

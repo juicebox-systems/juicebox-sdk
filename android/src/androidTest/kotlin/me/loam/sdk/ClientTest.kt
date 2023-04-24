@@ -74,7 +74,8 @@ class ClientTest {
                     )
                 ),
                 registerThreshold = 3,
-                recoverThreshold = 3
+                recoverThreshold = 3,
+                pinHashingMode = PinHashingMode.FAST_INSECURE
             ),
             "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ0ZXN0Iiwic3ViIjoibWFyaW8iLCJhdWQiOiJsb2FtLm1lIiwiZXhwIjoxNjgxMjQ1MjE1LCJuYmYiOjE2ODEyNDQ2MDV9.xJD1x9i0mlrEVlcmiDxpXVX84GZGnlT1egraN2QEVgs"
         )
@@ -168,7 +169,8 @@ class ClientTest {
                     publicKey = ByteArray(32)
                 )),
                 registerThreshold = 1,
-                recoverThreshold = 1
+                recoverThreshold = 1,
+                pinHashingMode = PinHashingMode.NONE
             ),
             "test"
         )
