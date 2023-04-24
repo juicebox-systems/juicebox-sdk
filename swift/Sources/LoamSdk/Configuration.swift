@@ -56,7 +56,7 @@ public struct Configuration {
                 realms: .init(data: realmsBuffer, length: realms.count),
                 register_threshold: registerThreshold,
                 recover_threshold: recoverThreshold,
-                pin_hashing_mode: LoamPinHashingMode(pinHashingMode.rawValue)
+                pin_hashing_mode: LoamPinHashingMode(rawValue: pinHashingMode.rawValue)
             ))
         }
     }

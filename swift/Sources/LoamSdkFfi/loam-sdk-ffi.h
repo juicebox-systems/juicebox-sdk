@@ -21,7 +21,7 @@ typedef enum {
   LoamHttpRequestMethodDelete,
 } LoamHttpRequestMethod;
 
-enum LoamPinHashingMode {
+typedef enum {
   /**
    * No hashing, ensure a PIN of sufficient entropy is provided.
    */
@@ -29,13 +29,12 @@ enum LoamPinHashingMode {
   /**
    * A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
    */
-  LoamPinHashingModeStandard2019,
+  LoamPinHashingModeStandard2019 = 1,
   /**
    * A fast hash used for testing. Do not use in production.
    */
-  LoamPinHashingModeFastInsecure,
-};
-typedef uint8_t LoamPinHashingMode;
+  LoamPinHashingModeFastInsecure = 2,
+} LoamPinHashingMode;
 
 typedef enum {
   LoamRecoverErrorInvalidAuth = 0,
@@ -51,10 +50,6 @@ typedef enum {
   LoamRegisterErrorUnavailable = 3,
 } LoamRegisterError;
 
-/**
- * Used to register and recover PIN-protected secrets on behalf of a
- * particular user.
- */
 typedef struct LoamClient LoamClient;
 
 typedef struct LoamHttpClient LoamHttpClient;
