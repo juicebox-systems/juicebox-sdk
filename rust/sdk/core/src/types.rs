@@ -78,7 +78,7 @@ impl Debug for RealmId {
 pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
 
 impl AuthToken {
-    pub fn expose_secret(&self) -> &String {
+    pub fn expose_secret(&self) -> &str {
         self.0.expose_secret()
     }
 }
@@ -114,7 +114,7 @@ pub struct SessionId(pub u32);
 pub struct UserSecretShare(#[serde(serialize_with = "serialize_secret")] pub SecretBytes);
 
 impl UserSecretShare {
-    pub fn expose_secret(&self) -> &Vec<u8> {
+    pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
 }

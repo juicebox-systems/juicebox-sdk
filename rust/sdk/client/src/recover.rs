@@ -268,23 +268,21 @@ impl<Http: http::Client> Client<Http> {
         let mut secret_shares = Vec::<sharks::Share>::new();
         for result in recover2_results {
             match result {
-                Ok(secret_share) => {
-                    match sharks::Share::try_from(secret_share.expose_secret().as_slice()) {
-                        Ok(secret_share) => {
-                            secret_shares.push(secret_share);
-                        }
-
-                        Err(_) => {
-                            return Err(RecoverGenError {
-                                error: RecoverError::Unsuccessful(vec![(
-                                    current_generation,
-                                    UnsuccessfulRecoverReason::ProtocolError,
-                                )]),
-                                retry: previous_generation,
-                            })
-                        }
+                Ok(secret_share) => match sharks::Share::try_from(secret_share.expose_secret()) {
+                    Ok(secret_share) => {
+                        secret_shares.push(secret_share);
                     }
-                }
+
+                    Err(_) => {
+                        return Err(RecoverGenError {
+                            error: RecoverError::Unsuccessful(vec![(
+                                current_generation,
+                                UnsuccessfulRecoverReason::ProtocolError,
+                            )]),
+                            retry: previous_generation,
+                        })
+                    }
+                },
 
                 Err(error @ RecoverError::NetworkError) => {
                     println!("client: warning: transient error during recover2: {error:?}");

@@ -148,7 +148,7 @@ impl Client {
     /// Upon failure, a `RecoverError` will be provided.
     pub async fn recover(&self, pin: Vec<u8>) -> Result<Uint8Array, RecoverError> {
         match self.0.recover(&sdk::Pin::from(pin)).await {
-            Ok(secret) => Ok(Uint8Array::from(secret.expose_secret().as_slice())),
+            Ok(secret) => Ok(Uint8Array::from(secret.expose_secret())),
             Err(err) => Err(RecoverError::from(err)),
         }
     }

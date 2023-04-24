@@ -141,7 +141,7 @@ impl Deref for CheckedConfiguration {
 pub struct UserSecret(pub SecretBytes);
 
 impl UserSecret {
-    pub fn expose_secret(&self) -> &Vec<u8> {
+    pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
 }

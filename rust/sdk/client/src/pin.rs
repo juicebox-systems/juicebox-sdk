@@ -76,7 +76,7 @@ impl TryFrom<&AuthToken> for Salt {
 pub struct Pin(pub SecretBytes);
 
 impl Pin {
-    pub fn expose_secret(&self) -> &Vec<u8> {
+    pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
 }
@@ -92,7 +92,7 @@ impl From<Vec<u8>> for Pin {
 pub struct HashedPin(pub SecretBytes);
 
 impl HashedPin {
-    pub fn expose_secret(&self) -> &Vec<u8> {
+    pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
 }
