@@ -231,7 +231,7 @@ impl<Http: http::Client> Client<Http> {
                         .map_err(RequestError::Deserialization);
                 }
                 Err(RequestErrorOrMissingSession::RequestError(RequestError::Unavailable)) => {
-                    // This is most likely due to an in progress leadership transfer.
+                    // This could be due to an in progress leadership transfer, or other transitory problem.
                     // We can retry this as it'll likely need a new session anyway.
                     continue;
                 }
