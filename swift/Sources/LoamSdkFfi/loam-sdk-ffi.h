@@ -109,7 +109,7 @@ typedef void (*LoamHttpSendFn)(const LoamHttpClient *context, const LoamHttpRequ
 typedef struct {
   LoamRecoverErrorReason reason;
   /**
-   * Guesses remaining is only valid if `reason` is `Unsuccessful`
+   * If non-NULL, the number of guesses remaining after an Unsuccessful attempt.
    */
   const uint16_t *guesses_remaining;
 } LoamRecoverError;

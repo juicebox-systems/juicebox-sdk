@@ -30,12 +30,7 @@ pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    // TODO: Figure out a clean way to surface unsuccessful details to clients
-    // without externally exposing implementation details like `GenerationNumber`
-    /// A list of attempts explaining why the recovery failed.
-    ///
-    /// Each entry in the vector corresponds to an attempt at recovery with
-    /// a particular realm at a particular generation number.
+    /// A state object representing why recovery failed.
     Unsuccessful(UnsuccessfulRecoverState),
 
     ProtocolError,

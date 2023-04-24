@@ -70,7 +70,7 @@ impl From<RecoverErrorReason> for JsValue {
 #[derive(Debug)]
 pub struct RecoverError {
     pub reason: RecoverErrorReason,
-    /// Guesses remaining is only valid if `reason` is `Unsuccessful`
+    /// If non-NULL, the number of guesses remaining after an Unsuccessful attempt.
     pub guesses_remaining: *const u16,
 }
 
