@@ -2,7 +2,7 @@ use argon2::{Algorithm, Argon2, ParamsBuilder, Version};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use loam_sdk_core::types::SecretBytes;
 use secrecy::ExposeSecret;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::AuthToken;
@@ -29,7 +29,7 @@ impl From<u8> for PinHashingMode {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct Claims {
     iss: String,
     sub: String,
@@ -64,7 +64,9 @@ impl TryFrom<&AuthToken> for Salt {
         let mut salt = claims.sub.into_bytes();
         salt.extend_from_slice(b"|");
         salt.extend_from_slice(&claims.iss.into_bytes());
-        salt.resize(8, 0);
+        if salt.len() < 8 {
+            salt.resize(8, 0);
+        }
         Ok(Salt(salt))
     }
 }
@@ -134,5 +136,75 @@ impl Pin {
             .hash_password_into(self.expose_secret(), &salt.0, &mut hashed_pin)
             .ok()?;
         Some(HashedPin::from(hashed_pin))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+    use loam_sdk_core::types::AuthToken;
+
+    use crate::pin::{Claims, Pin, PinHashingMode, Salt};
+
+    fn auth_token(claims: Claims) -> AuthToken {
+        let claims_json = serde_json::to_string(&claims).unwrap();
+        let b64_encoded_json = URL_SAFE_NO_PAD.encode(claims_json);
+        AuthToken::from(format!("fake-header.{}.fake-signature", b64_encoded_json))
+    }
+
+    #[test]
+    fn test_salt() {
+        let auth_token = auth_token(Claims {
+            iss: "tenant".to_string(),
+            sub: "user".to_string(),
+        });
+        let salt = Salt::try_from(&auth_token).unwrap();
+        assert_eq!(salt.0, b"user|tenant".to_vec());
+    }
+
+    #[test]
+    fn test_salt_padding() {
+        let auth_token = auth_token(Claims {
+            iss: "t".to_string(),
+            sub: "u".to_string(),
+        });
+        let salt = Salt::try_from(&auth_token).unwrap();
+        let mut expected_salt = b"u|t".to_vec();
+        expected_salt.push(0);
+        expected_salt.push(0);
+        expected_salt.push(0);
+        expected_salt.push(0);
+        expected_salt.push(0);
+        assert_eq!(salt.0, expected_salt);
+    }
+
+    #[test]
+    fn test_pin_hashing() {
+        let auth_token = auth_token(Claims {
+            iss: "tenant".to_string(),
+            sub: "user".to_string(),
+        });
+        let pin = Pin::from(b"1234".to_vec());
+        let hashed_pin = pin
+            .hash(&PinHashingMode::Standard2019, &auth_token)
+            .unwrap();
+        let expected_hash: [u8; 64] = [
+            174, 157, 21, 209, 154, 164, 208, 132, 117, 13, 235, 232, 136, 230, 142, 35, 123, 163,
+            122, 118, 30, 101, 88, 19, 238, 219, 121, 188, 48, 31, 33, 146, 31, 8, 146, 109, 49,
+            41, 213, 151, 95, 135, 224, 243, 231, 68, 46, 202, 71, 175, 147, 97, 83, 69, 147, 210,
+            63, 68, 213, 127, 180, 64, 78, 184,
+        ];
+        assert_eq!(*hashed_pin.expose_secret(), expected_hash.to_vec());
+    }
+
+    #[test]
+    fn test_no_hashing() {
+        let auth_token = auth_token(Claims {
+            iss: "tenant".to_string(),
+            sub: "user".to_string(),
+        });
+        let pin = Pin::from(b"1234".to_vec());
+        let hashed_pin = pin.hash(&PinHashingMode::None, &auth_token).unwrap();
+        assert_eq!(*hashed_pin.expose_secret(), *pin.expose_secret());
     }
 }
