@@ -2,6 +2,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use thiserror::Error;
 use url::Url;
 
 use crate::http;
@@ -15,7 +16,7 @@ pub trait Rpc<S: Service>: fmt::Debug + DeserializeOwned + Serialize {
     type Response: fmt::Debug + DeserializeOwned + Serialize;
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum RpcError {
     Network,
     HttpStatus(u16),

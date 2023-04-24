@@ -46,7 +46,8 @@ serde_repr = "0.1.12"
 serde-wasm-bindgen = "0.5"
 sharks = "0.5.0"
 subtle = { version = "2.4.1", default-features = false }
-tokio = { version = "1.25.0", features = ["sync"] }
+thiserror = "1.0.40"
+tokio = { version = "1.25.0", features = ["sync","time"] }
 tracing = { version = "0.2.0", default-features = false, features = [
     "alloc",
     "attributes",

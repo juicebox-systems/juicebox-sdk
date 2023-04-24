@@ -385,7 +385,12 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => todo!(),
+            Err(RequestError::Unavailable) => {
+                return Err(RecoverGenError {
+                    error: RecoverError::NetworkError,
+                    retry: None,
+                })
+            }
             Err(RequestError::InvalidAuth) => {
                 return Err(RecoverGenError {
                     error: RecoverError::InvalidAuth,
@@ -503,7 +508,7 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => todo!(),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => todo!(),
+            Err(RequestError::Unavailable) => Err(RecoverError::NetworkError),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {

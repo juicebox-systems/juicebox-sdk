@@ -1,5 +1,6 @@
-use instant::Instant;
+use instant::{Duration, Instant};
 use rand::{rngs::OsRng, RngCore};
+use tokio::time::sleep;
 use x25519_dalek as x25519;
 
 use crate::{http, types::Session, Client, Realm};
@@ -216,7 +217,7 @@ impl<Http: http::Client> Client<Http> {
         // `MissingSession` error, if the server restarts at an inopportune
         // time. This loop tries a few times, but beyond that, it's not likely
         // to succeed.
-        for _attempt in 0..3 {
+        for _attempt in 0..5 {
             let session = locked
                 .take()
                 .filter(|session| session.last_used.elapsed() < session.lifetime);
@@ -229,6 +230,12 @@ impl<Http: http::Client> Client<Http> {
                     std::mem::drop(locked);
                     return marshalling::from_slice::<SecretsResponse>(response.as_slice())
                         .map_err(RequestError::Deserialization);
+                }
+                Err(RequestErrorOrMissingSession::RequestError(RequestError::Unavailable)) => {
+                    // This could be due to an in progress leadership transfer, or other transitory problem.
+                    // We can retry this as it'll likely need a new session anyway.
+                    sleep(Duration::from_millis(5)).await;
+                    continue;
                 }
                 Err(RequestErrorOrMissingSession::RequestError(e)) => return Err(e),
                 Err(RequestErrorOrMissingSession::MissingSession) => {

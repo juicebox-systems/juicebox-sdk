@@ -888,6 +888,7 @@ dependencies = [
  "loam-sdk-core",
  "opentelemetry",
  "serde",
+ "thiserror",
  "tracing",
  "tracing-opentelemetry",
  "url",

@@ -61,7 +61,7 @@ impl<Http: http::Client> Client<Http> {
             Err(RequestError::HttpStatus(_status)) => Err(DeleteError::NetworkError),
             Err(RequestError::Session) => todo!(),
             Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => todo!(),
+            Err(RequestError::Unavailable) => Err(DeleteError::NetworkError),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
 
             Ok(SecretsResponse::Delete(dr)) => match dr {
