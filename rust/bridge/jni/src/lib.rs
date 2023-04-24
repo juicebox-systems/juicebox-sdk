@@ -126,7 +126,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRegister(
 
     if let Err(err) = client.runtime.block_on(client.sdk.register(
         &sdk::Pin::from(pin),
-        &sdk::UserSecret(secret),
+        &sdk::UserSecret::from(secret),
         sdk::Policy { num_guesses },
     )) {
         let error = RegisterError::from(err);
@@ -149,7 +149,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
         .runtime
         .block_on(client.sdk.recover(&sdk::Pin::from(pin)))
     {
-        Ok(secret) => env.byte_array_from_slice(&secret.0).unwrap() as JByteArray,
+        Ok(secret) => env.byte_array_from_slice(secret.expose_secret()).unwrap() as JByteArray,
         Err(err) => {
             let error = RecoverError::from(err);
             throw(&mut env, error as i32, "Recover");

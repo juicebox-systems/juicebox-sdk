@@ -1,6 +1,5 @@
 use futures::future::join_all;
 use rand::rngs::OsRng;
-use secrecy::ExposeSecret;
 use sharks::Sharks;
 use std::collections::BTreeSet;
 use tracing::instrument;
@@ -269,21 +268,23 @@ impl<Http: http::Client> Client<Http> {
         let mut secret_shares = Vec::<sharks::Share>::new();
         for result in recover2_results {
             match result {
-                Ok(secret_share) => match sharks::Share::try_from(secret_share.0.as_slice()) {
-                    Ok(secret_share) => {
-                        secret_shares.push(secret_share);
-                    }
+                Ok(secret_share) => {
+                    match sharks::Share::try_from(secret_share.expose_secret().as_slice()) {
+                        Ok(secret_share) => {
+                            secret_shares.push(secret_share);
+                        }
 
-                    Err(_) => {
-                        return Err(RecoverGenError {
-                            error: RecoverError::Unsuccessful(vec![(
-                                current_generation,
-                                UnsuccessfulRecoverReason::ProtocolError,
-                            )]),
-                            retry: previous_generation,
-                        })
+                        Err(_) => {
+                            return Err(RecoverGenError {
+                                error: RecoverError::Unsuccessful(vec![(
+                                    current_generation,
+                                    UnsuccessfulRecoverReason::ProtocolError,
+                                )]),
+                                retry: previous_generation,
+                            })
+                        }
                     }
-                },
+                }
 
                 Err(error @ RecoverError::NetworkError) => {
                     println!("client: warning: transient error during recover2: {error:?}");
@@ -301,7 +302,7 @@ impl<Http: http::Client> Client<Http> {
         match Sharks(self.configuration.recover_threshold).recover(&secret_shares) {
             Ok(secret) => Ok(RecoverGenSuccess {
                 generation: current_generation,
-                secret: UserSecret(secret),
+                secret: UserSecret::from(secret),
                 found_earlier_generations: previous_generation.is_some(),
             }),
 
@@ -327,7 +328,7 @@ impl<Http: http::Client> Client<Http> {
         generation: Option<GenerationNumber>,
         hashed_pin: &HashedPin,
     ) -> Result<Recover1Success, RecoverGenError> {
-        let blinded_pin = OprfClient::blind(hashed_pin.0.expose_secret(), &mut OsRng)
+        let blinded_pin = OprfClient::blind(hashed_pin.expose_secret(), &mut OsRng)
             .expect("voprf blinding error");
 
         let recover1_request = self.make_request(
@@ -435,7 +436,7 @@ impl<Http: http::Client> Client<Http> {
 
         let oprf_pin = blinded_pin
             .state
-            .finalize(hashed_pin.0.expose_secret(), &blinded_oprf_pin)
+            .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
             .map_err(|e| {
                 println!("failed to unblind oprf result: {e:?}");
                 RecoverGenError {

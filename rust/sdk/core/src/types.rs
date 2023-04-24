@@ -4,19 +4,22 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use core::fmt::{self, Debug, Display};
-use secrecy::{CloneableSecret, DebugSecret, ExposeSecret, SecretString, Zeroize};
+use secrecy::{
+    CloneableSecret, DebugSecret, ExposeSecret, SecretString, SerializableSecret, Zeroize,
+};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
 use super::marshalling::serialize_secret;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SecretBytes(Vec<u8>);
 impl Zeroize for SecretBytes {
     fn zeroize(&mut self) {
         self.0.zeroize();
     }
 }
+impl SerializableSecret for SecretBytes {}
 impl CloneableSecret for SecretBytes {}
 impl DebugSecret for SecretBytes {}
 impl ExposeSecret<Vec<u8>> for SecretBytes {
@@ -74,6 +77,12 @@ impl Debug for RealmId {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
 
+impl AuthToken {
+    pub fn expose_secret(&self) -> &String {
+        self.0.expose_secret()
+    }
+}
+
 impl From<SecretString> for AuthToken {
     fn from(value: SecretString) -> Self {
         AuthToken(value)
@@ -102,11 +111,17 @@ pub struct SessionId(pub u32);
 /// The client needs a threshold number of such shares to recover the user's
 /// secret.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct UserSecretShare(pub Vec<u8>);
+pub struct UserSecretShare(#[serde(serialize_with = "serialize_secret")] pub SecretBytes);
+
+impl UserSecretShare {
+    pub fn expose_secret(&self) -> &Vec<u8> {
+        self.0.expose_secret()
+    }
+}
 
 impl From<Vec<u8>> for UserSecretShare {
     fn from(value: Vec<u8>) -> Self {
-        Self(value)
+        Self(SecretBytes::from(value))
     }
 }
 

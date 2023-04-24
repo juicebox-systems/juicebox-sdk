@@ -133,7 +133,7 @@ impl Client {
         self.0
             .register(
                 &sdk::Pin::from(pin),
-                &sdk::UserSecret(secret),
+                &sdk::UserSecret::from(secret),
                 sdk::Policy { num_guesses },
             )
             .await
@@ -148,7 +148,7 @@ impl Client {
     /// Upon failure, a `RecoverError` will be provided.
     pub async fn recover(&self, pin: Vec<u8>) -> Result<Uint8Array, RecoverError> {
         match self.0.recover(&sdk::Pin::from(pin)).await {
-            Ok(secret) => Ok(Uint8Array::from(secret.0.as_slice())),
+            Ok(secret) => Ok(Uint8Array::from(secret.expose_secret().as_slice())),
             Err(err) => Err(RecoverError::from(err)),
         }
     }

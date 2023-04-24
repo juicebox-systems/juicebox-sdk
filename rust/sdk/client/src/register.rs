@@ -1,6 +1,5 @@
 use futures::future::{join_all, try_join_all};
 use rand::rngs::OsRng;
-use secrecy::ExposeSecret;
 use sharks::Sharks;
 use std::iter::zip;
 use tracing::instrument;
@@ -182,9 +181,9 @@ impl<Http: http::Client> Client<Http> {
 
         let secret_shares: Vec<UserSecretShare> = {
             Sharks(self.configuration.recover_threshold)
-                .dealer_rng(&secret.0, &mut OsRng)
+                .dealer_rng(secret.expose_secret(), &mut OsRng)
                 .take(self.configuration.realms.len())
-                .map(|share| UserSecretShare(Vec::<u8>::from(&share)))
+                .map(|share| UserSecretShare::from(Vec::<u8>::from(&share)))
                 .collect()
         };
 
@@ -227,7 +226,7 @@ impl<Http: http::Client> Client<Http> {
         generation: GenerationNumber,
         hashed_pin: &HashedPin,
     ) -> Result<OprfResult, RegisterGenError> {
-        let blinded_pin = OprfClient::blind(hashed_pin.0.expose_secret(), &mut OsRng)
+        let blinded_pin = OprfClient::blind(hashed_pin.expose_secret(), &mut OsRng)
             .expect("voprf blinding error");
 
         let register1_request = self.make_request(
@@ -254,7 +253,7 @@ impl<Http: http::Client> Client<Http> {
                 Register1Response::Ok { blinded_oprf_pin } => {
                     let oprf_pin = blinded_pin
                         .state
-                        .finalize(hashed_pin.0.expose_secret(), &blinded_oprf_pin)
+                        .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
                         .map_err(|e| {
                             println!("failed to unblind oprf result: {e:?}");
                             RegisterGenError::Error(RegisterError::ProtocolError)

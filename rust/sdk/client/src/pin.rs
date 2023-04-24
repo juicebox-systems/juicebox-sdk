@@ -40,7 +40,6 @@ impl TryFrom<&AuthToken> for Claims {
 
     fn try_from(value: &AuthToken) -> Result<Self, Self::Error> {
         let (message, _) = value
-            .0
             .expose_secret()
             .rsplit_once('.')
             .ok_or("Failed to split auth_token into signature and message")?;
@@ -74,6 +73,12 @@ impl TryFrom<&AuthToken> for Salt {
 /// A user-chosen password that may be low in entropy.
 pub struct Pin(pub SecretBytes);
 
+impl Pin {
+    pub fn expose_secret(&self) -> &Vec<u8> {
+        self.0.expose_secret()
+    }
+}
+
 impl From<Vec<u8>> for Pin {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
@@ -83,6 +88,12 @@ impl From<Vec<u8>> for Pin {
 #[derive(Debug)]
 /// The calculated hash of a user-chosen password.
 pub struct HashedPin(pub SecretBytes);
+
+impl HashedPin {
+    pub fn expose_secret(&self) -> &Vec<u8> {
+        self.0.expose_secret()
+    }
+}
 
 impl From<Vec<u8>> for HashedPin {
     fn from(value: Vec<u8>) -> Self {
@@ -120,7 +131,7 @@ impl Pin {
         let salt = Salt::try_from(auth_token).ok()?;
         let mut hashed_pin = vec![0u8; 64];
         context
-            .hash_password_into(self.0.expose_secret(), &salt.0, &mut hashed_pin)
+            .hash_password_into(self.expose_secret(), &salt.0, &mut hashed_pin)
             .ok()?;
         Some(HashedPin::from(hashed_pin))
     }

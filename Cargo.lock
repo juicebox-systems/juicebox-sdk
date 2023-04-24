@@ -859,7 +859,6 @@ dependencies = [
  "libc",
  "loam-sdk",
  "loam-sdk-bridge",
- "secrecy",
  "tokio",
  "url",
  "uuid",
