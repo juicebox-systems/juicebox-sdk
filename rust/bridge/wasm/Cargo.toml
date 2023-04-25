@@ -13,7 +13,7 @@ console_error_panic_hook = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 instant = { workspace = true, features = ["wasm-bindgen"] }
 js-sys = { workspace = true }
-loam-sdk = { path = "../../sdk/client" }
+loam-sdk = { path = "../../sdk/client", features = ["wasm"] }
 loam-sdk-bridge = { path = "../common", features = ["wasm"] }
 serde = { workspace = true }
 serde-wasm-bindgen = { workspace = true }

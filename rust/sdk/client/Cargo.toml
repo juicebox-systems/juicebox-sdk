@@ -30,3 +30,6 @@ tracing = { workspace = true }
 url = { workspace = true }
 voprf = { workspace = true }
 x25519-dalek = { workspace = true }
+
+[features]
+"wasm" = []

@@ -1,6 +1,5 @@
-use instant::{Duration, Instant};
+use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
-use tokio::time::sleep;
 use x25519_dalek as x25519;
 
 use crate::{http, types::Session, Client, Realm};
@@ -234,7 +233,8 @@ impl<Http: http::Client> Client<Http> {
                 Err(RequestErrorOrMissingSession::RequestError(RequestError::Unavailable)) => {
                     // This could be due to an in progress leadership transfer, or other transitory problem.
                     // We can retry this as it'll likely need a new session anyway.
-                    sleep(Duration::from_millis(5)).await;
+
+                    sleep_before_retry().await;
                     continue;
                 }
                 Err(RequestErrorOrMissingSession::RequestError(e)) => return Err(e),
@@ -247,4 +247,14 @@ impl<Http: http::Client> Client<Http> {
         }
         Err(RequestError::Session)
     }
+}
+
+#[cfg(not(feature = "wasm"))]
+async fn sleep_before_retry() {
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await
+}
+
+#[cfg(feature = "wasm")]
+async fn sleep_before_retry() {
+    // wasm doesn't support std::time::Instant which is used by tokio::time::sleep.
 }
