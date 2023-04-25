@@ -18,7 +18,8 @@ pub enum DeleteError {
     Transient,
 
     /// A software error has occured. This request should not be retried
-    /// with the same parameters. Verify your inputs and try again.
+    /// with the same parameters. Verify your inputs, check for software,
+    /// updates and try again.
     Assertion,
 }
 
@@ -57,14 +58,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .await;
 
         match delete_result {
-            Err(RequestError::Network) => Err(DeleteError::Transient),
-            Err(RequestError::Deserialization(_)) | Err(RequestError::Serialization(_)) => {
-                Err(DeleteError::Transient)
-            }
-            Err(RequestError::HttpStatus(_status)) => Err(DeleteError::Transient),
-            Err(RequestError::Session) => Err(DeleteError::Transient),
-            Err(RequestError::Decoding) => Err(DeleteError::Assertion),
-            Err(RequestError::Unavailable) => Err(DeleteError::Transient),
+            Err(RequestError::Transient) => Err(DeleteError::Transient),
+            Err(RequestError::Assertion) => Err(DeleteError::Assertion),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
 
             Ok(SecretsResponse::Delete(dr)) => match dr {

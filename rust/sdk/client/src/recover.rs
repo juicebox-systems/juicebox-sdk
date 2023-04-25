@@ -41,7 +41,8 @@ pub enum RecoverError {
     Transient,
 
     /// A software error has occured. This request should not be retried
-    /// with the same parameters. Verify your inputs and try again.
+    /// with the same parameters. Verify your inputs, check for software,
+    /// updates and try again.
     Assertion,
 }
 
@@ -256,7 +257,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
             Err(_) => {
                 return Err(RecoverGenError {
-                    error: RecoverError::Transient,
+                    error: RecoverError::Assertion,
                     generation: current_generation,
                     retry: previous_generation,
                 });
@@ -280,7 +281,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
                     Err(_) => {
                         return Err(RecoverGenError {
-                            error: RecoverError::Transient,
+                            error: RecoverError::Assertion,
                             generation: current_generation,
                             retry: previous_generation,
                         })
@@ -352,44 +353,17 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             masked_tgk_share,
             previous_generation,
         } = match recover1_request.await {
-            Err(RequestError::Network) => {
+            Err(RequestError::Transient) => {
                 return Err(RecoverGenError {
                     error: RecoverError::Transient,
                     generation: current_generation,
                     retry: None,
                 })
             }
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Transient,
-                    generation: current_generation,
-                    retry: None,
-                })
-            }
-            Err(RequestError::HttpStatus(_status)) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Transient,
-                    generation: current_generation,
-                    retry: None,
-                })
-            }
-            Err(RequestError::Session) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Transient,
-                    generation: current_generation,
-                    retry: None,
-                })
-            }
-            Err(RequestError::Decoding) => {
+
+            Err(RequestError::Assertion) => {
                 return Err(RecoverGenError {
                     error: RecoverError::Assertion,
-                    generation: current_generation,
-                    retry: None,
-                })
-            }
-            Err(RequestError::Unavailable) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Transient,
                     generation: current_generation,
                     retry: None,
                 })
@@ -504,14 +478,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         );
 
         match recover2_request.await {
-            Err(RequestError::Network) => Err(RecoverError::Transient),
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                Err(RecoverError::Transient)
-            }
-            Err(RequestError::HttpStatus(_status)) => Err(RecoverError::Transient),
-            Err(RequestError::Session) => Err(RecoverError::Transient),
-            Err(RequestError::Decoding) => Err(RecoverError::Assertion),
-            Err(RequestError::Unavailable) => Err(RecoverError::Transient),
+            Err(RequestError::Transient) => Err(RecoverError::Transient),
+            Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {

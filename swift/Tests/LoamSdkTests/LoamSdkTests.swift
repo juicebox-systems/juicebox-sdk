@@ -7,7 +7,7 @@ final class LoamSdkTests: XCTestCase {
         let client = client(url: "https://httpbin.org/anything/")
         do {
             try await client.register(pin: Data(), secret: Data(), guesses: 5)
-        } catch RegisterError.transient {
+        } catch RegisterError.assertion {
 
         }
     }
@@ -17,7 +17,7 @@ final class LoamSdkTests: XCTestCase {
         do {
             let secret = try await client.recover(pin: Data())
             XCTAssertNil(secret)
-        } catch RecoverError.transient {
+        } catch RecoverError.assertion {
 
         }
     }
@@ -26,7 +26,7 @@ final class LoamSdkTests: XCTestCase {
         let client = client(url: "https://httpbin.org/anything/")
         do {
             try await client.deleteAll()
-        } catch DeleteError.transient {
+        } catch DeleteError.assertion {
 
         }
     }

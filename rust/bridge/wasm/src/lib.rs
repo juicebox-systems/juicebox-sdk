@@ -315,7 +315,7 @@ mod tests {
             .register(Vec::from("1234"), Vec::from("apollo"), 2)
             .await;
         assert!(
-            matches!(result, Err(RegisterError::Transient)),
+            matches!(result, Err(RegisterError::Assertion)),
             "got {result:?}"
         );
     }
@@ -328,7 +328,7 @@ mod tests {
             matches!(
                 result,
                 Err(RecoverError {
-                    reason: RecoverErrorReason::Transient,
+                    reason: RecoverErrorReason::Assertion,
                     guesses_remaining: None
                 })
             ),
@@ -354,7 +354,7 @@ mod tests {
         let client = client("https://httpbin.org/anything/");
         let result = client.delete_all().await;
         assert!(
-            matches!(result, Err(DeleteError::Transient)),
+            matches!(result, Err(DeleteError::Assertion)),
             "got {result:?}"
         );
     }

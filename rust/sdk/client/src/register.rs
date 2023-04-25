@@ -30,7 +30,8 @@ pub enum RegisterError {
     Transient,
 
     /// A software error has occured. This request should not be retried
-    /// with the same parameters. Verify your inputs and try again.
+    /// with the same parameters. Verify your inputs, check for software,
+    /// updates and try again.
     Assertion,
 }
 
@@ -234,18 +235,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
         );
         match register1_request.await {
-            Err(RequestError::Network) => Err(RegisterGenError::Error(RegisterError::Transient)),
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                Err(RegisterGenError::Error(RegisterError::Transient))
-            }
-            Err(RequestError::HttpStatus(_status)) => {
-                Err(RegisterGenError::Error(RegisterError::Transient))
-            }
-            Err(RequestError::Session) => Err(RegisterGenError::Error(RegisterError::Transient)),
-            Err(RequestError::Decoding) => Err(RegisterGenError::Error(RegisterError::Assertion)),
-            Err(RequestError::Unavailable) => {
-                Err(RegisterGenError::Error(RegisterError::Transient))
-            }
+            Err(RequestError::Transient) => Err(RegisterGenError::Error(RegisterError::Transient)),
+            Err(RequestError::Assertion) => Err(RegisterGenError::Error(RegisterError::Assertion)),
             Err(RequestError::InvalidAuth) => {
                 Err(RegisterGenError::Error(RegisterError::InvalidAuth))
             }
@@ -303,14 +294,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         );
 
         match register2_request.await {
-            Err(RequestError::Network) => Err(RegisterError::Transient),
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                Err(RegisterError::Transient)
-            }
-            Err(RequestError::HttpStatus(_status)) => Err(RegisterError::Transient),
-            Err(RequestError::Session) => Err(RegisterError::Transient),
-            Err(RequestError::Decoding) => Err(RegisterError::Assertion),
-            Err(RequestError::Unavailable) => Err(RegisterError::Transient),
+            Err(RequestError::Transient) => Err(RegisterError::Transient),
+            Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
 
             Ok(SecretsResponse::Register2(rr)) => match rr {

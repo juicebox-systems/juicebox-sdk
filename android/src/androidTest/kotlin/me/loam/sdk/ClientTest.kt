@@ -19,7 +19,7 @@ class ClientTest {
                 client.register("test".toByteArray(), "secret".toByteArray(), 5)
             }
         }
-        assertEquals(RegisterError.TRANSIENT, exception.error)
+        assertEquals(RegisterError.ASSERTION, exception.error)
     }
 
     @Test
@@ -30,7 +30,7 @@ class ClientTest {
                 client.recover("test".toByteArray())
             }
         }
-        assertEquals(RecoverError.TRANSIENT, exception.error)
+        assertEquals(RecoverError.ASSERTION, exception.error)
     }
 
     @Test
@@ -41,7 +41,7 @@ class ClientTest {
                 client.deleteAll()
             }
         }
-        assertEquals(DeleteError.TRANSIENT, exception.error)
+        assertEquals(DeleteError.ASSERTION, exception.error)
     }
 
     @Ignore
