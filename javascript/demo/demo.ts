@@ -48,7 +48,7 @@ async function main() {
         globalThis.fetch = fetch;
     }
 
-    const client = new Client(configuration, options.authToken);
+    const client = new Client(configuration, [], options.authToken);
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();

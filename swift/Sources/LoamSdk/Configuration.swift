@@ -19,18 +19,6 @@ public struct Configuration {
             self.address = address
             self.publicKey = publicKey
         }
-
-        func withUnsafeFfi<Result>(_ body: (LoamRealm) throws -> Result) rethrows -> Result {
-            try address.absoluteString.withCString { addressCStr in
-                try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
-                    try body(.init(
-                        id: id.uuid,
-                        address: addressCStr,
-                        public_key: publicKeyArray
-                    ))
-                }
-            }
-        }
     }
     public let realms: [Realm]
     public let registerThreshold: UInt8
@@ -49,8 +37,18 @@ public struct Configuration {
         self.recoverThreshold = recoverThreshold
         self.pinHashingMode = pinHashingMode
     }
+}
 
-    func withUnsafeFfi<Result>(_ body: (LoamConfiguration) throws -> Result) rethrows -> Result {
+protocol FfiConvertible {
+    associatedtype FfiType
+
+    func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result
+}
+
+extension Configuration: FfiConvertible {
+    typealias FfiType = LoamConfiguration
+
+    func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result {
         try realms.withUnsafeFfiPointer { realmsBuffer in
             try body(.init(
                 realms: .init(data: realmsBuffer, length: realms.count),
@@ -62,27 +60,43 @@ public struct Configuration {
     }
 }
 
-extension Array where Element == Configuration.Realm {
-    func withUnsafeFfiPointer<Result>(_ body: (UnsafePointer<LoamRealm>) throws -> Result) rethrows -> Result {
-        func withRealmsRecursively(
-            iterator: IndexingIterator<[Configuration.Realm]>? = nil,
-            body: (inout [LoamRealm]) throws -> Result
+extension Configuration.Realm: FfiConvertible {
+    typealias FfiType = LoamRealm
+
+    func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result {
+        try address.absoluteString.withCString { addressCStr in
+            try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
+                try body(.init(
+                    id: id.uuid,
+                    address: addressCStr,
+                    public_key: publicKeyArray
+                ))
+            }
+        }
+    }
+}
+
+extension Array where Element: FfiConvertible {
+    func withUnsafeFfiPointer<Result>(_ body: (UnsafePointer<Element.FfiType>) throws -> Result) rethrows -> Result {
+        func withElementsRecursively(
+            iterator: IndexingIterator<[Element]>? = nil,
+            body: (inout [Element.FfiType]) throws -> Result
         ) rethrows -> Result {
             var iterator = iterator ?? makeIterator()
-            if let realm = iterator.next() {
-                return try realm.withUnsafeFfi { ffiRealm in
-                    try withRealmsRecursively(iterator: iterator, body: { ffiRealms in
-                        ffiRealms.append(ffiRealm)
-                        return try body(&ffiRealms)
+            if let element = iterator.next() {
+                return try element.withUnsafeFfi { ffiElement in
+                    try withElementsRecursively(iterator: iterator, body: { ffiElements in
+                        ffiElements.append(ffiElement)
+                        return try body(&ffiElements)
                     })
                 }
             } else {
-                var emptyRealms = [LoamRealm]()
-                return try body(&emptyRealms)
+                var empty = [Element.FfiType]()
+                return try body(&empty)
             }
         }
 
-        return try withRealmsRecursively {
+        return try withElementsRecursively {
             try $0.withUnsafeBufferPointer {
                 try body($0.baseAddress!)
             }

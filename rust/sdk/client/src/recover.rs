@@ -17,7 +17,7 @@ use loam_sdk_core::{
 use crate::{
     http,
     request::RequestError,
-    types::{TagGeneratingKey, TgkShare},
+    types::{CheckedConfiguration, TagGeneratingKey, TgkShare},
     Client, HashedPin, Pin, Realm, UserSecret,
 };
 
@@ -37,7 +37,7 @@ pub enum RecoverError {
 }
 
 /// An explanation for a [`RecoverError::Unsuccessful`] entry.
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum UnsuccessfulRecoverReason {
     /// The secret was not registered or not fully registered.
     NotRegistered,
@@ -101,10 +101,41 @@ struct Recover1Success {
 }
 
 impl<Http: http::Client> Client<Http> {
+    pub(crate) async fn recover_latest_registered_configuration(
+        &self,
+        pin: &Pin,
+    ) -> Result<UserSecret, RecoverError> {
+        let mut configuration = &self.configuration;
+        let mut iter = self.previous_configurations.iter();
+        loop {
+            return match self
+                .recover_latest_available_generation(pin, configuration)
+                .await
+            {
+                Ok(secret) => Ok(secret),
+                Err(RecoverError::Unsuccessful(state)) => {
+                    let configuration_not_registered = state
+                        .0
+                        .iter()
+                        .all(|(_, reason)| *reason == UnsuccessfulRecoverReason::NotRegistered);
+                    match (configuration_not_registered, iter.next()) {
+                        (true, Some(next_configuration)) => {
+                            configuration = next_configuration;
+                            continue;
+                        }
+                        _ => Err(RecoverError::Unsuccessful(state)),
+                    }
+                }
+                Err(err) => Err(err),
+            };
+        }
+    }
+
     /// Recovers a PIN-protected secret from the latest agreed upon generation.
     pub(crate) async fn recover_latest_available_generation(
         &self,
         pin: &Pin,
+        configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
         let hashed_pin = pin
             .hash(&self.configuration.pin_hashing_mode, &self.auth_token)
@@ -120,7 +151,10 @@ impl<Http: http::Client> Client<Http> {
         let mut unsuccessful: Vec<(GenerationNumber, UnsuccessfulRecoverReason)> = Vec::new();
 
         loop {
-            return match self.recover_generation(generation, &hashed_pin).await {
+            return match self
+                .recover_generation(generation, &hashed_pin, configuration)
+                .await
+            {
                 Ok(RecoverGenSuccess {
                     generation,
                     secret,
@@ -170,9 +204,9 @@ impl<Http: http::Client> Client<Http> {
         &self,
         request_generation: Option<GenerationNumber>,
         hashed_pin: &HashedPin,
+        configuration: &CheckedConfiguration,
     ) -> Result<RecoverGenSuccess, RecoverGenError> {
-        let recover1_requests = self
-            .configuration
+        let recover1_requests = configuration
             .realms
             .iter()
             .map(|realm| self.recover1(realm, request_generation, hashed_pin));
@@ -251,7 +285,7 @@ impl<Http: http::Client> Client<Http> {
             })
             .collect();
 
-        if tgk_shares.len() < usize::from(self.configuration.recover_threshold) {
+        if tgk_shares.len() < usize::from(configuration.recover_threshold) {
             return Err(RecoverGenError {
                 error: RecoverError::Unsuccessful(UnsuccessfulRecoverState(vec![(
                     current_generation,
@@ -261,7 +295,7 @@ impl<Http: http::Client> Client<Http> {
             });
         }
 
-        let tgk = match Sharks(self.configuration.recover_threshold).recover(&tgk_shares) {
+        let tgk = match Sharks(configuration.recover_threshold).recover(&tgk_shares) {
             Ok(tgk) => TagGeneratingKey(tgk),
 
             Err(_) => {
@@ -275,8 +309,7 @@ impl<Http: http::Client> Client<Http> {
             }
         };
 
-        let recover2_requests = self
-            .configuration
+        let recover2_requests = configuration
             .realms
             .iter()
             .map(|realm| self.recover2(realm, current_generation, tgk.tag(&realm.public_key)));
@@ -315,7 +348,7 @@ impl<Http: http::Client> Client<Http> {
             }
         }
 
-        match Sharks(self.configuration.recover_threshold).recover(&secret_shares) {
+        match Sharks(configuration.recover_threshold).recover(&secret_shares) {
             Ok(secret) => Ok(RecoverGenSuccess {
                 generation: current_generation,
                 secret: UserSecret::from(secret),

@@ -9,16 +9,19 @@ import javax.net.ssl.TrustManagerFactory
 import kotlin.concurrent.thread
 public final class Client(
     val configuration: Configuration,
+    val previousConfigurations: Array<Configuration>,
     val authToken: String,
     private val native: Long
 ) {
     public constructor(
         configuration: Configuration,
+        previousConfigurations: Array<Configuration> = emptyArray(),
         authToken: String
     ) : this(
         configuration,
+        previousConfigurations,
         authToken,
-        createNative(configuration, authToken)
+        createNative(configuration, previousConfigurations, authToken)
     ) {}
 
     public suspend fun register(pin: ByteArray, secret: ByteArray, numGuesses: Short) {
@@ -40,7 +43,7 @@ public final class Client(
     companion object {
         public var pinnedCertificates: Array<Certificate>? = null
 
-        private fun createNative(configuration: Configuration, authToken: String): Long {
+        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authToken: String): Long {
             val httpSend = object : Native.HttpSendFn {
                 override fun send(httpClient: Long, request: Native.HttpRequest) {
                     thread {
@@ -93,7 +96,7 @@ public final class Client(
                 }
             }
 
-            return Native.clientCreate(configuration, authToken, httpSend)
+            return Native.clientCreate(configuration, previousConfigurations, authToken, httpSend)
         }
     }
 }

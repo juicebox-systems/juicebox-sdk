@@ -26,69 +26,29 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
     mut env: JNIEnv,
     _class: JClass,
     configuration: JObject,
+    previous_configurations: JObjectArray,
     auth_token: JString,
     http_send: JObject,
 ) -> jlong {
-    let auth_token: String = env.get_string(&auth_token).unwrap().into();
-    let register_threshold = get_byte(&mut env, &configuration, "registerThreshold");
-    let recover_threshold = get_byte(&mut env, &configuration, "recoverThreshold");
-    let java_pin_hashing_mode = env
-        .get_field(
-            &configuration,
-            "pinHashingMode",
-            jni_object!(LOAM_JNI_PIN_HASHING_MODE_TYPE),
-        )
-        .unwrap()
-        .l()
-        .unwrap();
-    let pin_hashing_mode: u8 = env
-        .call_method(
-            &java_pin_hashing_mode,
-            "ordinal",
-            jni_signature!(() => JNI_INTEGER_TYPE),
-            &[],
-        )
-        .unwrap()
-        .i()
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let configuration = get_configuration(&mut env, &configuration);
 
-    let jrealms: JObjectArray = env
-        .get_field(
-            &configuration,
-            "realms",
-            jni_array!(jni_object!(LOAM_JNI_REALM_TYPE)),
-        )
-        .unwrap()
-        .l()
-        .unwrap()
-        .into();
-    let jrealms_length = env.get_array_length(&jrealms).unwrap();
+    let java_previous_configurations = previous_configurations;
+    let java_previous_configurations_length =
+        env.get_array_length(&java_previous_configurations).unwrap();
 
-    let mut realms = vec![];
-    for index in 0..jrealms_length {
-        let jrealm = env.get_object_array_element(&jrealms, index).unwrap();
-
-        let id = get_byte_array(&mut env, &jrealm, "id");
-        let address_string = get_string(&mut env, &jrealm, "address");
-        let address = Url::from_str(&address_string).unwrap();
-        let public_key = get_byte_array(&mut env, &jrealm, "publicKey");
-
-        realms.push(sdk::Realm {
-            id: sdk::RealmId(id.try_into().unwrap()),
-            address,
-            public_key,
-        });
+    let mut previous_configurations = vec![];
+    for index in 0..java_previous_configurations_length {
+        let java_configuration = env
+            .get_object_array_element(&java_previous_configurations, index)
+            .unwrap();
+        previous_configurations.push(get_configuration(&mut env, &java_configuration));
     }
 
+    let auth_token: String = env.get_string(&auth_token).unwrap().into();
+
     let sdk = sdk::Client::new(
-        sdk::Configuration {
-            realms,
-            register_threshold,
-            recover_threshold,
-            pin_hashing_mode: sdk::PinHashingMode::from(pin_hashing_mode),
-        },
+        configuration,
+        previous_configurations,
         sdk::AuthToken::from(auth_token),
         HttpClient::new(
             env.new_global_ref(http_send).unwrap(),
@@ -296,6 +256,64 @@ fn get_short(env: &mut JNIEnv, obj: &JObject, name: &str) -> u16 {
         .unwrap()
         .try_into()
         .unwrap()
+}
+
+fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
+    let register_threshold = get_byte(env, obj, "registerThreshold");
+    let recover_threshold = get_byte(env, obj, "recoverThreshold");
+
+    let java_pin_hashing_mode = env
+        .get_field(
+            obj,
+            "pinHashingMode",
+            jni_object!(LOAM_JNI_PIN_HASHING_MODE_TYPE),
+        )
+        .unwrap()
+        .l()
+        .unwrap();
+    let pin_hashing_mode: u8 = env
+        .call_method(
+            &java_pin_hashing_mode,
+            "ordinal",
+            jni_signature!(() => JNI_INTEGER_TYPE),
+            &[],
+        )
+        .unwrap()
+        .i()
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+    let jrealms: JObjectArray = env
+        .get_field(obj, "realms", jni_array!(jni_object!(LOAM_JNI_REALM_TYPE)))
+        .unwrap()
+        .l()
+        .unwrap()
+        .into();
+    let jrealms_length = env.get_array_length(&jrealms).unwrap();
+
+    let mut realms = vec![];
+    for index in 0..jrealms_length {
+        let jrealm = env.get_object_array_element(&jrealms, index).unwrap();
+
+        let id = get_byte_array(env, &jrealm, "id");
+        let address_string = get_string(env, &jrealm, "address");
+        let address = Url::from_str(&address_string).unwrap();
+        let public_key = get_byte_array(env, &jrealm, "publicKey");
+
+        realms.push(sdk::Realm {
+            id: sdk::RealmId(id.try_into().unwrap()),
+            address,
+            public_key,
+        });
+    }
+
+    sdk::Configuration {
+        realms,
+        register_threshold,
+        recover_threshold,
+        pin_hashing_mode: sdk::PinHashingMode::from(pin_hashing_mode),
+    }
 }
 
 fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {

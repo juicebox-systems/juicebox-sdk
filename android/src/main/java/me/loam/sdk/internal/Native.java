@@ -14,6 +14,7 @@ public final class Native {
 
    public static native @NotNull long clientCreate(
        @NotNull Configuration configuration,
+       @NotNull Configuration[] previousConfigurations,
        @NotNull String authToken,
        @NotNull HttpSendFn httpSend
    );

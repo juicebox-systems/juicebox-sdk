@@ -19,8 +19,8 @@ pub struct Configuration {
     pub pin_hashing_mode: PinHashingMode,
 }
 
-impl From<Configuration> for sdk::Configuration {
-    fn from(ffi: Configuration) -> Self {
+impl From<&Configuration> for sdk::Configuration {
+    fn from(ffi: &Configuration) -> Self {
         let realms = ffi.realms.as_slice().iter().map(sdk::Realm::from).collect();
 
         sdk::Configuration {
@@ -79,17 +79,28 @@ impl From<&Realm> for sdk::Realm {
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_create(
     configuration: Configuration,
+    previous_configurations: UnmanagedArray<Configuration>,
     auth_token: *const c_char,
     http_send: HttpSendFn,
 ) -> *mut Client<HttpClient> {
-    let configuration = sdk::Configuration::from(configuration);
+    let configuration = sdk::Configuration::from(&configuration);
+    let previous_configurations = previous_configurations
+        .as_slice()
+        .iter()
+        .map(sdk::Configuration::from)
+        .collect();
     let auth_token = sdk::AuthToken::from(
         unsafe { CStr::from_ptr(auth_token) }
             .to_str()
             .expect("invalid string for auth token")
             .to_owned(),
     );
-    let sdk = sdk::Client::new(configuration, auth_token, HttpClient::new(http_send));
+    let sdk = sdk::Client::new(
+        configuration,
+        previous_configurations,
+        auth_token,
+        HttpClient::new(http_send),
+    );
     Box::into_raw(Box::new(Client::new(sdk)))
 }
 

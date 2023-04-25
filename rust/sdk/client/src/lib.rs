@@ -28,6 +28,7 @@ pub use types::{Configuration, Realm, UserSecret};
 #[derive(Debug)]
 pub struct Client<Http: http::Client> {
     configuration: CheckedConfiguration,
+    previous_configurations: Vec<CheckedConfiguration>,
     auth_token: AuthToken,
     http: Http,
     sessions: HashMap<RealmId, Mutex<Option<Session>>>,
@@ -38,9 +39,20 @@ impl<Http: http::Client> Client<Http> {
     ///
     /// The configuration provided must include at least one realm.
     ///
+    /// The `previous_configurations` parameter represents any other
+    /// configurations you have previously registered with that you may not yet
+    /// have migrated the data from. During recovery, they will be tried if the
+    /// current user has not yet registered on the current configuration. They
+    /// should be ordered from newest to oldest.
+    ///
     /// The `auth_token` represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
-    pub fn new(configuration: Configuration, auth_token: AuthToken, http: Http) -> Self {
+    pub fn new(
+        configuration: Configuration,
+        previous_configurations: Vec<Configuration>,
+        auth_token: AuthToken,
+        http: Http,
+    ) -> Self {
         let configuration = CheckedConfiguration::from(configuration);
         let sessions = configuration
             .realms
@@ -49,6 +61,10 @@ impl<Http: http::Client> Client<Http> {
             .collect();
         Self {
             configuration,
+            previous_configurations: previous_configurations
+                .into_iter()
+                .map(CheckedConfiguration::from)
+                .collect(),
             auth_token,
             http,
             sessions,
@@ -80,7 +96,7 @@ impl<Http: http::Client> Client<Http> {
     /// user.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
-        self.recover_latest_available_generation(pin).await
+        self.recover_latest_registered_configuration(pin).await
     }
 
     /// Deletes all secrets for this user.

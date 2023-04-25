@@ -77,7 +77,7 @@ class ClientTest {
                 recoverThreshold = 3,
                 pinHashingMode = PinHashingMode.FAST_INSECURE
             ),
-            "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ0ZXN0Iiwic3ViIjoibWFyaW8iLCJhdWQiOiJsb2FtLm1lIiwiZXhwIjoxNjgxMjQ1MjE1LCJuYmYiOjE2ODEyNDQ2MDV9.xJD1x9i0mlrEVlcmiDxpXVX84GZGnlT1egraN2QEVgs"
+            authToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ0ZXN0Iiwic3ViIjoibWFyaW8iLCJhdWQiOiJsb2FtLm1lIiwiZXhwIjoxNjgxMjQ1MjE1LCJuYmYiOjE2ODEyNDQ2MDV9.xJD1x9i0mlrEVlcmiDxpXVX84GZGnlT1egraN2QEVgs"
         )
         Client.pinnedCertificates = arrayOf(
             CertificateFactory.getInstance("X.509").generateCertificate(InstrumentationRegistry.getInstrumentation().context.assets.open("localhost.cert.der"))
@@ -177,7 +177,7 @@ class ClientTest {
                 recoverThreshold = 1,
                 pinHashingMode = PinHashingMode.NONE
             ),
-            "test"
+            authToken = "test"
         )
     }
 }

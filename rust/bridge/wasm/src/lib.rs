@@ -16,6 +16,10 @@ extern "C" {
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub type RealmArray;
 
+    #[wasm_bindgen(extends = Object, typescript_type = "Configuration[]")]
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub type ConfigurationArray;
+
     #[wasm_bindgen(js_name = fetch)]
     pub fn fetch_with_request(input: &Request) -> Promise;
 }
@@ -137,10 +141,18 @@ impl Client {
     /// The `auth_token` represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
     #[wasm_bindgen(constructor)]
-    pub fn new(configuration: Configuration, auth_token: String) -> Self {
+    pub fn new(
+        configuration: Configuration,
+        previous_configurations: ConfigurationArray,
+        auth_token: String,
+    ) -> Self {
         console_error_panic_hook::set_once();
         let sdk = sdk::Client::new(
             sdk::Configuration::from(configuration),
+            Array::from(&previous_configurations)
+                .iter()
+                .map(|value| from_value::<sdk::Configuration>(value).unwrap())
+                .collect(),
             sdk::AuthToken::from(auth_token),
             HttpClient(),
         );
@@ -253,6 +265,7 @@ impl sdk::http::Client for HttpClient {
 #[cfg(test)]
 mod tests {
     use crate::{Client, Configuration, Realm, RealmArray, RecoverError};
+    use loam_sdk as sdk;
     use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
     use serde_wasm_bindgen::to_value;
     use wasm_bindgen_test::*;
@@ -313,6 +326,7 @@ mod tests {
                 recover_threshold: 1,
                 pin_hashing_mode: PinHashingMode::None,
             },
+            to_value::<Vec<sdk::Configuration>>(&vec![]).unwrap().into(),
             "token".to_string(),
         )
     }

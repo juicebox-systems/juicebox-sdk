@@ -21,13 +21,23 @@ public class Client {
 
     private let opaque: OpaquePointer
 
-    public init(configuration: Configuration, authToken: String) {
+    public init(configuration: Configuration, previousConfigurations: [Configuration] = [], authToken: String) {
         self.configuration = configuration
         self.authToken = authToken
 
         self.opaque = configuration.withUnsafeFfi({ ffiConfig in
             authToken.withCString { authTokenCString in
-                loam_client_create(ffiConfig, authTokenCString, httpSend)
+                previousConfigurations.withUnsafeFfiPointer { previousConfigurationsBuffer in
+                    loam_client_create(
+                        ffiConfig,
+                        .init(
+                            data: previousConfigurationsBuffer,
+                            length: previousConfigurations.count
+                        ),
+                        authTokenCString,
+                        httpSend
+                    )
+                }
             }
         })
     }

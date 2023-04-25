@@ -78,6 +78,11 @@ typedef struct {
 } LoamConfiguration;
 
 typedef struct {
+  const LoamConfiguration *data;
+  size_t length;
+} LoamUnmanagedConfigurationArray;
+
+typedef struct {
   const char *name;
   const char *value;
 } LoamHttpHeader;
@@ -134,6 +139,7 @@ typedef struct {
  * function.
  */
 LoamClient *loam_client_create(LoamConfiguration configuration,
+                               LoamUnmanagedConfigurationArray previous_configurations,
                                const char *auth_token,
                                LoamHttpSendFn http_send);
 
