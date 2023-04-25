@@ -57,7 +57,7 @@ struct RecoverGenSuccess {
 #[derive(Debug)]
 struct RecoverGenError {
     error: RecoverError,
-    generation: GenerationNumber,
+    generation: Option<GenerationNumber>,
     retry: Option<GenerationNumber>,
 }
 
@@ -197,7 +197,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     generation,
                     retry,
                 }) => {
-                    generations_found.insert(generation);
+                    if let Some(generation) = generation {
+                        generations_found.insert(generation);
+                    }
                     if let Some(generation) = retry {
                         generations_found.insert(generation);
                     }
@@ -217,13 +219,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             if all_errors_equal && all_realms_errored {
                 return Err(RecoverGenError {
                     error: found_error,
-                    generation: current_generation,
+                    generation: Some(current_generation),
                     retry: previous_generation,
                 });
             } else {
                 return Err(RecoverGenError {
                     error: RecoverError::Assertion,
-                    generation: current_generation,
+                    generation: Some(current_generation),
                     retry: previous_generation,
                 });
             }
@@ -247,7 +249,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         if tgk_shares.len() < usize::from(configuration.recover_threshold) {
             return Err(RecoverGenError {
                 error: RecoverError::NotRegistered,
-                generation: current_generation,
+                generation: Some(current_generation),
                 retry: previous_generation,
             });
         }
@@ -258,7 +260,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(_) => {
                 return Err(RecoverGenError {
                     error: RecoverError::Assertion,
-                    generation: current_generation,
+                    generation: Some(current_generation),
                     retry: previous_generation,
                 });
             }
@@ -282,7 +284,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     Err(_) => {
                         return Err(RecoverGenError {
                             error: RecoverError::Assertion,
-                            generation: current_generation,
+                            generation: Some(current_generation),
                             retry: previous_generation,
                         })
                     }
@@ -291,7 +293,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 Err(error) => {
                     return Err(RecoverGenError {
                         error,
-                        generation: current_generation,
+                        generation: Some(current_generation),
                         retry: previous_generation,
                     })
                 }
@@ -306,8 +308,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
 
             Err(_) => Err(RecoverGenError {
-                error: RecoverError::Transient,
-                generation: current_generation,
+                error: RecoverError::Assertion,
+                generation: Some(current_generation),
                 retry: previous_generation,
             }),
         }
@@ -336,8 +338,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
         );
 
-        let current_generation = generation.unwrap_or(GenerationNumber(0));
-
         // This is a verbose way to copy some fields out to this outer scope.
         // It helps avoid having to process these fields at a high level of
         // indentation.
@@ -356,7 +356,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(RequestError::Transient) => {
                 return Err(RecoverGenError {
                     error: RecoverError::Transient,
-                    generation: current_generation,
+                    generation: None,
                     retry: None,
                 })
             }
@@ -364,7 +364,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(RequestError::Assertion) => {
                 return Err(RecoverGenError {
                     error: RecoverError::Assertion,
-                    generation: current_generation,
+                    generation: None,
                     retry: None,
                 })
             }
@@ -372,7 +372,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(RequestError::InvalidAuth) => {
                 return Err(RecoverGenError {
                     error: RecoverError::InvalidAuth,
-                    generation: current_generation,
+                    generation: None,
                     retry: None,
                 })
             }
@@ -396,7 +396,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 } => {
                     return Err(RecoverGenError {
                         error: RecoverError::NotRegistered,
-                        generation: generation.unwrap_or(GenerationNumber(0)),
+                        generation,
                         retry: previous_generation,
                     });
                 }
@@ -408,7 +408,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 } => {
                     return Err(RecoverGenError {
                         error: RecoverError::NotRegistered,
-                        generation,
+                        generation: Some(generation),
                         retry: previous_generation,
                     });
                 }
@@ -421,7 +421,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                         error: RecoverError::InvalidPin {
                             guesses_remaining: 0,
                         },
-                        generation,
+                        generation: Some(generation),
                         retry: previous_generation,
                     });
                 }
@@ -430,7 +430,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Ok(_) => {
                 return Err(RecoverGenError {
                     error: RecoverError::Assertion,
-                    generation: current_generation,
+                    generation: None,
                     retry: None,
                 })
             }
@@ -442,16 +442,16 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map_err(|e| {
                 println!("failed to unblind oprf result: {e:?}");
                 RecoverGenError {
-                    error: RecoverError::Transient,
-                    generation,
+                    error: RecoverError::Assertion,
+                    generation: Some(generation),
                     retry: previous_generation,
                 }
             })?;
 
         let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin).map_err(|_| {
             RecoverGenError {
-                error: RecoverError::Transient,
-                generation,
+                error: RecoverError::Assertion,
+                generation: Some(generation),
                 retry: previous_generation,
             }
         })?;
