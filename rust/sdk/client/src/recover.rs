@@ -105,9 +105,9 @@ impl<Http: http::Client> Client<Http> {
         &self,
         pin: &Pin,
     ) -> Result<UserSecret, RecoverError> {
-        for configuration in
-            std::iter::once(&self.configuration).chain(self.previous_configurations.iter())
-        {
+        let mut configuration = &self.configuration;
+        let mut iter = self.previous_configurations.iter();
+        loop {
             return match self
                 .recover_latest_available_generation(pin, configuration)
                 .await
@@ -118,16 +118,17 @@ impl<Http: http::Client> Client<Http> {
                         .0
                         .iter()
                         .all(|(_, reason)| *reason == UnsuccessfulRecoverReason::NotRegistered);
-                    if configuration_not_registered {
-                        continue;
+                    match (configuration_not_registered, iter.next()) {
+                        (true, Some(next_configuration)) => {
+                            configuration = next_configuration;
+                            continue;
+                        }
+                        _ => Err(RecoverError::Unsuccessful(state)),
                     }
-
-                    Err(RecoverError::Unsuccessful(state))
                 }
                 Err(err) => Err(err),
             };
         }
-        Err(RecoverError::ProtocolError)
     }
 
     /// Recovers a PIN-protected secret from the latest agreed upon generation.
