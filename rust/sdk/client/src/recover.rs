@@ -163,7 +163,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let mut generations_found = BTreeSet::new();
         let mut tgk_shares: Vec<(GenerationNumber, TgkShare)> = Vec::new();
-        let mut latest_error: Option<RecoverError> = None;
+        let mut found_errors: Vec<RecoverError> = Vec::new();
         for result in join_all(recover1_requests).await {
             match result {
                 Ok(Recover1Success {
@@ -200,7 +200,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     if let Some(generation) = retry {
                         generations_found.insert(generation);
                     }
-                    latest_error = Some(error);
+                    found_errors.push(error);
                 }
             }
         }
@@ -209,12 +209,23 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let current_generation = iter.next().unwrap();
         let previous_generation = iter.next();
 
-        if let Some(latest_error) = latest_error {
-            return Err(RecoverGenError {
-                error: latest_error,
-                generation: current_generation,
-                retry: previous_generation,
-            });
+        if !found_errors.is_empty() {
+            let found_error = found_errors[0];
+            let all_errors_equal = found_errors.iter().all(|e| *e == found_error);
+            let all_realms_errored = found_errors.len() == configuration.realms.len();
+            if all_errors_equal && all_realms_errored {
+                return Err(RecoverGenError {
+                    error: found_error,
+                    generation: current_generation,
+                    retry: previous_generation,
+                });
+            } else {
+                return Err(RecoverGenError {
+                    error: RecoverError::Assertion,
+                    generation: current_generation,
+                    retry: previous_generation,
+                });
+            }
         }
 
         // At this point, we know the phase 1 requests were successful on each
