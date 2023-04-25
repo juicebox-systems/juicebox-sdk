@@ -124,9 +124,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     found_earlier_generations,
                 }) => {
                     if found_earlier_generations {
-                        if let Err(delete_err) = self.delete_up_to(Some(generation)).await {
-                            println!("client: warning: recover failed to clean up earlier registrations: {delete_err:?}");
-                        }
+                        _ = self.delete_up_to(Some(generation)).await;
                     }
                     Ok(secret)
                 }
@@ -439,13 +437,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let oprf_pin = blinded_pin
             .state
             .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
-            .map_err(|e| {
-                println!("failed to unblind oprf result: {e:?}");
-                RecoverGenError {
-                    error: RecoverError::Assertion,
-                    generation: Some(generation),
-                    retry: previous_generation,
-                }
+            .map_err(|_e| RecoverGenError {
+                error: RecoverError::Assertion,
+                generation: Some(generation),
+                retry: previous_generation,
             })?;
 
         let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin).map_err(|_| {

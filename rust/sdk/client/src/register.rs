@@ -93,9 +93,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                         found_earlier_generations,
                     }) => {
                         if found_earlier_generations {
-                            if let Err(delete_err) = self.delete_up_to(Some(generation)).await {
-                                println!("client: warning: register failed to clean up earlier registrations: {delete_err:?}");
-                            }
+                            _ = self.delete_up_to(Some(generation)).await;
                         }
                         Ok(())
                     }
@@ -140,7 +138,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                         oprfs_pin.push(Some(oprf_pin));
                     }
                     Err(RegisterGenError::Error(e @ RegisterError::Transient)) => {
-                        println!("client: warning: transient error during register1: {e:?}");
                         network_errors += 1;
                         if self.configuration.realms.len() - network_errors
                             < usize::from(self.configuration.register_threshold)
@@ -246,10 +243,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     let oprf_pin = blinded_pin
                         .state
                         .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
-                        .map_err(|e| {
-                            println!("failed to unblind oprf result: {e:?}");
-                            RegisterGenError::Error(RegisterError::Assertion)
-                        })?;
+                        .map_err(|_e| RegisterGenError::Error(RegisterError::Assertion))?;
                     if oprf_pin.len() != oprf_output_size() {
                         return Err(RegisterGenError::Error(RegisterError::Assertion));
                     }
