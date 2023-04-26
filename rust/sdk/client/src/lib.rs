@@ -11,8 +11,8 @@ mod pin;
 mod recover;
 mod register;
 mod request;
-mod types;
 mod sleeper;
+mod types;
 
 use types::{CheckedConfiguration, Session};
 
