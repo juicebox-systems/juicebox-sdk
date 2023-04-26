@@ -1,10 +1,8 @@
 //! Register and recover PIN-protected secrets on behalf of a particular user.
 //! See [`Client`].
 
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
@@ -14,6 +12,7 @@ mod recover;
 mod register;
 mod request;
 mod types;
+mod sleeper;
 
 use types::{CheckedConfiguration, Session};
 
@@ -23,12 +22,8 @@ pub use loam_sdk_networking::http;
 pub use pin::{HashedPin, Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
+pub use sleeper::Sleeper;
 pub use types::{Configuration, Realm, UserSecret};
-
-#[async_trait(?Send)]
-pub trait Sleeper {
-    async fn sleep(&self, duration: Duration);
-}
 
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
