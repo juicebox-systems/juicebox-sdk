@@ -25,7 +25,7 @@ use crate::{
 };
 
 /// Error return type for [`Client::recover`].
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug)]
 pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
@@ -218,16 +218,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         if current_generation.is_none()
             || tgk_shares.len() < usize::from(configuration.recover_threshold)
         {
-            let most_common_realm_error = found_errors
-                .iter()
-                .fold(HashMap::new(), |mut map, &val| {
-                    *map.entry(val).or_insert(0) += 1;
-                    map
-                })
-                .into_iter()
-                .max_by_key(|&(_, count)| count);
-
-            return match most_common_realm_error {
+            return match most_frequent_error(&found_errors) {
                 Some((error, count)) if count >= configuration.recover_threshold => {
                     Err(RecoverGenError {
                         error,
@@ -480,4 +471,75 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Ok(_) => Err(RecoverError::Assertion),
         }
     }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash, PartialOrd, Ord)]
+enum CountableRecoverError {
+    InvalidAuth,
+    InvalidPin,
+    NotRegistered,
+    Transient,
+    Assertion,
+}
+
+impl From<RecoverError> for CountableRecoverError {
+    fn from(value: RecoverError) -> Self {
+        match value {
+            RecoverError::InvalidAuth => CountableRecoverError::InvalidAuth,
+            RecoverError::InvalidPin { .. } => CountableRecoverError::InvalidPin,
+            RecoverError::NotRegistered => CountableRecoverError::NotRegistered,
+            RecoverError::Transient => CountableRecoverError::Transient,
+            RecoverError::Assertion => CountableRecoverError::Assertion,
+        }
+    }
+}
+
+impl From<CountableRecoverError> for RecoverError {
+    fn from(val: CountableRecoverError) -> Self {
+        match val {
+            CountableRecoverError::InvalidAuth => RecoverError::InvalidAuth,
+            CountableRecoverError::InvalidPin => RecoverError::InvalidPin {
+                guesses_remaining: 0,
+            },
+            CountableRecoverError::NotRegistered => RecoverError::NotRegistered,
+            CountableRecoverError::Transient => RecoverError::Transient,
+            CountableRecoverError::Assertion => RecoverError::Assertion,
+        }
+    }
+}
+
+/// Determines the most frequently occuring RecoverError, and how many times it
+/// occured. `InvalidPin` errors are counted together, and the minimum
+/// `guesses_remaining` is used. This is important, as it's possible realms
+///  will not agree on the number of guesses remaining.
+fn most_frequent_error(errors: &[RecoverError]) -> Option<(RecoverError, u8)> {
+    let mut count_map = HashMap::new();
+    for error in errors {
+        *count_map
+            .entry(CountableRecoverError::from(*error))
+            .or_insert(0) += 1;
+    }
+
+    count_map
+        .into_iter()
+        .map(|(error, count)| match error {
+            CountableRecoverError::InvalidPin => {
+                let min_guesses_remaining = errors
+                    .iter()
+                    .filter_map(|err| match err {
+                        RecoverError::InvalidPin { guesses_remaining } => Some(*guesses_remaining),
+                        _ => None,
+                    })
+                    .min()
+                    .unwrap();
+                (
+                    RecoverError::InvalidPin {
+                        guesses_remaining: min_guesses_remaining,
+                    },
+                    count,
+                )
+            }
+            _ => (error.into(), count),
+        })
+        .max_by_key(|&(_, count)| count)
 }
