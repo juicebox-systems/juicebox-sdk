@@ -1,10 +1,13 @@
 use async_trait::async_trait;
+use futures_channel::oneshot;
 use js_sys::{try_iter, Array, Object, Promise, Uint8Array};
 use loam_sdk as sdk;
 use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
+use sdk::Sleeper;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
 use std::str::FromStr;
+use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -130,7 +133,7 @@ impl From<Configuration> for sdk::Configuration {
 }
 
 #[wasm_bindgen]
-pub struct Client(sdk::Client<HttpClient>);
+pub struct Client(sdk::Client<WasmSleeper, HttpClient>);
 
 #[wasm_bindgen]
 impl Client {
@@ -155,6 +158,7 @@ impl Client {
                 .collect(),
             sdk::AuthToken::from(auth_token),
             HttpClient(),
+            WasmSleeper,
         );
         Self(sdk)
     }
@@ -262,11 +266,39 @@ impl sdk::http::Client for HttpClient {
     }
 }
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = "setTimeout", catch)]
+    fn set_timeout(handler: &js_sys::Function, timeout: i32) -> Result<JsValue, JsValue>;
+}
+
+struct WasmSleeper;
+
+#[async_trait(?Send)]
+impl Sleeper for WasmSleeper {
+    async fn sleep(&self, duration: Duration) {
+        let (send, recv) = oneshot::channel();
+        let cb = Closure::once(move || {
+            let _ = send.send(()); // Nothing we can do if this errors at this point.
+        });
+        if set_timeout(
+            cb.as_ref().unchecked_ref(),
+            duration.as_millis().try_into().unwrap(),
+        )
+        .is_ok()
+        {
+            let _ = recv.await;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Client, Configuration, Realm, RealmArray, RecoverError};
+    use crate::{Client, Configuration, Realm, RealmArray, RecoverError, WasmSleeper};
+    use instant::Instant;
     use loam_sdk as sdk;
     use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
+    use sdk::Sleeper;
     use serde_wasm_bindgen::to_value;
     use wasm_bindgen_test::*;
 
@@ -297,6 +329,19 @@ mod tests {
                 })
             ),
             "got {result:?}"
+        );
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_sleep() {
+        let start = Instant::now();
+        WasmSleeper
+            .sleep(std::time::Duration::from_millis(100))
+            .await;
+        let dur = start.elapsed();
+        assert!(
+            dur >= instant::Duration::from_millis(100),
+            "sleep only lasted {dur:?} should of been at least 100ms"
         );
     }
 

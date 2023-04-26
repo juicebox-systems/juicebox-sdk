@@ -1,8 +1,9 @@
 use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
+use std::time::Duration;
 use x25519_dalek as x25519;
 
-use crate::{http, types::Session, Client, Realm};
+use crate::{http, types::Session, Client, Realm, Sleeper};
 use loam_sdk_core::{
     marshalling,
     requests::{
@@ -61,7 +62,7 @@ impl From<RequestError> for RequestErrorOrMissingSession {
 #[derive(Clone, Copy, Debug)]
 struct NeedsForwardSecrecy(bool);
 
-impl<Http: http::Client> Client<Http> {
+impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     async fn make_handshake_request(
         &self,
         realm: &Realm,
@@ -233,8 +234,7 @@ impl<Http: http::Client> Client<Http> {
                 Err(RequestErrorOrMissingSession::RequestError(RequestError::Unavailable)) => {
                     // This could be due to an in progress leadership transfer, or other transitory problem.
                     // We can retry this as it'll likely need a new session anyway.
-
-                    sleep_before_retry().await;
+                    self.sleeper.sleep(Duration::from_millis(5)).await;
                     continue;
                 }
                 Err(RequestErrorOrMissingSession::RequestError(e)) => return Err(e),
@@ -247,15 +247,4 @@ impl<Http: http::Client> Client<Http> {
         }
         Err(RequestError::Session)
     }
-}
-
-#[cfg(not(feature = "wasm"))]
-async fn sleep_before_retry() {
-    tokio::time::sleep(std::time::Duration::from_millis(5)).await
-}
-
-#[cfg(feature = "wasm")]
-async fn sleep_before_retry() {
-    // wasm doesn't support std::time::Instant which is used by tokio::time::sleep.
-    // Its okay to not sleep here, its a nice to have.
 }

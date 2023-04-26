@@ -1,9 +1,10 @@
 //! Register and recover PIN-protected secrets on behalf of a particular user.
 //! See [`Client`].
-#![cfg_attr(not(feature = "wasm"), allow(clippy::disallowed_methods))]
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
@@ -24,18 +25,24 @@ pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use types::{Configuration, Realm, UserSecret};
 
+#[async_trait(?Send)]
+pub trait Sleeper {
+    async fn sleep(&self, duration: Duration);
+}
+
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
 #[derive(Debug)]
-pub struct Client<Http: http::Client> {
+pub struct Client<S: Sleeper, Http: http::Client> {
     configuration: CheckedConfiguration,
     previous_configurations: Vec<CheckedConfiguration>,
     auth_token: AuthToken,
     http: Http,
+    sleeper: S,
     sessions: HashMap<RealmId, Mutex<Option<Session>>>,
 }
 
-impl<Http: http::Client> Client<Http> {
+impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     /// Constructs a new `Client`.
     ///
     /// The configuration provided must include at least one realm.
@@ -53,6 +60,7 @@ impl<Http: http::Client> Client<Http> {
         previous_configurations: Vec<Configuration>,
         auth_token: AuthToken,
         http: Http,
+        sleeper: S,
     ) -> Self {
         let configuration = CheckedConfiguration::from(configuration);
         let sessions = configuration
@@ -69,6 +77,7 @@ impl<Http: http::Client> Client<Http> {
             auth_token,
             http,
             sessions,
+            sleeper,
         }
     }
 

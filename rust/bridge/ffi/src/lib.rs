@@ -3,7 +3,9 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
-use loam_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
+use loam_sdk_bridge::{
+    Client, DeleteError, PinHashingMode, RecoverError, RegisterError, TokioSleeper,
+};
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -100,6 +102,7 @@ pub unsafe extern "C" fn loam_client_create(
         previous_configurations,
         auth_token,
         HttpClient::new(http_send),
+        TokioSleeper,
     );
     Box::into_raw(Box::new(Client::new(sdk)))
 }

@@ -1,9 +1,0 @@
-# these are restrictions for wasm builds. They will need to be explicitly
-# allowed where used outside of wasm.
-
-disallowed-types = [
-    "std::time::Instant"
-]
-disallowed-methods = [
-    "tokio::time::sleep"
-]

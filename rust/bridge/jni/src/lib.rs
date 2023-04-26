@@ -9,7 +9,7 @@ use jni::{
     JNIEnv,
 };
 use loam_sdk as sdk;
-use loam_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError};
+use loam_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError, TokioSleeper};
 use std::collections::HashMap;
 use std::str::FromStr;
 use url::Url;
@@ -54,6 +54,7 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
             env.new_global_ref(http_send).unwrap(),
             env.get_java_vm().unwrap(),
         ),
+        TokioSleeper,
     );
 
     Box::into_raw(Box::new(Client::new(sdk))) as jlong

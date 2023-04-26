@@ -10,10 +10,11 @@ crate-type = ["cdylib"]
 [dependencies]
 async-trait = { workspace = true }
 console_error_panic_hook = { workspace = true }
+futures-channel = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 instant = { workspace = true, features = ["wasm-bindgen"] }
 js-sys = { workspace = true }
-loam-sdk = { path = "../../sdk/client", features = ["wasm"] }
+loam-sdk = { path = "../../sdk/client" }
 loam-sdk-bridge = { path = "../common", features = ["wasm"] }
 serde = { workspace = true }
 serde-wasm-bindgen = { workspace = true }

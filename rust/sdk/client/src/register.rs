@@ -16,7 +16,7 @@ use crate::{
     http,
     request::RequestError,
     types::{oprf_output_size, TagGeneratingKey, TgkShare},
-    Client, HashedPin, Pin, Policy, Realm, UserSecret,
+    Client, HashedPin, Pin, Policy, Realm, Sleeper, UserSecret,
 };
 
 /// Error return type for [`Client::register`].
@@ -63,7 +63,7 @@ struct Register2Args {
     policy: Policy,
 }
 
-impl<Http: http::Client> Client<Http> {
+impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     /// Registers a PIN-protected secret at the first available generation number.
     pub(crate) async fn register_first_available_generation(
         &self,

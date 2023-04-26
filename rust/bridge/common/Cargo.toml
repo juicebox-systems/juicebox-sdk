@@ -5,6 +5,7 @@ authors = ["Nora Trapp <nora@loam.me>"]
 edition = "2021"
 
 [dependencies]
+async-trait = { workspace = true }
 loam-sdk = { path = "../../sdk/client" }
 tokio = { workspace = true, optional = true }
 url = { workspace = true }

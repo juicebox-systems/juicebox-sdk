@@ -18,7 +18,7 @@ use crate::{
     http,
     request::RequestError,
     types::{CheckedConfiguration, TagGeneratingKey, TgkShare},
-    Client, HashedPin, Pin, Realm, UserSecret,
+    Client, HashedPin, Pin, Realm, Sleeper, UserSecret,
 };
 
 /// Error return type for [`Client::recover`].
@@ -100,7 +100,7 @@ struct Recover1Success {
     previous_generation: Option<GenerationNumber>,
 }
 
-impl<Http: http::Client> Client<Http> {
+impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     pub(crate) async fn recover_latest_registered_configuration(
         &self,
         pin: &Pin,
