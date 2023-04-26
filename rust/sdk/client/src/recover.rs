@@ -196,33 +196,12 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     {
                         found_errors.sort_unstable();
 
-                        let error = match found_errors[0] {
-                            RecoverError::InvalidPin { guesses_remaining } => {
-                                let mut min_guesses_remaining = guesses_remaining;
-                                for error in found_errors {
-                                    if let RecoverError::InvalidPin {
-                                        guesses_remaining: other_guesses_remaining,
-                                    } = error
-                                    {
-                                        min_guesses_remaining =
-                                            min_guesses_remaining.min(other_guesses_remaining);
-                                    }
-                                }
-                                RecoverError::InvalidPin {
-                                    guesses_remaining: min_guesses_remaining,
-                                }
-                            }
-                            e => e,
-                        };
-
                         let mut iter = generations_found.into_iter().rev();
-                        let generation = iter.next();
-                        let retry = iter.next();
 
                         return Err(RecoverGenError {
-                            error,
-                            generation,
-                            retry,
+                            error: found_errors[0],
+                            generation: iter.next(),
+                            retry: iter.next(),
                         });
                     }
                 }
