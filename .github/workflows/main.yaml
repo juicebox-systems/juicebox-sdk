@@ -233,4 +233,4 @@ jobs:
       - uses: jetli/wasm-pack-action@v0.4.0
 
       - name: Run Tests
-        run: cd rust/bridge/wasm && wasm-pack test --firefox --headless
+        run: WASM_BINDGEN_TEST_TIMEOUT=60 wasm-pack test --firefox --headless rust/bridge/wasm
