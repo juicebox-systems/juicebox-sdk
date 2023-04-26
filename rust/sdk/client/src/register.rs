@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// Error return type for [`Client::register`].
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum RegisterError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
@@ -131,22 +131,22 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             // The next generation number that is available on every server (so
             // far).
             let mut retry_generation = None;
-            let mut network_errors = 0;
+            let mut found_errors: Vec<RegisterError> = Vec::new();
             for result in join_all(register1_requests).await {
                 match result {
                     Ok(oprf_pin) => {
                         oprfs_pin.push(Some(oprf_pin));
                     }
-                    Err(RegisterGenError::Error(e @ RegisterError::Transient)) => {
-                        network_errors += 1;
-                        if self.configuration.realms.len() - network_errors
+                    Err(RegisterGenError::Error(error)) => {
+                        found_errors.push(error);
+                        if self.configuration.realms.len() - found_errors.len()
                             < usize::from(self.configuration.register_threshold)
                         {
-                            return Err(RegisterGenError::Error(e));
+                            found_errors.sort();
+                            return Err(RegisterGenError::Error(found_errors[0]));
                         }
                         oprfs_pin.push(None);
                     }
-                    Err(e @ RegisterGenError::Error(_)) => return Err(e),
                     Err(RegisterGenError::Retry(generation)) => match retry_generation {
                         None => retry_generation = Some(generation),
                         Some(g) => {
