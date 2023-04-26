@@ -25,6 +25,9 @@ pub use register::RegisterError;
 pub use sleeper::Sleeper;
 pub use types::{Configuration, Realm, UserSecret};
 
+#[cfg(feature = "tokio")]
+pub use sleeper::TokioSleeper;
+
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
 #[derive(Debug)]
@@ -35,6 +38,27 @@ pub struct Client<S: Sleeper, Http: http::Client> {
     http: Http,
     sleeper: S,
     sessions: HashMap<RealmId, Mutex<Option<Session>>>,
+}
+
+#[cfg(feature = "tokio")]
+impl<Http: http::Client> Client<TokioSleeper, Http> {
+    /// Constructs a new `Client` that uses the tokio runtime for delaying request retries.
+    ///
+    /// see also [new()]
+    pub fn with_tokio(
+        configuration: Configuration,
+        previous_configurations: Vec<Configuration>,
+        auth_token: AuthToken,
+        http: Http,
+    ) -> Self {
+        Self::new(
+            configuration,
+            previous_configurations,
+            auth_token,
+            http,
+            TokioSleeper,
+        )
+    }
 }
 
 impl<Http: http::Client, S: Sleeper> Client<S, Http> {

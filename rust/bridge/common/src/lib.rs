@@ -4,7 +4,7 @@ use loam_sdk as sdk;
 mod tokio;
 
 #[cfg(feature = "tokio")]
-pub use self::tokio::*;
+pub use self::tokio::Client;
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};

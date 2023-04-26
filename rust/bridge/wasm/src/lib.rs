@@ -287,7 +287,7 @@ impl Sleeper for WasmSleeper {
         )
         .is_ok()
         {
-            let _ = recv.await;
+            _ = recv.await;
         }
     }
 }

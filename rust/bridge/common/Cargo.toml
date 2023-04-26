@@ -13,5 +13,5 @@ uuid = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 [features]
-"tokio" = ["tokio/rt-multi-thread"]
+"tokio" = ["tokio/rt-multi-thread", "loam-sdk/tokio"]
 "wasm" = ["wasm-bindgen"]

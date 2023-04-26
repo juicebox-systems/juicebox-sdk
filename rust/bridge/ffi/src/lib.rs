@@ -3,9 +3,7 @@ pub mod http;
 
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
-use loam_sdk_bridge::{
-    Client, DeleteError, PinHashingMode, RecoverError, RegisterError, TokioSleeper,
-};
+use loam_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -97,12 +95,11 @@ pub unsafe extern "C" fn loam_client_create(
             .expect("invalid string for auth token")
             .to_owned(),
     );
-    let sdk = sdk::Client::new(
+    let sdk = sdk::Client::with_tokio(
         configuration,
         previous_configurations,
         auth_token,
         HttpClient::new(http_send),
-        TokioSleeper,
     );
     Box::into_raw(Box::new(Client::new(sdk)))
 }
