@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library' version '7.4.2'
     id 'org.jetbrains.kotlin.android' version '1.8.0'
+    id 'org.jetbrains.dokka' version '1.6.0'
 }
 
 repositories {
@@ -38,6 +39,16 @@ android {
         }
         main {
             jniLibs.srcDirs = ['libs/release']
+        }
+    }
+}
+
+tasks.named("dokkaHtml") {
+    moduleName.set("loam-sdk")
+    dokkaSourceSets.named("main") {
+        perPackageOption {
+            matchingRegex.set(".*\\.internal.*")
+            suppress.set(true)
         }
     }
 }
