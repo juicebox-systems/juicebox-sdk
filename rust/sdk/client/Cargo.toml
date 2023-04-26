@@ -10,6 +10,7 @@ edition = "2021"
 
 [dependencies]
 argon2 = { workspace = true }
+async-trait = { workspace = true }
 base64 = { workspace = true }
 blake2 = { workspace = true }
 digest = { workspace = true }
@@ -30,3 +31,6 @@ tracing = { workspace = true }
 url = { workspace = true }
 voprf = { workspace = true }
 x25519-dalek = { workspace = true }
+
+[features]
+tokio = []

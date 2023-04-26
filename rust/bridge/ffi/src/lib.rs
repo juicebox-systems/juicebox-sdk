@@ -95,7 +95,7 @@ pub unsafe extern "C" fn loam_client_create(
             .expect("invalid string for auth token")
             .to_owned(),
     );
-    let sdk = sdk::Client::new(
+    let sdk = sdk::Client::with_tokio(
         configuration,
         previous_configurations,
         auth_token,

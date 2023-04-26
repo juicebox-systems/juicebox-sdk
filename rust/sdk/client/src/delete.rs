@@ -1,7 +1,7 @@
 use futures::future::join_all;
 use tracing::instrument;
 
-use crate::{http, request::RequestError, Client, Realm};
+use crate::{http, request::RequestError, Client, Realm, Sleeper};
 use loam_sdk_core::{
     requests::{DeleteRequest, DeleteResponse, SecretsRequest, SecretsResponse},
     types::GenerationNumber,
@@ -19,7 +19,7 @@ pub enum DeleteError {
     ProtocolError,
 }
 
-impl<Http: http::Client> Client<Http> {
+impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     /// Deletes all secrets for this user up to and excluding the given
     /// generation number.
     ///

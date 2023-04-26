@@ -46,7 +46,7 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
 
     let auth_token: String = env.get_string(&auth_token).unwrap().into();
 
-    let sdk = sdk::Client::new(
+    let sdk = sdk::Client::with_tokio(
         configuration,
         previous_configurations,
         sdk::AuthToken::from(auth_token),

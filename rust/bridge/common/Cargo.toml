@@ -5,6 +5,7 @@ authors = ["Nora Trapp <nora@loam.me>"]
 edition = "2021"
 
 [dependencies]
+async-trait = { workspace = true }
 loam-sdk = { path = "../../sdk/client" }
 tokio = { workspace = true, optional = true }
 url = { workspace = true }
@@ -12,5 +13,5 @@ uuid = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 [features]
-"tokio" = ["tokio/rt-multi-thread"]
+"tokio" = ["tokio/rt-multi-thread", "loam-sdk/tokio"]
 "wasm" = ["wasm-bindgen"]

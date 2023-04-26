@@ -1,26 +1,13 @@
 use loam_sdk as sdk;
 
+#[cfg(feature = "tokio")]
+mod tokio;
+
+#[cfg(feature = "tokio")]
+pub use self::tokio::Client;
+
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
-
-#[cfg(feature = "tokio")]
-use tokio::runtime::Runtime;
-
-#[cfg(feature = "tokio")]
-pub struct Client<HttpClient: sdk::http::Client> {
-    pub sdk: sdk::Client<HttpClient>,
-    pub runtime: Runtime,
-}
-
-#[cfg(feature = "tokio")]
-impl<HttpClient: sdk::http::Client> Client<HttpClient> {
-    pub fn new(sdk: sdk::Client<HttpClient>) -> Self {
-        Self {
-            sdk,
-            runtime: Runtime::new().unwrap(),
-        }
-    }
-}
 
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
