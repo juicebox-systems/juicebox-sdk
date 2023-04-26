@@ -257,4 +257,5 @@ async fn sleep_before_retry() {
 #[cfg(feature = "wasm")]
 async fn sleep_before_retry() {
     // wasm doesn't support std::time::Instant which is used by tokio::time::sleep.
+    // Its okay to not sleep here, its a nice to have.
 }
