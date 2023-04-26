@@ -279,7 +279,7 @@ impl Sleeper for WasmSleeper {
     async fn sleep(&self, duration: Duration) {
         let (send, recv) = oneshot::channel();
         let cb = Closure::once(move || {
-            let _ = send.send(()); // Nothing we can do if this errors at this point.
+            _ = send.send(()); // Nothing we can do if this errors at this point.
         });
         if set_timeout(
             cb.as_ref().unchecked_ref(),
