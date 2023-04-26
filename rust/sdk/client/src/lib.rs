@@ -1,6 +1,6 @@
 //! Register and recover PIN-protected secrets on behalf of a particular user.
 //! See [`Client`].
-#![cfg_attr(not(feature= "wasm"), allow(clippy::disallowed_methods))]
+#![cfg_attr(not(feature = "wasm"), allow(clippy::disallowed_methods))]
 
 use std::collections::HashMap;
 use std::fmt::Debug;
