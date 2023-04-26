@@ -1,7 +1,10 @@
 use futures::future::join_all;
 use rand::rngs::OsRng;
 use sharks::Sharks;
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeSet, HashMap},
+    hash::Hash,
+};
 use tracing::instrument;
 
 use loam_sdk_core::{
@@ -22,7 +25,7 @@ use crate::{
 };
 
 /// Error return type for [`Client::recover`].
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash, PartialOrd, Ord)]
 pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
@@ -177,19 +180,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     tgk_shares.push((generation, tgk_share));
                 }
 
-                Err(
-                    e @ RecoverGenError {
-                        error:
-                            RecoverError::InvalidAuth
-                            | RecoverError::Assertion
-                            | RecoverError::Transient,
-                        generation: _,
-                        retry: _,
-                    },
-                ) => {
-                    return Err(e);
-                }
-
                 Err(RecoverGenError {
                     error,
                     generation,
@@ -207,27 +197,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
 
         let mut iter = generations_found.into_iter().rev();
-        let current_generation = iter.next().unwrap();
+        let current_generation = iter.next();
         let previous_generation = iter.next();
-
-        if !found_errors.is_empty() {
-            let found_error = found_errors[0];
-            let all_errors_equal = found_errors.iter().all(|e| *e == found_error);
-            let all_realms_errored = found_errors.len() == configuration.realms.len();
-            if all_errors_equal && all_realms_errored {
-                return Err(RecoverGenError {
-                    error: found_error,
-                    generation: Some(current_generation),
-                    retry: previous_generation,
-                });
-            } else {
-                return Err(RecoverGenError {
-                    error: RecoverError::Assertion,
-                    generation: Some(current_generation),
-                    retry: previous_generation,
-                });
-            }
-        }
 
         // At this point, we know the phase 1 requests were successful on each
         // realm for some generation, but their generations may not have
@@ -236,7 +207,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let tgk_shares: Vec<sharks::Share> = tgk_shares
             .into_iter()
             .filter_map(|(generation, share)| {
-                if generation == current_generation {
+                if current_generation == Some(generation) {
                     Some(share.0)
                 } else {
                     None
@@ -244,13 +215,35 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             })
             .collect();
 
-        if tgk_shares.len() < usize::from(configuration.recover_threshold) {
-            return Err(RecoverGenError {
-                error: RecoverError::NotRegistered,
-                generation: Some(current_generation),
-                retry: previous_generation,
-            });
+        if current_generation.is_none()
+            || tgk_shares.len() < usize::from(configuration.recover_threshold)
+        {
+            let most_common_realm_error = found_errors
+                .iter()
+                .fold(HashMap::new(), |mut map, &val| {
+                    *map.entry(val).or_insert(0) += 1;
+                    map
+                })
+                .into_iter()
+                .max_by_key(|&(_, count)| count);
+
+            return match most_common_realm_error {
+                Some((error, count)) if count >= configuration.recover_threshold => {
+                    Err(RecoverGenError {
+                        error,
+                        generation: current_generation,
+                        retry: previous_generation,
+                    })
+                }
+                _ => Err(RecoverGenError {
+                    error: RecoverError::NotRegistered,
+                    generation: current_generation,
+                    retry: previous_generation,
+                }),
+            };
         }
+
+        let current_generation = current_generation.unwrap();
 
         let tgk = match Sharks(configuration.recover_threshold).recover(&tgk_shares) {
             Ok(tgk) => TagGeneratingKey(tgk),
