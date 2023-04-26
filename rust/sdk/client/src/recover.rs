@@ -1,10 +1,7 @@
 use futures::future::join_all;
 use rand::rngs::OsRng;
 use sharks::Sharks;
-use std::{
-    collections::{BTreeSet, HashMap},
-    hash::Hash,
-};
+use std::collections::BTreeSet;
 use tracing::instrument;
 
 use loam_sdk_core::{
@@ -25,11 +22,8 @@ use crate::{
 };
 
 /// Error return type for [`Client::recover`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RecoverError {
-    /// A realm rejected the `Client`'s auth token.
-    InvalidAuth,
-
     /// The secret could not be unlocked, but you can try again
     /// with a different PIN if you have guesses remaining. If no
     /// guesses remain, this secret is locked and unaccessible.
@@ -39,14 +33,17 @@ pub enum RecoverError {
     /// provided realms.
     NotRegistered,
 
-    /// A transient error in sending or receiving requests to a realm.
-    /// This request may succeed by trying again with the same parameters.
-    Transient,
+    /// A realm rejected the `Client`'s auth token.
+    InvalidAuth,
 
     /// A software error has occured. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     Assertion,
+
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
 }
 
 /// Successful return type of [`Client::recover_generation`].
@@ -191,13 +188,49 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     if let Some(generation) = retry {
                         generations_found.insert(generation);
                     }
+
                     found_errors.push(error);
+
+                    if self.configuration.realms.len() - found_errors.len()
+                        < usize::from(self.configuration.recover_threshold)
+                    {
+                        found_errors.sort_unstable();
+
+                        let error = match found_errors[0] {
+                            RecoverError::InvalidPin { guesses_remaining } => {
+                                let mut min_guesses_remaining = guesses_remaining;
+                                for error in found_errors {
+                                    if let RecoverError::InvalidPin {
+                                        guesses_remaining: other_guesses_remaining,
+                                    } = error
+                                    {
+                                        min_guesses_remaining =
+                                            min_guesses_remaining.min(other_guesses_remaining);
+                                    }
+                                }
+                                RecoverError::InvalidPin {
+                                    guesses_remaining: min_guesses_remaining,
+                                }
+                            }
+                            e => e,
+                        };
+
+                        let mut iter = generations_found.into_iter().rev();
+                        let generation = iter.next();
+                        let retry = iter.next();
+
+                        return Err(RecoverGenError {
+                            error,
+                            generation,
+                            retry,
+                        });
+                    }
                 }
             }
         }
 
         let mut iter = generations_found.into_iter().rev();
-        let current_generation = iter.next();
+        let current_generation = iter.next().unwrap();
         let previous_generation = iter.next();
 
         // At this point, we know the phase 1 requests were successful on each
@@ -207,7 +240,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let tgk_shares: Vec<sharks::Share> = tgk_shares
             .into_iter()
             .filter_map(|(generation, share)| {
-                if current_generation == Some(generation) {
+                if current_generation == generation {
                     Some(share.0)
                 } else {
                     None
@@ -215,26 +248,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             })
             .collect();
 
-        if current_generation.is_none()
-            || tgk_shares.len() < usize::from(configuration.recover_threshold)
-        {
-            return match most_frequent_error(&found_errors) {
-                Some((error, count)) if count >= configuration.recover_threshold => {
-                    Err(RecoverGenError {
-                        error,
-                        generation: current_generation,
-                        retry: previous_generation,
-                    })
-                }
-                _ => Err(RecoverGenError {
-                    error: RecoverError::NotRegistered,
-                    generation: current_generation,
-                    retry: previous_generation,
-                }),
-            };
+        if tgk_shares.len() < usize::from(configuration.recover_threshold) {
+            return Err(RecoverGenError {
+                error: RecoverError::NotRegistered,
+                generation: Some(current_generation),
+                retry: previous_generation,
+            });
         }
-
-        let current_generation = current_generation.unwrap();
 
         let tgk = match Sharks(configuration.recover_threshold).recover(&tgk_shares) {
             Ok(tgk) => TagGeneratingKey(tgk),
@@ -506,40 +526,4 @@ impl From<CountableRecoverError> for RecoverError {
             CountableRecoverError::Assertion => RecoverError::Assertion,
         }
     }
-}
-
-/// Determines the most frequently occuring RecoverError, and how many times it
-/// occured. `InvalidPin` errors are counted together, and the minimum
-/// `guesses_remaining` is used. This is important, as it's possible realms
-///  will not agree on the number of guesses remaining.
-fn most_frequent_error(errors: &[RecoverError]) -> Option<(RecoverError, u8)> {
-    let mut count_map = HashMap::new();
-    for error in errors {
-        *count_map
-            .entry(CountableRecoverError::from(*error))
-            .or_insert(0) += 1;
-    }
-
-    count_map
-        .into_iter()
-        .map(|(error, count)| match error {
-            CountableRecoverError::InvalidPin => {
-                let min_guesses_remaining = errors
-                    .iter()
-                    .filter_map(|err| match err {
-                        RecoverError::InvalidPin { guesses_remaining } => Some(*guesses_remaining),
-                        _ => None,
-                    })
-                    .min()
-                    .unwrap();
-                (
-                    RecoverError::InvalidPin {
-                        guesses_remaining: min_guesses_remaining,
-                    },
-                    count,
-                )
-            }
-            _ => (error.into(), count),
-        })
-        .max_by_key(|&(_, count)| count)
 }

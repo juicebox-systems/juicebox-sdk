@@ -25,14 +25,14 @@ pub enum RegisterError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// A transient error in sending or receiving requests to a realm.
-    /// This request may succeed by trying again with the same parameters.
-    Transient,
-
     /// A software error has occured. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     Assertion,
+
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
 }
 
 /// Successful return type of [`Client::register_generation`].
@@ -139,12 +139,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     }
                     Err(RegisterGenError::Error(error)) => {
                         found_errors.push(error);
+
                         if self.configuration.realms.len() - found_errors.len()
                             < usize::from(self.configuration.register_threshold)
                         {
-                            found_errors.sort();
+                            found_errors.sort_unstable();
                             return Err(RegisterGenError::Error(found_errors[0]));
                         }
+
                         oprfs_pin.push(None);
                     }
                     Err(RegisterGenError::Retry(generation)) => match retry_generation {

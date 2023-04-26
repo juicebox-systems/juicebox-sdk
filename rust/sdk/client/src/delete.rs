@@ -8,19 +8,19 @@ use loam_sdk_core::{
 };
 
 /// Error return type for [`Client::delete_all`].
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DeleteError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
-
-    /// A transient error in sending or receiving requests to a realm.
-    /// This request may succeed by trying again with the same parameters.
-    Transient,
 
     /// A software error has occured. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     Assertion,
+
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
