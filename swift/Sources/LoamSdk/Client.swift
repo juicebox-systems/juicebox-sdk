@@ -20,7 +20,7 @@ public class Client {
     #if !os(Linux)
     /// The file path of any certificate files you wish to pin realm connections against.
     ///
-    /// If no paths are provided, connection to realms will be permited as long as they are
+    /// If no paths are provided, connection to realms will be permitted as long as they are
     /// using a certificate issued by a trusted authority.
     ///
     /// - Note: Certificates should be provided in DER format.

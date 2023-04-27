@@ -10,9 +10,9 @@ import LoamSdkFfi
 
 /// Error thrown from `Client.deleteAll`
 public enum DeleteError: Error {
-    /// A transient error in sending or receiving requests to a realm.
+    /// A realm rejected the `Client`'s auth token.
     case invalidAuth
-    /// A software error has occured. This request should not be retried
+    /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     case assertion
@@ -34,14 +34,14 @@ public enum DeleteError: Error {
 public enum RecoverError: Error {
     /// The secret could not be unlocked, but you can try again
     /// with a different PIN if you have guesses remaining. If no
-    /// guesses remain, this secret is locked and unaccessible.
+    /// guesses remain, this secret is locked and inaccessible.
     case invalidPin(guessesRemaining: UInt16)
     /// The secret was not registered or not fully registered with the
     /// provided realms.
     case notRegistered
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
-    /// A software error has occured. This request should not be retried
+    /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     case assertion
@@ -66,7 +66,7 @@ public enum RecoverError: Error {
 public enum RegisterError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
-    /// A software error has occured. This request should not be retried
+    /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     case assertion
