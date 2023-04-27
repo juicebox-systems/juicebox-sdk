@@ -471,38 +471,3 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
     }
 }
-
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash, PartialOrd, Ord)]
-enum CountableRecoverError {
-    InvalidAuth,
-    InvalidPin,
-    NotRegistered,
-    Transient,
-    Assertion,
-}
-
-impl From<RecoverError> for CountableRecoverError {
-    fn from(value: RecoverError) -> Self {
-        match value {
-            RecoverError::InvalidAuth => CountableRecoverError::InvalidAuth,
-            RecoverError::InvalidPin { .. } => CountableRecoverError::InvalidPin,
-            RecoverError::NotRegistered => CountableRecoverError::NotRegistered,
-            RecoverError::Transient => CountableRecoverError::Transient,
-            RecoverError::Assertion => CountableRecoverError::Assertion,
-        }
-    }
-}
-
-impl From<CountableRecoverError> for RecoverError {
-    fn from(val: CountableRecoverError) -> Self {
-        match val {
-            CountableRecoverError::InvalidAuth => RecoverError::InvalidAuth,
-            CountableRecoverError::InvalidPin => RecoverError::InvalidPin {
-                guesses_remaining: 0,
-            },
-            CountableRecoverError::NotRegistered => RecoverError::NotRegistered,
-            CountableRecoverError::Transient => RecoverError::Transient,
-            CountableRecoverError::Assertion => RecoverError::Assertion,
-        }
-    }
-}
