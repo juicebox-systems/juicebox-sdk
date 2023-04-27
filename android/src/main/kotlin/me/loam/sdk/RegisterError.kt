@@ -2,8 +2,8 @@ package me.loam.sdk
 
 public enum class RegisterError {
     INVALID_AUTH,
-    TRANSIENT,
     ASSERTION,
+    TRANSIENT,
 }
 
 public class RegisterException(val error: RegisterError) : Exception(error.name)

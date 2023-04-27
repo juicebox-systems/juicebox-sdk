@@ -23,8 +23,8 @@ public enum DeleteError: Error {
     init(_ error: LoamDeleteError) {
         switch error {
         case LoamDeleteErrorInvalidAuth: self = .invalidAuth
-        case LoamDeleteErrorTransient: self = .transient
         case LoamDeleteErrorAssertion: self = .assertion
+        case LoamDeleteErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -51,12 +51,12 @@ public enum RecoverError: Error {
 
     init(_ error: LoamRecoverError) {
         switch error.reason {
-        case LoamRecoverErrorReasonInvalidAuth: self = .invalidAuth
         case LoamRecoverErrorReasonInvalidPin: self =
                 .invalidPin(guessesRemaining: error.guesses_remaining.pointee)
         case LoamRecoverErrorReasonNotRegistered: self = .notRegistered
-        case LoamRecoverErrorReasonTransient: self = .transient
+        case LoamRecoverErrorReasonInvalidAuth: self = .invalidAuth
         case LoamRecoverErrorReasonAssertion: self = .assertion
+        case LoamRecoverErrorReasonTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -77,8 +77,8 @@ public enum RegisterError: Error {
     init(_ error: LoamRegisterError) {
         switch error {
         case LoamRegisterErrorInvalidAuth: self = .invalidAuth
-        case LoamRegisterErrorTransient: self = .transient
         case LoamRegisterErrorAssertion: self = .assertion
+        case LoamRegisterErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
         }
     }
