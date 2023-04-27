@@ -8,10 +8,16 @@
 import Foundation
 import LoamSdkFfi
 
+/// The parameters used to configure a `Client`.
 public struct Configuration {
+    /// A remote service that the client interacts with directly.
     public struct Realm {
+        /// A unique identifier specified by the realm.
         public let id: UUID
+        /// The network address to connect to the service.
         public let address: URL
+        /// A long-lived public key for which the service has the matching private
+        /// key.
         public let publicKey: Data
 
         public init(id: UUID, address: URL, publicKey: Data) {
@@ -20,15 +26,38 @@ public struct Configuration {
             self.publicKey = publicKey
         }
     }
+
+    /// The remote services that the client interacts with.
+    ///
+    /// There must be between `registerThreshold` and 255 realms, inclusive.
     public let realms: [Realm]
+
+    /// A registration will be considered successful if it's successful on at
+    /// least this many realms.
+    ///
+    /// Must be between `recoverThreshold` and `realms.count`, inclusive.
     public let registerThreshold: UInt8
+
+    /// A recovery (or an adversary) will need the cooperation of this many
+    /// realms to retrieve the secret.
+    ///
+    /// Must be between `1` and `realms.count`, inclusive.
     public let recoverThreshold: UInt8
 
+    /// A strategy for hashing the user provided pin.
     public enum PinHashingMode: UInt32 {
+        /// No hashing, ensure a PIN of sufficient entropy is provided.
         case none = 0
+        /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
         case standard2019 = 1
+        /// A fast hash used for testing. Do not use in production.
         case fastInsecure = 2
     }
+
+    /// Defines how the provided PIN will be hashed before register and recover
+    /// operations. Changing modes will make previous secrets stored on the realms
+    /// inaccessible with the same PIN and should not be done without re-registering
+    /// secrets.
     public let pinHashingMode: PinHashingMode
 
     public init(realms: [Realm], registerThreshold: UInt8, recoverThreshold: UInt8, pinHashingMode: PinHashingMode) {
