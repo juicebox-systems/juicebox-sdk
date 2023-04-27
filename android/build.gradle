@@ -61,14 +61,8 @@ dependencies {
     androidTestImplementation 'org.assertj:assertj-core:3.11.1'
 }
 
-gradle.projectsEvaluated {
-    android.libraryVariants.all { variant ->
-        if (variant.buildType.name == 'debug') {
-            variant.preBuildProvider.get().dependsOn 'buildDebugRustJni'
-        } else {
-            variant.preBuildProvider.get().dependsOn 'buildReleaseRustJni'
-        }
-    }
+preBuild {
+    dependsOn 'buildReleaseRustJni'
 }
 
 task buildReleaseRustJni(type:Exec) {
@@ -76,11 +70,4 @@ task buildReleaseRustJni(type:Exec) {
   description 'Build the release Rust JNI libraries'
 
   commandLine 'bash', 'jni.sh', '--release'
-}
-
-task buildDebugRustJni(type:Exec) {
-    group 'Rust'
-    description 'Build the debug Rust JNI libraries'
-
-    commandLine 'bash', 'jni.sh', '--debug'
 }
