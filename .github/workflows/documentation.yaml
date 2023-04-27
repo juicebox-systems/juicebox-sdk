@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - nt/documentation
   workflow_dispatch: {}
 
 env:
