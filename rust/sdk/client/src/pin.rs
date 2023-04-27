@@ -7,6 +7,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::AuthToken;
 
+/// A strategy for hashing the user provided [`Pin`]
 #[derive(Clone, Debug, Deserialize_repr, Serialize_repr)]
 #[repr(u8)]
 pub enum PinHashingMode {
@@ -73,9 +74,10 @@ impl TryFrom<&AuthToken> for Salt {
 
 #[derive(Debug)]
 /// A user-chosen password that may be low in entropy.
-pub struct Pin(pub SecretBytes);
+pub struct Pin(SecretBytes);
 
 impl Pin {
+    /// Access the underlying secret bytes.
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
@@ -89,9 +91,10 @@ impl From<Vec<u8>> for Pin {
 
 #[derive(Debug)]
 /// The calculated hash of a user-chosen password.
-pub struct HashedPin(pub SecretBytes);
+pub struct HashedPin(SecretBytes);
 
 impl HashedPin {
+    /// Access the underlying secret bytes.
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }

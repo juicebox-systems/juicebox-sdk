@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use std::time::Duration;
 
+/// A trait allowing definition of the asnychronous `sleep`
+/// operation of your choice.
 #[async_trait]
 pub trait Sleeper {
     async fn sleep(&self, duration: Duration);
