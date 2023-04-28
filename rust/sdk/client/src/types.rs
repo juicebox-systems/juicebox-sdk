@@ -157,7 +157,7 @@ impl From<Vec<u8>> for UserSecret {
 
 /// A random key that is used to derive secret-unlocking tags
 /// ([`UnlockTag`]) for each realm.
-pub(crate) struct TagGeneratingKey(pub Vec<u8>);
+pub(crate) struct TagGeneratingKey(SecretBytes);
 
 impl TagGeneratingKey {
     /// Generates a new key with random data.
@@ -167,15 +167,25 @@ impl TagGeneratingKey {
         // The `sharks` library adds an extra byte for the x-coordinate.
         let mut tgk = vec![0u8; oprf_output_size() - 1];
         OsRng.fill_bytes(&mut tgk);
-        Self(tgk)
+        Self::from(tgk)
     }
 
     /// Computes a derived secret-unlocking tag for the realm.
     pub fn tag(&self, realm_id: &[u8]) -> UnlockTag {
-        let mut mac =
-            SimpleHmac::<Blake2s256>::new_from_slice(&self.0).expect("failed to initialize HMAC");
+        let mut mac = SimpleHmac::<Blake2s256>::new_from_slice(self.expose_secret())
+            .expect("failed to initialize HMAC");
         mac.update(realm_id);
-        UnlockTag(mac.finalize().into_bytes().to_vec())
+        UnlockTag::from(mac.finalize().into_bytes().to_vec())
+    }
+
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for TagGeneratingKey {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
     }
 }
 
@@ -201,8 +211,10 @@ impl TgkShare {
         masked_share: &MaskedTgkShare,
         oprf_pin: &[u8],
     ) -> Result<Self, LengthMismatchError> {
-        if masked_share.0.len() == oprf_pin.len() {
-            let share: Vec<u8> = zip(oprf_pin, &masked_share.0).map(|(a, b)| a ^ b).collect();
+        if masked_share.expose_secret().len() == oprf_pin.len() {
+            let share: Vec<u8> = zip(oprf_pin, masked_share.expose_secret())
+                .map(|(a, b)| a ^ b)
+                .collect();
             match sharks::Share::try_from(share.as_slice()) {
                 Ok(share) => Ok(Self(share)),
                 Err(_) => Err(LengthMismatchError),
@@ -215,7 +227,8 @@ impl TgkShare {
     pub fn mask(&self, oprf_pin: &OprfResult) -> MaskedTgkShare {
         let share = Vec::from(&self.0);
         assert_eq!(oprf_pin.0.len(), share.len());
-        MaskedTgkShare(zip(oprf_pin.0, share).map(|(a, b)| a ^ b).collect())
+        let vec: Vec<u8> = zip(oprf_pin.0, share).map(|(a, b)| a ^ b).collect();
+        MaskedTgkShare::from(vec)
     }
 }
 

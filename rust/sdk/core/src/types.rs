@@ -4,6 +4,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use core::fmt::{self, Debug, Display};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use secrecy::{
     CloneableSecret, DebugSecret, ExposeSecret, SecretString, SerializableSecret, Zeroize,
 };
@@ -37,11 +39,40 @@ pub type OprfCipherSuite = voprf::Ristretto255;
 pub type OprfBlindedInput = voprf::BlindedElement<OprfCipherSuite>;
 pub type OprfBlindedResult = voprf::EvaluationElement<OprfCipherSuite>;
 pub type OprfClient = voprf::OprfClient<OprfCipherSuite>;
+pub type OprfServer = voprf::OprfServer<OprfCipherSuite>;
 pub struct OprfResult(pub digest::Output<<OprfCipherSuite as voprf::CipherSuite>::Hash>);
 
 impl Debug for OprfResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("(redacted)")
+    }
+}
+
+/// A private root key used to derive keys for each user-generation's OPRF.
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct OprfKey(SecretBytes);
+
+impl OprfKey {
+    /// Generates a new oprf key with random data.
+    #[allow(clippy::slow_vector_initialization)]
+    pub fn new_random() -> Option<Self> {
+        let mut seed = Vec::with_capacity(32);
+        seed.resize(32, 0);
+        OsRng.fill_bytes(&mut seed);
+
+        let secret_key =
+            voprf::derive_key::<OprfCipherSuite>(&seed, &[], voprf::Mode::Oprf).ok()?;
+        Some(Self::from(secret_key.as_bytes().to_vec()))
+    }
+
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for OprfKey {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
     }
 }
 
@@ -96,6 +127,36 @@ impl From<String> for AuthToken {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Salt(SecretBytes);
+
+impl ConstantTimeEq for Salt {
+    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+        self.expose_secret().ct_eq(other.expose_secret())
+    }
+}
+
+impl Salt {
+    /// Generates a new salt with random data.
+    #[allow(clippy::slow_vector_initialization)]
+    pub fn new_random() -> Self {
+        let mut salt = Vec::with_capacity(32);
+        salt.resize(32, 0);
+        OsRng.fill_bytes(&mut salt);
+        Self::from(salt)
+    }
+
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for Salt {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
+    }
+}
+
 /// Used to distinguish different secure communication channels for a single
 /// user.
 ///
@@ -111,7 +172,7 @@ pub struct SessionId(pub u32);
 ///
 /// The client needs a threshold number of such shares to recover the user's
 /// secret.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UserSecretShare(#[serde(serialize_with = "serialize_secret")] SecretBytes);
 
 impl UserSecretShare {
@@ -124,12 +185,6 @@ impl UserSecretShare {
 impl From<Vec<u8>> for UserSecretShare {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
-    }
-}
-
-impl Debug for UserSecretShare {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
     }
 }
 
@@ -154,30 +209,42 @@ pub struct Policy {
 ///
 /// The client needs the correct PIN and a threshold number of such shares and
 /// OPRF results to recover the tag-generating key.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MaskedTgkShare(pub Vec<u8>);
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct MaskedTgkShare(SecretBytes);
 
-impl Debug for MaskedTgkShare {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
+impl MaskedTgkShare {
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for MaskedTgkShare {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
     }
 }
 
 /// A pseudo-random value that the client assigns to a realm when registering a
 /// share of the user's secret and must provide to the realm during recovery to
 /// get back the share.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct UnlockTag(pub Vec<u8>);
-
-impl Debug for UnlockTag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
-    }
-}
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct UnlockTag(SecretBytes);
 
 impl ConstantTimeEq for UnlockTag {
     fn ct_eq(&self, other: &Self) -> subtle::Choice {
-        self.0.ct_eq(&other.0)
+        self.expose_secret().ct_eq(other.expose_secret())
+    }
+}
+
+impl UnlockTag {
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for UnlockTag {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
     }
 }
 

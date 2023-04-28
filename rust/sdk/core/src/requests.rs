@@ -6,8 +6,8 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, GenerationNumber, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, Policy,
-    RealmId, SessionId, UnlockTag, UserSecretShare,
+    AuthToken, GenerationNumber, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfKey,
+    Policy, RealmId, Salt, SessionId, UnlockTag, UserSecretShare,
 };
 use loam_sdk_noise as noise;
 
@@ -104,7 +104,7 @@ impl fmt::Debug for NoiseResponse {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum SecretsRequest {
-    Register1(Register1Request),
+    Register1,
     Register2(Register2Request),
     Recover1(Recover1Request),
     Recover2(Recover2Request),
@@ -128,7 +128,7 @@ impl SecretsRequest {
     /// server/realm's static secret key (even any time in the future).
     pub fn needs_forward_secrecy(&self) -> bool {
         match self {
-            Self::Register1(_) => false,
+            Self::Register1 => false,
             Self::Register2(_) => true,
             Self::Recover1(_) => false,
             Self::Recover2(_) => true,
@@ -147,26 +147,20 @@ pub enum SecretsResponse {
     Delete(DeleteResponse),
 }
 
-/// Request message for the first phase of registration.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Register1Request {
-    pub generation: GenerationNumber,
-    pub blinded_pin: OprfBlindedInput,
-}
-
 /// Response message for the first phase of registration.
 #[derive(Debug, Deserialize, Serialize)]
-pub enum Register1Response {
-    Ok { blinded_oprf_pin: OprfBlindedResult },
-    BadGeneration { first_available: GenerationNumber },
+pub struct Register1Response {
+    pub next_generation_number: GenerationNumber,
 }
 
 /// Request message for the second phase of registration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub generation: GenerationNumber,
-    pub masked_tgk_share: MaskedTgkShare,
+    pub salt: Salt,
+    pub oprf_key: OprfKey,
     pub tag: UnlockTag,
+    pub masked_tgk_share: MaskedTgkShare,
     pub secret_share: UserSecretShare,
     pub policy: Policy,
 }
@@ -174,9 +168,9 @@ pub struct Register2Request {
 /// Response message for the second phase of registration.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Register2Response {
-    Ok { found_earlier_generations: bool },
-    NotRegistering,
+    Ok,
     AlreadyRegistered,
+    BadGeneration,
 }
 
 /// Request message for the first phase of recovery.
