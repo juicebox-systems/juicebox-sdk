@@ -1,16 +1,18 @@
 use futures::future::join_all;
 use rand::rngs::OsRng;
 use sharks::Sharks;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
+use subtle::ConstantTimeEq;
 use tracing::instrument;
 
 use loam_sdk_core::{
     requests::{
-        Recover1Request, Recover1Response, Recover2Request, Recover2Response, SecretsRequest,
-        SecretsResponse,
+        Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
+        SecretsRequest, SecretsResponse,
     },
     types::{
-        GenerationNumber, MaskedTgkShare, OprfBlindedResult, OprfClient, UnlockTag, UserSecretShare,
+        GenerationNumber, MaskedTgkShare, OprfBlindedResult, OprfClient, Salt, UnlockTag,
+        UserSecretShare,
     },
 };
 
@@ -47,27 +49,12 @@ pub enum RecoverError {
     Transient,
 }
 
-/// Successful return type of [`Client::recover_generation`].
-struct RecoverGenSuccess {
-    generation: GenerationNumber,
-    secret: UserSecret,
-    found_earlier_generations: bool,
-}
-
-/// Error return type of [`Client::recover_generation`].
-#[derive(Debug)]
-struct RecoverGenError {
-    error: RecoverError,
-    generation: Option<GenerationNumber>,
-    retry: Option<GenerationNumber>,
-}
-
 /// Successful return type of [`Client::recover1`].
 #[derive(Debug)]
 struct Recover1Success {
+    realm: Realm,
     generation: GenerationNumber,
-    tgk_share: TgkShare,
-    previous_generation: Option<GenerationNumber>,
+    salt: Salt,
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
@@ -79,7 +66,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let mut iter = self.previous_configurations.iter();
         loop {
             return match self
-                .recover_latest_available_generation(pin, configuration)
+                .recover_latest_registered_generation(pin, configuration)
                 .await
             {
                 Ok(secret) => Ok(secret),
@@ -96,225 +83,190 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
     }
 
-    /// Recovers a PIN-protected secret from the latest agreed upon generation.
-    pub(crate) async fn recover_latest_available_generation(
+    /// Recovers a PIN-protected secret from the latest registered generation.
+    async fn recover_latest_registered_generation(
         &self,
         pin: &Pin,
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
-        let hashed_pin = pin
-            .hash(&configuration.pin_hashing_mode, &self.auth_token)
-            .expect("pin hashing error");
-
-        // First, try the latest generation on each server (represented as
-        // `generation = None`). In the common case, all the servers will
-        // agree on the last registered generation. If they don't, step back by
-        // one generation at a time, limited to actual generations seen,
-        // heading towards generation 0.
-
-        let mut generation: Option<GenerationNumber> = None;
-
-        loop {
-            return match self
-                .recover_generation(generation, &hashed_pin, configuration)
-                .await
-            {
-                Ok(RecoverGenSuccess {
-                    generation,
-                    secret,
-                    found_earlier_generations,
-                }) => {
-                    if found_earlier_generations {
-                        _ = self.delete_up_to(Some(generation)).await;
-                    }
-                    Ok(secret)
-                }
-
-                Err(RecoverGenError {
-                    error,
-                    generation: _,
-                    retry,
-                }) => {
-                    if retry.is_some() {
-                        assert!(retry < generation);
-                        generation = retry;
-                        continue;
-                    }
-                    Err(error)
-                }
-            };
-        }
-    }
-
-    /// Retrieves a PIN-protected secret at a given generation number.
-    ///
-    /// If the generation number is given as `None`, tries the latest
-    /// generation present on each realm.
-    async fn recover_generation(
-        &self,
-        request_generation: Option<GenerationNumber>,
-        hashed_pin: &HashedPin,
-        configuration: &CheckedConfiguration,
-    ) -> Result<RecoverGenSuccess, RecoverGenError> {
         let recover1_requests = configuration
             .realms
             .iter()
-            .map(|realm| self.recover1(realm, request_generation, hashed_pin));
+            .map(|realm| self.recover1(realm));
 
-        let mut generations_found = BTreeSet::new();
-        let mut tgk_shares: Vec<(GenerationNumber, TgkShare)> = Vec::new();
+        let mut found_generations: BTreeMap<GenerationNumber, (Vec<Realm>, Salt)> = BTreeMap::new();
+
         let mut found_errors: Vec<RecoverError> = Vec::new();
         for result in join_all(recover1_requests).await {
             match result {
                 Ok(Recover1Success {
+                    realm,
                     generation,
-                    tgk_share,
-                    previous_generation,
+                    salt,
                 }) => {
-                    generations_found.insert(generation);
-                    if let Some(p) = previous_generation {
-                        generations_found.insert(p);
-                    }
-                    tgk_shares.push((generation, tgk_share));
-                }
-
-                Err(RecoverGenError {
-                    error,
-                    generation,
-                    retry,
-                }) => {
-                    if let Some(generation) = generation {
-                        generations_found.insert(generation);
-                    }
-                    if let Some(generation) = retry {
-                        generations_found.insert(generation);
-                    }
-
-                    found_errors.push(error);
-
-                    if configuration.realms.len() - found_errors.len()
-                        < usize::from(configuration.recover_threshold)
-                    {
-                        found_errors.sort_unstable();
-
-                        let mut iter = generations_found.into_iter().rev();
-
-                        return Err(RecoverGenError {
-                            error: found_errors[0],
-                            generation: iter.next(),
-                            retry: iter.next(),
-                        });
+                    if let Some((realms, previous_salt)) = found_generations.get_mut(&generation) {
+                        if bool::from(salt.ct_eq(previous_salt)) {
+                            realms.push(realm);
+                        } else {
+                            self.collect_recover_error(
+                                &mut found_errors,
+                                RecoverError::Assertion,
+                                configuration,
+                            )?;
+                        }
+                    } else {
+                        found_generations.insert(generation, (vec![realm], salt));
                     }
                 }
+                Err(e) => self.collect_recover_error(&mut found_errors, e, configuration)?,
             }
         }
 
-        let mut iter = generations_found.into_iter().rev();
-        let current_generation = iter.next().unwrap();
-        let previous_generation = iter.next();
+        // We only want to proceed to registration 2 for generations that have enough registered realms.
+        found_generations
+            .retain(|_, (realms, _)| realms.len() >= usize::from(configuration.recover_threshold));
 
-        // At this point, we know the phase 1 requests were successful on each
-        // realm for some generation, but their generations may not have
-        // agreed.
-
-        let tgk_shares: Vec<sharks::Share> = tgk_shares
-            .into_iter()
-            .filter_map(|(generation, share)| {
-                if current_generation == generation {
-                    Some(share.0)
-                } else {
-                    None
+        // Try to recover from the highest generation number first, if there are disagreements across sets of realms.
+        for (index, (generation, (realms, salt))) in found_generations.into_iter().enumerate().rev()
+        {
+            return match self
+                .recover_generation(generation, &realms, pin, &salt, configuration)
+                .await
+            {
+                Ok(secret) => Ok(secret),
+                Err(e) => {
+                    if index > 0 {
+                        continue;
+                    }
+                    Err(e)
                 }
-            })
-            .collect();
+            };
+        }
+        unreachable!();
+    }
+
+    /// Recover a user secret at a specified generation from a given set of realms.
+    async fn recover_generation(
+        &self,
+        generation: GenerationNumber,
+        realms: &[Realm],
+        pin: &Pin,
+        salt: &Salt,
+        configuration: &CheckedConfiguration,
+    ) -> Result<UserSecret, RecoverError> {
+        let hashed_pin = pin
+            .hash(&configuration.pin_hashing_mode, salt)
+            .ok_or(RecoverError::Assertion)?;
+
+        let recover2_requests = realms
+            .iter()
+            .map(|realm| self.recover2(realm, generation, &hashed_pin));
+
+        let mut tgk_shares: Vec<sharks::Share> = Vec::new();
+        let mut found_errors: Vec<RecoverError> = Vec::new();
+        for result in join_all(recover2_requests).await {
+            match result {
+                Ok(tgk_share) => {
+                    tgk_shares.push(tgk_share.0);
+                }
+
+                Err(e) => self.collect_recover_error(&mut found_errors, e, configuration)?,
+            }
+        }
 
         if tgk_shares.len() < usize::from(configuration.recover_threshold) {
-            return Err(RecoverGenError {
-                error: RecoverError::NotRegistered,
-                generation: Some(current_generation),
-                retry: previous_generation,
-            });
+            return Err(RecoverError::NotRegistered);
         }
 
         let tgk = match Sharks(configuration.recover_threshold).recover(&tgk_shares) {
-            Ok(tgk) => TagGeneratingKey(tgk),
+            Ok(tgk) => TagGeneratingKey::from(tgk),
 
             Err(_) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Assertion,
-                    generation: Some(current_generation),
-                    retry: previous_generation,
-                });
+                return Err(RecoverError::Assertion);
             }
         };
 
-        let recover2_requests = configuration
-            .realms
+        let recover3_requests = realms
             .iter()
-            .map(|realm| self.recover2(realm, current_generation, tgk.tag(&realm.public_key)));
+            .map(|realm| self.recover3(realm, generation, tgk.tag(&realm.public_key)));
 
-        let recover2_results = join_all(recover2_requests).await;
+        let recover3_results = join_all(recover3_requests).await;
 
         let mut secret_shares = Vec::<sharks::Share>::new();
-        for result in recover2_results {
+        for result in recover3_results {
             match result {
                 Ok(secret_share) => match sharks::Share::try_from(secret_share.expose_secret()) {
                     Ok(secret_share) => {
                         secret_shares.push(secret_share);
                     }
 
-                    Err(_) => {
-                        return Err(RecoverGenError {
-                            error: RecoverError::Assertion,
-                            generation: Some(current_generation),
-                            retry: previous_generation,
-                        })
-                    }
+                    Err(_) => return Err(RecoverError::Assertion),
                 },
 
                 Err(error) => {
-                    return Err(RecoverGenError {
-                        error,
-                        generation: Some(current_generation),
-                        retry: previous_generation,
-                    })
+                    return Err(error);
                 }
             }
         }
 
         match Sharks(configuration.recover_threshold).recover(&secret_shares) {
-            Ok(secret) => Ok(RecoverGenSuccess {
-                generation: current_generation,
-                secret: UserSecret::from(secret),
-                found_earlier_generations: previous_generation.is_some(),
-            }),
-
-            Err(_) => Err(RecoverGenError {
-                error: RecoverError::Assertion,
-                generation: Some(current_generation),
-                retry: previous_generation,
-            }),
+            Ok(secret) => Ok(UserSecret::from(secret)),
+            Err(_) => Err(RecoverError::Assertion),
         }
     }
 
-    /// Executes phase 1 of recovery on a particular realm at a particular
-    /// generation.
-    ///
-    /// If the generation number is given as `None`, tries the latest
-    /// generation present on the realm.
+    /// Append errors into an error collection. If the number of errors exceeds the
+    /// recover threshold for the configuration, return the highest priority error.
+    fn collect_recover_error(
+        &self,
+        errors: &mut Vec<RecoverError>,
+        error: RecoverError,
+        configuration: &CheckedConfiguration,
+    ) -> Result<(), RecoverError> {
+        errors.push(error);
+
+        if configuration.realms.len() - errors.len() < usize::from(configuration.recover_threshold)
+        {
+            errors.sort_unstable();
+            return Err(errors[0]);
+        }
+
+        Ok(())
+    }
+
+    /// Executes phase 1 of recovery on a particular realm.
     #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
-    async fn recover1(
+    async fn recover1(&self, realm: &Realm) -> Result<Recover1Success, RecoverError> {
+        match self.make_request(realm, SecretsRequest::Recover1).await {
+            Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
+            Err(RequestError::Assertion) => Err(RecoverError::Assertion),
+            Err(RequestError::Transient) => Err(RecoverError::Transient),
+            Ok(SecretsResponse::Recover1(response)) => match response {
+                Recover1Response::Ok { generation, salt } => Ok(Recover1Success {
+                    realm: realm.to_owned(),
+                    generation,
+                    salt,
+                }),
+                Recover1Response::NotRegistered => Err(RecoverError::NotRegistered),
+            },
+            Ok(_) => Err(RecoverError::Assertion),
+        }
+    }
+
+    /// Executes phase 2 of recovery on a particular realm at a particular generation.
+    #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
+    async fn recover2(
         &self,
         realm: &Realm,
-        generation: Option<GenerationNumber>,
+        generation: GenerationNumber,
         hashed_pin: &HashedPin,
-    ) -> Result<Recover1Success, RecoverGenError> {
+    ) -> Result<TgkShare, RecoverError> {
         let blinded_pin = OprfClient::blind(hashed_pin.expose_secret(), &mut OsRng)
-            .expect("voprf blinding error");
+            .map_err(|_| RecoverError::Assertion)?;
 
-        let recover1_request = self.make_request(
+        let recover2_request = self.make_request(
             realm,
-            SecretsRequest::Recover1(Recover1Request {
+            SecretsRequest::Recover2(Recover2Request {
                 generation,
                 blinded_pin: blinded_pin.message,
             }),
@@ -324,147 +276,73 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         // It helps avoid having to process these fields at a high level of
         // indentation.
         struct OkResponse {
-            generation: GenerationNumber,
             blinded_oprf_pin: OprfBlindedResult,
             masked_tgk_share: MaskedTgkShare,
-            previous_generation: Option<GenerationNumber>,
         }
         let OkResponse {
-            generation,
             blinded_oprf_pin,
             masked_tgk_share,
-            previous_generation,
-        } = match recover1_request.await {
-            Err(RequestError::Transient) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Transient,
-                    generation: None,
-                    retry: None,
-                })
-            }
+        } = match recover2_request.await {
+            Err(RequestError::Transient) => return Err(RecoverError::Transient),
+            Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
+            Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
 
-            Err(RequestError::Assertion) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Assertion,
-                    generation: None,
-                    retry: None,
-                })
-            }
-
-            Err(RequestError::InvalidAuth) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::InvalidAuth,
-                    generation: None,
-                    retry: None,
-                })
-            }
-
-            Ok(SecretsResponse::Recover1(rr)) => match rr {
-                Recover1Response::Ok {
-                    generation,
+            Ok(SecretsResponse::Recover2(rr)) => match rr {
+                Recover2Response::Ok {
                     blinded_oprf_pin,
                     masked_tgk_share,
-                    previous_generation,
                 } => OkResponse {
-                    generation,
                     blinded_oprf_pin,
                     masked_tgk_share,
-                    previous_generation,
                 },
 
-                Recover1Response::NotRegistered {
-                    generation,
-                    previous_generation,
-                } => {
-                    return Err(RecoverGenError {
-                        error: RecoverError::NotRegistered,
-                        generation,
-                        retry: previous_generation,
-                    });
+                Recover2Response::NotRegistered => {
+                    return Err(RecoverError::NotRegistered);
                 }
 
-                Recover1Response::PartiallyRegistered {
-                    generation,
-                    previous_generation,
-                    ..
-                } => {
-                    return Err(RecoverGenError {
-                        error: RecoverError::NotRegistered,
-                        generation: Some(generation),
-                        retry: previous_generation,
-                    });
-                }
-
-                Recover1Response::NoGuesses {
-                    generation,
-                    previous_generation,
-                } => {
-                    return Err(RecoverGenError {
-                        error: RecoverError::InvalidPin {
-                            guesses_remaining: 0,
-                        },
-                        generation: Some(generation),
-                        retry: previous_generation,
+                Recover2Response::NoGuesses => {
+                    return Err(RecoverError::InvalidPin {
+                        guesses_remaining: 0,
                     });
                 }
             },
 
-            Ok(_) => {
-                return Err(RecoverGenError {
-                    error: RecoverError::Assertion,
-                    generation: None,
-                    retry: None,
-                })
-            }
+            Ok(_) => return Err(RecoverError::Assertion),
         };
 
         let oprf_pin = blinded_pin
             .state
             .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
-            .map_err(|_e| RecoverGenError {
-                error: RecoverError::Assertion,
-                generation: Some(generation),
-                retry: previous_generation,
-            })?;
+            .map_err(|_| RecoverError::Assertion)?;
 
-        let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin).map_err(|_| {
-            RecoverGenError {
-                error: RecoverError::Assertion,
-                generation: Some(generation),
-                retry: previous_generation,
-            }
-        })?;
+        let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin)
+            .map_err(|_| RecoverError::Assertion)?;
 
-        Ok(Recover1Success {
-            generation,
-            tgk_share,
-            previous_generation,
-        })
+        Ok(tgk_share)
     }
 
-    /// Executes phase 2 of recovery on a particular realm at a particular
-    /// generation.
+    /// Executes phase 3 of recovery on a particular realm at a particular generation.
     #[instrument(level = "trace", skip(self))]
-    async fn recover2(
+    async fn recover3(
         &self,
         realm: &Realm,
         generation: GenerationNumber,
         tag: UnlockTag,
     ) -> Result<UserSecretShare, RecoverError> {
-        let recover2_request = self.make_request(
+        let recover3_request = self.make_request(
             realm,
-            SecretsRequest::Recover2(Recover2Request { generation, tag }),
+            SecretsRequest::Recover3(Recover3Request { generation, tag }),
         );
 
-        match recover2_request.await {
+        match recover3_request.await {
             Err(RequestError::Transient) => Err(RecoverError::Transient),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 
-            Ok(SecretsResponse::Recover2(rr)) => match rr {
-                Recover2Response::Ok(secret_share) => Ok(secret_share),
-                Recover2Response::NotRegistered => Err(RecoverError::NotRegistered),
-                Recover2Response::BadUnlockTag { guesses_remaining } => {
+            Ok(SecretsResponse::Recover3(rr)) => match rr {
+                Recover3Response::Ok(secret_share) => Ok(secret_share),
+                Recover3Response::NotRegistered => Err(RecoverError::NotRegistered),
+                Recover3Response::BadUnlockTag { guesses_remaining } => {
                     Err(RecoverError::InvalidPin { guesses_remaining })
                 }
             },

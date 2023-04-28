@@ -106,8 +106,9 @@ impl fmt::Debug for NoiseResponse {
 pub enum SecretsRequest {
     Register1,
     Register2(Register2Request),
-    Recover1(Recover1Request),
+    Recover1,
     Recover2(Recover2Request),
+    Recover3(Recover3Request),
     Delete(DeleteRequest),
 }
 
@@ -130,8 +131,9 @@ impl SecretsRequest {
         match self {
             Self::Register1 => false,
             Self::Register2(_) => true,
-            Self::Recover1(_) => false,
+            Self::Recover1 => false,
             Self::Recover2(_) => true,
+            Self::Recover3(_) => true,
             Self::Delete(_) => false,
         }
     }
@@ -144,6 +146,7 @@ pub enum SecretsResponse {
     Register2(Register2Response),
     Recover1(Recover1Response),
     Recover2(Recover2Response),
+    Recover3(Recover3Response),
     Delete(DeleteResponse),
 }
 
@@ -173,51 +176,46 @@ pub enum Register2Response {
     BadGeneration,
 }
 
-/// Request message for the first phase of recovery.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Recover1Request {
-    /// Which generation to recover. If the generation number is not provided, the
-    /// server will start recovery with the latest generation.
-    pub generation: Option<GenerationNumber>,
-    pub blinded_pin: OprfBlindedInput,
-}
-
 /// Response message for the first phase of recovery.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover1Response {
     Ok {
         generation: GenerationNumber,
-        blinded_oprf_pin: OprfBlindedResult,
-        masked_tgk_share: MaskedTgkShare,
-        /// The largest-numbered generation record on the server that's older
-        /// than `generation`, if any. This allows the client to discover older
-        /// generations to clean up or try recovering.
-        previous_generation: Option<GenerationNumber>,
+        salt: Salt,
     },
-    NotRegistered {
-        generation: Option<GenerationNumber>,
-        previous_generation: Option<GenerationNumber>,
-    },
-    PartiallyRegistered {
-        generation: GenerationNumber,
-        previous_generation: Option<GenerationNumber>,
-    },
-    NoGuesses {
-        generation: GenerationNumber,
-        previous_generation: Option<GenerationNumber>,
-    },
+    NotRegistered,
 }
 
 /// Request message for the second phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
+    /// Which generation to recover. If the generation number is not provided, the
+    /// server will start recovery with the latest generation.
     pub generation: GenerationNumber,
-    pub tag: UnlockTag,
+    pub blinded_pin: OprfBlindedInput,
 }
 
 /// Response message for the second phase of recovery.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover2Response {
+    Ok {
+        blinded_oprf_pin: OprfBlindedResult,
+        masked_tgk_share: MaskedTgkShare,
+    },
+    NotRegistered,
+    NoGuesses,
+}
+
+/// Request message for the third phase of recovery.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Recover3Request {
+    pub generation: GenerationNumber,
+    pub tag: UnlockTag,
+}
+
+/// Response message for the third phase of recovery.
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Recover3Response {
     Ok(UserSecretShare),
     NotRegistered,
     BadUnlockTag { guesses_remaining: u16 },
