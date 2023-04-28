@@ -6,8 +6,9 @@ use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterE
 use sdk::Sleeper;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
-use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
+use std::{str::FromStr, sync::Mutex};
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -274,19 +275,29 @@ extern "C" {
 
 struct WasmSleeper;
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Sleeper for WasmSleeper {
     async fn sleep(&self, duration: Duration) {
         let (send, recv) = oneshot::channel();
-        let cb = Closure::once(move || {
-            _ = send.send(()); // Nothing we can do if this errors at this point.
-        });
-        if set_timeout(
-            cb.as_ref().unchecked_ref(),
-            duration.as_millis().try_into().unwrap(),
-        )
-        .is_ok()
-        {
+        let ok = {
+            // This dance lets us cleanup the closure when we're done with it
+            // without explicitly holding it across the recv.await boundary which
+            // we can't because its not Send.
+            let cb_holder = Arc::new(Mutex::new(None));
+            let cb_holder2 = cb_holder.clone();
+            let cb = Closure::once(move || {
+                let _ref = cb_holder2.clone(); // force a ref to be moved into here.
+                _ = send.send(()); // Nothing we can do if this errors at this point.
+            });
+            let ok = set_timeout(
+                cb.as_ref().unchecked_ref(),
+                duration.as_millis().try_into().unwrap(),
+            )
+            .is_ok();
+            *cb_holder.lock().unwrap() = Some(cb);
+            ok
+        };
+        if ok {
             _ = recv.await;
         }
     }
