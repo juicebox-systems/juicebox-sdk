@@ -34,7 +34,7 @@ pub enum RegisterError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
-    /// Registers a PIN-protected secret.
+    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub(crate) async fn perform_register(
         &self,
         pin: &Pin,
@@ -45,13 +45,18 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .configuration
             .realms
             .iter()
-            .map(|realm| self.register1(realm));
+            .map(|realm| self.register1_on_realm(realm));
 
-        let mut found_errors: Vec<RegisterError> = Vec::new();
+        let mut register1_errors: Vec<RegisterError> = Vec::new();
         for result in join_all(register1_requests).await {
             match result {
                 Ok(()) => {}
-                Err(e) => self.collect_register_error(&mut found_errors, e)?,
+                Err(error) => self.collect_errors(
+                    &mut register1_errors,
+                    error,
+                    self.configuration.realms.len(),
+                    self.configuration.register_threshold.into(),
+                )?,
             }
         }
 
@@ -96,7 +101,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             secret_shares,
         )
         .map(|(realm, oprf_key, masked_tgk_share, secret_share)| {
-            self.register2(
+            self.register2_on_realm(
                 realm,
                 Register2Request {
                     salt: salt.to_owned(),
@@ -109,35 +114,23 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             )
         });
 
-        let mut found_errors = Vec::new();
+        let mut register2_errors = Vec::new();
         for result in join_all(register2_requests).await {
             if let Err(error) = result {
-                self.collect_register_error(&mut found_errors, error)?;
+                self.collect_errors(
+                    &mut register2_errors,
+                    error,
+                    self.configuration.realms.len(),
+                    self.configuration.register_threshold.into(),
+                )?;
             }
         }
         Ok(())
     }
 
-    fn collect_register_error(
-        &self,
-        errors: &mut Vec<RegisterError>,
-        error: RegisterError,
-    ) -> Result<(), RegisterError> {
-        errors.push(error);
-
-        if self.configuration.realms.len() - errors.len()
-            < usize::from(self.configuration.register_threshold)
-        {
-            errors.sort_unstable();
-            return Err(errors[0]);
-        }
-
-        Ok(())
-    }
-
     /// Executes phase 1 of registration on a particular realm.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
-    async fn register1(&self, realm: &Realm) -> Result<(), RegisterError> {
+    async fn register1_on_realm(&self, realm: &Realm) -> Result<(), RegisterError> {
         match self.make_request(realm, SecretsRequest::Register1).await {
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
@@ -149,7 +142,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
     /// Executes phase 2 of registration on a particular realm.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
-    async fn register2(
+    async fn register2_on_realm(
         &self,
         realm: &Realm,
         request: Register2Request,
