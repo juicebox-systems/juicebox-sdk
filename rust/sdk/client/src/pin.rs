@@ -98,6 +98,7 @@ impl Pin {
 #[cfg(test)]
 mod tests {
     use loam_sdk_core::types::Salt;
+    use rand::rngs::OsRng;
 
     use crate::pin::{Pin, PinHashingMode};
 
@@ -117,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_no_hashing() {
-        let salt = Salt::new_random();
+        let salt = Salt::new_random(&mut OsRng);
         let pin = Pin::from(b"1234".to_vec());
         let hashed_pin = pin.hash(&PinHashingMode::None, &salt).unwrap();
         assert_eq!(*hashed_pin.expose_secret(), *pin.expose_secret());

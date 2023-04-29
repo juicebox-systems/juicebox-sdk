@@ -4,8 +4,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use core::fmt::{self, Debug, Display};
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand_core::{CryptoRng, RngCore};
 use secrecy::{
     CloneableSecret, DebugSecret, ExposeSecret, SecretString, SerializableSecret, Zeroize,
 };
@@ -55,10 +54,10 @@ pub struct OprfKey(SecretBytes);
 impl OprfKey {
     /// Generates a new oprf key with random data.
     #[allow(clippy::slow_vector_initialization)]
-    pub fn new_random() -> Option<Self> {
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Option<Self> {
         let mut seed = Vec::with_capacity(32);
         seed.resize(32, 0);
-        OsRng.fill_bytes(&mut seed);
+        rng.fill_bytes(&mut seed);
 
         let secret_key =
             voprf::derive_key::<OprfCipherSuite>(&seed, &[], voprf::Mode::Oprf).ok()?;
@@ -139,10 +138,10 @@ impl ConstantTimeEq for Salt {
 impl Salt {
     /// Generates a new salt with random data.
     #[allow(clippy::slow_vector_initialization)]
-    pub fn new_random() -> Self {
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
         let mut salt = Vec::with_capacity(32);
         salt.resize(32, 0);
-        OsRng.fill_bytes(&mut salt);
+        rng.fill_bytes(&mut salt);
         Self::from(salt)
     }
 

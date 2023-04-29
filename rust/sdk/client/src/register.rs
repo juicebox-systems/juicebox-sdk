@@ -91,14 +91,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         secret: &UserSecret,
         policy: Policy,
     ) -> Result<(), RegisterError> {
-        let salt = Salt::new_random();
+        let salt = Salt::new_random(&mut OsRng);
         let hashed_pin = pin
             .hash(&self.configuration.pin_hashing_mode, &salt)
             .ok_or(RegisterError::Assertion)?;
 
         let oprf_keys: Vec<OprfKey> = std::iter::repeat(())
             .take(self.configuration.realms.len())
-            .map(|_| OprfKey::new_random().ok_or(RegisterError::Assertion))
+            .map(|_| OprfKey::new_random(&mut OsRng).ok_or(RegisterError::Assertion))
             .collect::<Result<Vec<_>, _>>()?;
 
         let tgk = TagGeneratingKey::new_random();

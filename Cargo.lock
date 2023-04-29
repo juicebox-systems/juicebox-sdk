@@ -838,7 +838,7 @@ dependencies = [
  "ciborium",
  "digest 0.10.6",
  "loam-sdk-noise",
- "rand",
+ "rand_core 0.6.4",
  "secrecy",
  "serde",
  "subtle",
