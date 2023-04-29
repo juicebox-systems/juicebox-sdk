@@ -202,7 +202,7 @@ pub(crate) struct TgkShare(pub sharks::Share);
 
 impl Debug for TgkShare {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
+        f.write_str("TgkShare(REDACTED)")
     }
 }
 

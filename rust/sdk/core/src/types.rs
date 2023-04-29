@@ -5,24 +5,29 @@ use alloc::vec::Vec;
 
 use core::fmt::{self, Debug};
 use rand_core::{CryptoRng, RngCore};
-use secrecy::{
-    CloneableSecret, DebugSecret, ExposeSecret, SecretString, SerializableSecret, Zeroize,
-};
+use secrecy::{ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
 use super::marshalling::serialize_secret;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct SecretBytes(Vec<u8>);
 impl Zeroize for SecretBytes {
     fn zeroize(&mut self) {
         self.0.zeroize();
     }
 }
-impl SerializableSecret for SecretBytes {}
-impl CloneableSecret for SecretBytes {}
-impl DebugSecret for SecretBytes {}
+impl Drop for SecretBytes {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+impl Debug for SecretBytes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("SecretBytes(REDACTED)")
+    }
+}
 impl ExposeSecret<Vec<u8>> for SecretBytes {
     fn expose_secret(&self) -> &Vec<u8> {
         &self.0
@@ -43,7 +48,7 @@ pub struct OprfResult(pub digest::Output<<OprfCipherSuite as voprf::CipherSuite>
 
 impl Debug for OprfResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("(redacted)")
+        f.write_str("OprfResult(REDACTED)")
     }
 }
 
@@ -126,14 +131,8 @@ impl From<String> for AuthToken {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub struct Salt(SecretBytes);
-
-impl ConstantTimeEq for Salt {
-    fn ct_eq(&self, other: &Self) -> subtle::Choice {
-        self.expose_secret().ct_eq(other.expose_secret())
-    }
-}
 
 impl Salt {
     /// Generates a new salt with random data.
@@ -244,5 +243,24 @@ impl UnlockTag {
 impl From<Vec<u8>> for UnlockTag {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::SecretBytes;
+    use secrecy::Zeroize;
+
+    #[test]
+    fn test_secret_bytes_redaction() {
+        let secret_bytes = SecretBytes::from(b"some secret".to_vec());
+        assert_eq!(format!("{:?}", secret_bytes), "SecretBytes(REDACTED)");
+    }
+
+    #[test]
+    fn test_secret_bytes_zeroize() {
+        let mut secret_bytes = SecretBytes::from(b"some secret".to_vec());
+        secret_bytes.zeroize();
+        assert_eq!(secret_bytes, SecretBytes::from(vec![]));
     }
 }
