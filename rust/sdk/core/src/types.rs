@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use core::fmt::{self, Debug, Display};
+use core::fmt::{self, Debug};
 use rand_core::{CryptoRng, RngCore};
 use secrecy::{
     CloneableSecret, DebugSecret, ExposeSecret, SecretString, SerializableSecret, Zeroize,
@@ -47,7 +47,7 @@ impl Debug for OprfResult {
     }
 }
 
-/// A private root key used to derive keys for each user-generation's OPRF.
+/// A private oprf key generated for each registration.
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct OprfKey(SecretBytes);
 
@@ -244,23 +244,5 @@ impl UnlockTag {
 impl From<Vec<u8>> for UnlockTag {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
-    }
-}
-
-/// Identifies a version of a PIN-protected secret record.
-///
-/// Every time the user registers a new PIN-protected secret, that will have a
-/// larger generation number than any before it.
-///
-/// # Note
-///
-/// Generation numbers are an implementation detail. They are exposed publicly
-/// for the purpose of error messages only.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-pub struct GenerationNumber(pub u64);
-
-impl Display for GenerationNumber {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
     }
 }

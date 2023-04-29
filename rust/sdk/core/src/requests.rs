@@ -6,8 +6,8 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, GenerationNumber, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfKey,
-    Policy, RealmId, Salt, SessionId, UnlockTag, UserSecretShare,
+    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfKey, Policy, RealmId, Salt,
+    SessionId, UnlockTag, UserSecretShare,
 };
 use loam_sdk_noise as noise;
 
@@ -109,7 +109,7 @@ pub enum SecretsRequest {
     Recover1,
     Recover2(Recover2Request),
     Recover3(Recover3Request),
-    Delete(DeleteRequest),
+    Delete,
 }
 
 impl SecretsRequest {
@@ -134,7 +134,7 @@ impl SecretsRequest {
             Self::Recover1 => false,
             Self::Recover2(_) => true,
             Self::Recover3(_) => true,
-            Self::Delete(_) => false,
+            Self::Delete => false,
         }
     }
 }
@@ -150,16 +150,9 @@ pub enum SecretsResponse {
     Delete(DeleteResponse),
 }
 
-/// Response message for the first phase of registration.
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Register1Response {
-    pub next_generation_number: GenerationNumber,
-}
-
 /// Request message for the second phase of registration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
-    pub generation: GenerationNumber,
     pub salt: Salt,
     pub oprf_key: OprfKey,
     pub tag: UnlockTag,
@@ -168,30 +161,29 @@ pub struct Register2Request {
     pub policy: Policy,
 }
 
+/// Response message for the first phase of registration.
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Register1Response {
+    Ok,
+}
+
 /// Response message for the second phase of registration.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Register2Response {
     Ok,
     AlreadyRegistered,
-    BadGeneration,
 }
 
 /// Response message for the first phase of recovery.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover1Response {
-    Ok {
-        generation: GenerationNumber,
-        salt: Salt,
-    },
+    Ok { salt: Salt },
     NotRegistered,
 }
 
 /// Request message for the second phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
-    /// Which generation to recover. If the generation number is not provided, the
-    /// server will start recovery with the latest generation.
-    pub generation: GenerationNumber,
     pub blinded_pin: OprfBlindedInput,
 }
 
@@ -209,7 +201,6 @@ pub enum Recover2Response {
 /// Request message for the third phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover3Request {
-    pub generation: GenerationNumber,
     pub tag: UnlockTag,
 }
 
@@ -219,14 +210,6 @@ pub enum Recover3Response {
     Ok(UserSecretShare),
     NotRegistered,
     BadUnlockTag { guesses_remaining: u16 },
-}
-
-/// Request message to delete registered secrets.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct DeleteRequest {
-    /// If `Some`, the server deletes generations from 0 up to and excluding
-    /// this number. If `None`, the server deletes all generations.
-    pub up_to: Option<GenerationNumber>,
 }
 
 /// Response message to delete registered secrets.

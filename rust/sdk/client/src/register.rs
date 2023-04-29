@@ -1,14 +1,13 @@
 use futures::future::join_all;
-use loam_sdk_core::types::MaskedTgkShare;
+use loam_sdk_core::{requests::Register1Response, types::MaskedTgkShare};
 use rand::rngs::OsRng;
 use sharks::Sharks;
-use std::collections::BTreeSet;
 use std::iter::zip;
 use tracing::instrument;
 
 use loam_sdk_core::{
     requests::{Register2Request, Register2Response, SecretsRequest, SecretsResponse},
-    types::{GenerationNumber, OprfKey, OprfResult, OprfServer, Salt, UserSecretShare},
+    types::{OprfKey, OprfResult, OprfServer, Salt, UserSecretShare},
 };
 
 use crate::{
@@ -35,8 +34,8 @@ pub enum RegisterError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
-    /// Registers a PIN-protected secret at the first available generation number.
-    pub(crate) async fn register_first_available_generation(
+    /// Registers a PIN-protected secret.
+    pub(crate) async fn perform_register(
         &self,
         pin: &Pin,
         secret: &UserSecret,
@@ -48,49 +47,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .iter()
             .map(|realm| self.register1(realm));
 
-        let mut found_generations: BTreeSet<GenerationNumber> = BTreeSet::new();
-
         let mut found_errors: Vec<RegisterError> = Vec::new();
         for result in join_all(register1_requests).await {
             match result {
-                Ok(generation) => {
-                    found_generations.insert(generation);
-                }
-                Err(e) => self.collect_error(&mut found_errors, e)?,
+                Ok(()) => {}
+                Err(e) => self.collect_register_error(&mut found_errors, e)?,
             }
         }
 
-        let generation = found_generations.last().unwrap().to_owned();
-
-        self.register_generation(generation, pin, secret, policy)
-            .await
-    }
-
-    fn collect_error(
-        &self,
-        errors: &mut Vec<RegisterError>,
-        error: RegisterError,
-    ) -> Result<(), RegisterError> {
-        errors.push(error);
-
-        if self.configuration.realms.len() - errors.len()
-            < usize::from(self.configuration.register_threshold)
-        {
-            errors.sort_unstable();
-            return Err(errors[0]);
-        }
-
-        Ok(())
-    }
-
-    /// Registers a PIN-protected secret at a given generation number.
-    async fn register_generation(
-        &self,
-        generation: GenerationNumber,
-        pin: &Pin,
-        secret: &UserSecret,
-        policy: Policy,
-    ) -> Result<(), RegisterError> {
         let salt = Salt::new_random(&mut OsRng);
         let hashed_pin = pin
             .hash(&self.configuration.pin_hashing_mode, &salt)
@@ -135,7 +99,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             self.register2(
                 realm,
                 Register2Request {
-                    generation,
                     salt: salt.to_owned(),
                     oprf_key,
                     tag: tgk.tag(&realm.public_key),
@@ -149,25 +112,42 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let mut found_errors = Vec::new();
         for result in join_all(register2_requests).await {
             if let Err(error) = result {
-                self.collect_error(&mut found_errors, error)?;
+                self.collect_register_error(&mut found_errors, error)?;
             }
         }
         Ok(())
     }
 
+    fn collect_register_error(
+        &self,
+        errors: &mut Vec<RegisterError>,
+        error: RegisterError,
+    ) -> Result<(), RegisterError> {
+        errors.push(error);
+
+        if self.configuration.realms.len() - errors.len()
+            < usize::from(self.configuration.register_threshold)
+        {
+            errors.sort_unstable();
+            return Err(errors[0]);
+        }
+
+        Ok(())
+    }
+
     /// Executes phase 1 of registration on a particular realm.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
-    async fn register1(&self, realm: &Realm) -> Result<GenerationNumber, RegisterError> {
+    async fn register1(&self, realm: &Realm) -> Result<(), RegisterError> {
         match self.make_request(realm, SecretsRequest::Register1).await {
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),
-            Ok(SecretsResponse::Register1(response)) => Ok(response.next_generation_number),
+            Ok(SecretsResponse::Register1(Register1Response::Ok)) => Ok(()),
             Ok(_) => Err(RegisterError::Assertion),
         }
     }
 
-    /// Executes phase 2 of registration on a particular realm at a particular generation.
+    /// Executes phase 2 of registration on a particular realm.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     async fn register2(
         &self,
@@ -182,9 +162,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),
             Ok(SecretsResponse::Register2(response)) => match response {
-                Register2Response::AlreadyRegistered | Register2Response::BadGeneration => {
-                    Err(RegisterError::Assertion)
-                }
+                Register2Response::AlreadyRegistered => Err(RegisterError::Assertion),
                 Register2Response::Ok => Ok(()),
             },
             Ok(_) => Err(RegisterError::Assertion),
