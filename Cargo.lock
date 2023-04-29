@@ -811,7 +811,6 @@ dependencies = [
  "serde",
  "serde_repr",
  "sharks",
- "subtle",
  "tokio",
  "tracing",
  "url",

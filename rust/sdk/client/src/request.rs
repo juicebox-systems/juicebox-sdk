@@ -241,4 +241,24 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
         Err(RequestError::Transient)
     }
+
+    /// Append errors into an error collection. If the number of errors exceeds the
+    /// reduces the possible attempts below the threshold, return the highest priority
+    /// error.
+    pub(crate) fn collect_errors<Error: Ord + Copy>(
+        &self,
+        errors: &mut Vec<Error>,
+        error: Error,
+        possible_attempts: usize,
+        threshold: usize,
+    ) -> Result<(), Error> {
+        errors.push(error);
+
+        if possible_attempts - errors.len() < threshold {
+            errors.sort_unstable();
+            return Err(errors[0]);
+        }
+
+        Ok(())
+    }
 }

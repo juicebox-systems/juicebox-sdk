@@ -1,7 +1,7 @@
 use futures::future::join_all;
 use rand::rngs::OsRng;
 use sharks::Sharks;
-use subtle::ConstantTimeEq;
+use std::collections::HashMap;
 use tracing::instrument;
 
 use loam_sdk_core::{
@@ -46,6 +46,7 @@ pub enum RecoverError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
+    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub(crate) async fn perform_recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
         let mut configuration = &self.configuration;
         let mut iter = self.previous_configurations.iter();
@@ -68,7 +69,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
     }
 
-    /// Recovers a PIN-protected secret.
+    /// Performs phase 1 of recovery for the parameters specified in a given
+    /// configuration. If successful, attempts to complete recovery for each
+    /// subset of realms larger than the recover threshold with matching salts.
+    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     async fn perform_recover_with_configuration(
         &self,
         pin: &Pin,
@@ -77,44 +81,74 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let recover1_requests = configuration
             .realms
             .iter()
-            .map(|realm| self.recover1(realm));
+            .map(|realm| self.recover1_on_realm(realm));
 
-        let mut salt: Option<Salt> = None;
-
+        let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
         let mut found_errors: Vec<RecoverError> = Vec::new();
+
         for result in join_all(recover1_requests).await {
             match result {
-                Ok(new_salt) => {
-                    if let Some(salt) = &salt {
-                        if !bool::from(new_salt.ct_eq(salt)) {
-                            return Err(RecoverError::Assertion);
-                        }
-                    } else {
-                        salt = Some(new_salt);
-                    }
-                }
-                Err(e) => self.collect_recover_error(&mut found_errors, e, configuration)?,
+                Ok((salt, realm)) => realms_per_salt.entry(salt).or_insert(vec![]).push(realm),
+                Err(error) => self.collect_errors(
+                    &mut found_errors,
+                    error,
+                    configuration.realms.len(),
+                    configuration.recover_threshold.into(),
+                )?,
             }
         }
 
+        realms_per_salt
+            .retain(|_, realms| realms.len() >= usize::from(configuration.recover_threshold));
+
+        let recover_attempts = realms_per_salt.iter().map(|(salt, realms)| {
+            self.complete_recover_on_realms(pin, salt, realms, configuration)
+        });
+
+        for result in join_all(recover_attempts).await {
+            return match result {
+                Ok(secret) => Ok(secret),
+                Err(error) => {
+                    self.collect_errors(&mut found_errors, error, realms_per_salt.len(), 1)?;
+                    continue;
+                }
+            };
+        }
+
+        Err(RecoverError::NotRegistered)
+    }
+
+    /// Performs phase 1 and 2 of recovery on the given realms.
+    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
+    async fn complete_recover_on_realms(
+        &self,
+        pin: &Pin,
+        salt: &Salt,
+        realms: &[Realm],
+        configuration: &CheckedConfiguration,
+    ) -> Result<UserSecret, RecoverError> {
         let hashed_pin = pin
-            .hash(&configuration.pin_hashing_mode, &salt.unwrap())
+            .hash(&configuration.pin_hashing_mode, salt)
             .ok_or(RecoverError::Assertion)?;
 
-        let recover2_requests = configuration
-            .realms
+        let recover2_requests = realms
             .iter()
-            .map(|realm| self.recover2(realm, &hashed_pin));
+            .map(|realm| self.recover2_on_realm(realm, &hashed_pin));
 
         let mut tgk_shares: Vec<sharks::Share> = Vec::new();
-        let mut found_errors: Vec<RecoverError> = Vec::new();
+        let mut recover2_errors: Vec<RecoverError> = Vec::new();
         for result in join_all(recover2_requests).await {
             match result {
                 Ok(tgk_share) => {
                     tgk_shares.push(tgk_share.0);
                 }
 
-                Err(e) => self.collect_recover_error(&mut found_errors, e, configuration)?,
+                Err(error) => self.collect_errors(
+                    &mut recover2_errors,
+                    error,
+                    realms.len(),
+                    configuration.recover_threshold.into(),
+                )?,
             }
         }
 
@@ -130,15 +164,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
         };
 
-        let recover3_requests = configuration
-            .realms
+        let recover3_requests = realms
             .iter()
-            .map(|realm| self.recover3(realm, tgk.tag(&realm.public_key)));
-
-        let recover3_results = join_all(recover3_requests).await;
+            .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)));
 
         let mut secret_shares = Vec::<sharks::Share>::new();
-        for result in recover3_results {
+        let mut recover3_errors: Vec<RecoverError> = Vec::new();
+        for result in join_all(recover3_requests).await {
             match result {
                 Ok(secret_share) => match sharks::Share::try_from(secret_share.expose_secret()) {
                     Ok(secret_share) => {
@@ -148,9 +180,12 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     Err(_) => return Err(RecoverError::Assertion),
                 },
 
-                Err(error) => {
-                    return Err(error);
-                }
+                Err(error) => self.collect_errors(
+                    &mut recover3_errors,
+                    error,
+                    realms.len(),
+                    configuration.recover_threshold.into(),
+                )?,
             }
         }
 
@@ -160,43 +195,24 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
     }
 
-    /// Append errors into an error collection. If the number of errors exceeds the
-    /// recover threshold for the configuration, return the highest priority error.
-    fn collect_recover_error(
-        &self,
-        errors: &mut Vec<RecoverError>,
-        error: RecoverError,
-        configuration: &CheckedConfiguration,
-    ) -> Result<(), RecoverError> {
-        errors.push(error);
-
-        if configuration.realms.len() - errors.len() < usize::from(configuration.recover_threshold)
-        {
-            errors.sort_unstable();
-            return Err(errors[0]);
-        }
-
-        Ok(())
-    }
-
-    /// Executes phase 1 of recovery on a particular realm.
+    /// Performs phase 1 of recovery on a particular realm.
     #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
-    async fn recover1(&self, realm: &Realm) -> Result<Salt, RecoverError> {
+    async fn recover1_on_realm(&self, realm: &Realm) -> Result<(Salt, Realm), RecoverError> {
         match self.make_request(realm, SecretsRequest::Recover1).await {
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::Transient) => Err(RecoverError::Transient),
             Ok(SecretsResponse::Recover1(response)) => match response {
-                Recover1Response::Ok { salt } => Ok(salt),
+                Recover1Response::Ok { salt } => Ok((salt, realm.to_owned())),
                 Recover1Response::NotRegistered => Err(RecoverError::NotRegistered),
             },
             Ok(_) => Err(RecoverError::Assertion),
         }
     }
 
-    /// Executes phase 2 of recovery on a particular realm.
+    /// Performs phase 2 of recovery on a particular realm.
     #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
-    async fn recover2(
+    async fn recover2_on_realm(
         &self,
         realm: &Realm,
         hashed_pin: &HashedPin,
@@ -260,9 +276,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         Ok(tgk_share)
     }
 
-    /// Executes phase 3 of recovery on a particular realm.
+    /// Performs phase 3 of recovery on a particular realm.
     #[instrument(level = "trace", skip(self))]
-    async fn recover3(
+    async fn recover3_on_realm(
         &self,
         realm: &Realm,
         tag: UnlockTag,

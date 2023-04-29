@@ -21,7 +21,6 @@ pub enum DeleteError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
-    /// Deletes all secrets for this user.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub(crate) async fn perform_delete(&self) -> Result<(), DeleteError> {
         let requests = self
@@ -36,7 +35,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         join_all(requests).await.into_iter().collect()
     }
 
-    /// Executes [`delete_up_to`](Self::delete_up_to) on a particular realm.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     async fn delete_on_realm(&self, realm: &Realm) -> Result<(), DeleteError> {
         let delete_result = self.make_request(realm, SecretsRequest::Delete).await;
