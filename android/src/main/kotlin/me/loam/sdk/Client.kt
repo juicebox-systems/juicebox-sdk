@@ -140,9 +140,9 @@ public final class Client private constructor (
                     }.toTypedArray()
 
                     if (response.statusCode == 200.toShort()) {
-                        response.body = urlConnection.inputStream.readAllBytes()
+                        response.body = urlConnection.inputStream.readBytes()
                     } else {
-                        response.body = urlConnection.errorStream.readAllBytes()
+                        response.body = urlConnection.errorStream.readBytes()
                     }
 
                     Native.httpClientRequestComplete(httpClient, response)
