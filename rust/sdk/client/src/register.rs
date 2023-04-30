@@ -154,10 +154,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),
-            Ok(SecretsResponse::Register2(response)) => match response {
-                Register2Response::AlreadyRegistered => Err(RegisterError::Assertion),
-                Register2Response::Ok => Ok(()),
-            },
+            Ok(SecretsResponse::Register2(Register2Response::Ok)) => Ok(()),
             Ok(_) => Err(RegisterError::Assertion),
         }
     }

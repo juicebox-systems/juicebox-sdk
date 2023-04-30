@@ -171,7 +171,6 @@ pub enum Register1Response {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Register2Response {
     Ok,
-    AlreadyRegistered,
 }
 
 /// Response message for the first phase of recovery.
