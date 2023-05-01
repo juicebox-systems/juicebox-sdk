@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use alloc::string::String;
+use alloc::vec;
 use alloc::vec::Vec;
 
 use core::fmt::{self, Debug};
@@ -58,10 +59,8 @@ pub struct OprfKey(SecretBytes);
 
 impl OprfKey {
     /// Generates a new oprf key with random data.
-    #[allow(clippy::slow_vector_initialization)]
     pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Option<Self> {
-        let mut seed = Vec::with_capacity(32);
-        seed.resize(32, 0);
+        let mut seed = vec![0; 32];
         rng.fill_bytes(&mut seed);
 
         let secret_key =
@@ -136,10 +135,8 @@ pub struct Salt(SecretBytes);
 
 impl Salt {
     /// Generates a new salt with random data.
-    #[allow(clippy::slow_vector_initialization)]
     pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
-        let mut salt = Vec::with_capacity(32);
-        salt.resize(32, 0);
+        let mut salt = vec![0; 32];
         rng.fill_bytes(&mut salt);
         Self::from(salt)
     }
