@@ -118,7 +118,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         Err(RecoverError::NotRegistered)
     }
 
-    /// Performs phase 1 and 2 of recovery on the given realms.
+    /// Performs phase 2 and 3 of recovery on the given realms.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     async fn complete_recover_on_realms(
         &self,
@@ -205,6 +205,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Ok(SecretsResponse::Recover1(response)) => match response {
                 Recover1Response::Ok { salt } => Ok((salt, realm.to_owned())),
                 Recover1Response::NotRegistered => Err(RecoverError::NotRegistered),
+                Recover1Response::NoGuesses => Err(RecoverError::InvalidPin {
+                    guesses_remaining: 0,
+                }),
             },
             Ok(_) => Err(RecoverError::Assertion),
         }

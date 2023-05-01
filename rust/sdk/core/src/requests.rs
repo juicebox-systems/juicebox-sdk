@@ -178,6 +178,7 @@ pub enum Register2Response {
 pub enum Recover1Response {
     Ok { salt: Salt },
     NotRegistered,
+    NoGuesses,
 }
 
 /// Request message for the second phase of recovery.
