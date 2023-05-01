@@ -148,13 +148,13 @@ public class Client {
     }
 
     /**
-     Deletes all secrets for this user.
+     Deletes the registered secret for this user, if any.
 
      - Throws: `DeleteError` if deletion could not be completed successfully.
      */
-    public func deleteAll() async throws {
+    public func delete() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            loam_client_delete_all(
+            loam_client_delete(
                 opaque,
                 Unmanaged.passRetained(Box(continuation)).toOpaque()
             ) { context, error in

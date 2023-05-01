@@ -126,8 +126,8 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
         self.perform_recover(pin).await
     }
 
-    /// Deletes all secrets for this user.
-    pub async fn delete_all(&self) -> Result<(), DeleteError> {
+    /// Deletes the registered secret for this user, if any.
+    pub async fn delete(&self) -> Result<(), DeleteError> {
         self.perform_delete().await
     }
 }

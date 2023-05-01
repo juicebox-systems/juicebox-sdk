@@ -4,7 +4,7 @@ use tracing::instrument;
 use crate::{http, request::RequestError, Client, Realm, Sleeper};
 use loam_sdk_core::requests::{DeleteResponse, SecretsRequest, SecretsResponse};
 
-/// Error return type for [`Client::delete_all`].
+/// Error return type for [`Client::delete`].
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DeleteError {
     /// A realm rejected the `Client`'s auth token.

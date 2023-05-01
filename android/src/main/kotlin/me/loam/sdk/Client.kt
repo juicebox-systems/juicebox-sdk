@@ -74,13 +74,13 @@ public final class Client private constructor (
     }
 
     /**
-     * Deletes all secrets for this user.
+     * Deletes the registered secret for this user, if any.
      *
      * @throws [DeleteException] if deletion could not be completed successfully.
      */
     @Throws(DeleteException::class)
-    public suspend fun deleteAll() {
-        Native.clientDeleteAll(native)
+    public suspend fun delete() {
+        Native.clientDelete(native)
     }
 
     protected fun finalize() {

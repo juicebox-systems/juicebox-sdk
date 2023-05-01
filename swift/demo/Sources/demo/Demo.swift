@@ -116,7 +116,7 @@ struct Demo: AsyncParsableCommand {
 
         print("[Swift] Deleting secret")
         do {
-            try await client.deleteAll()
+            try await client.delete()
         } catch let error as DeleteError {
             fatalError("[Swift] Delete unexpectedly failed \(error)")
         }

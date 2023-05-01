@@ -38,7 +38,7 @@ class ClientTest {
         val client = client("https://httpbin.org/anything/")
         val exception = assertThrows(DeleteException::class.java) {
             runBlocking {
-                client.deleteAll()
+                client.delete()
             }
         }
         assertEquals(DeleteError.ASSERTION, exception.error)
@@ -151,7 +151,7 @@ class ClientTest {
         Log.i("ClientTest", "Recovered secret: $secret2")
 
         Log.i("ClientTest", "Deleting secret")
-        client.deleteAll()
+        client.delete()
         Log.i("ClientTest", "Delete succeeded")
 
         Log.i("ClientTest", "Starting recover with correct PIN after delete")

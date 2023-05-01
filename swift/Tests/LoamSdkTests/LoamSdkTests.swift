@@ -25,7 +25,7 @@ final class LoamSdkTests: XCTestCase {
     func testDeleteRequestError() async throws {
         let client = client(url: "https://httpbin.org/anything/")
         do {
-            try await client.deleteAll()
+            try await client.delete()
         } catch DeleteError.assertion {
 
         }
