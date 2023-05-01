@@ -20,21 +20,19 @@ use crate::{
 };
 
 /// Error return type for [`Client::register`].
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum RegisterError {
-    /// A transient error in sending or receiving requests to a realm.
-    NetworkError,
-
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// An error representing an assumption was not met in executing the
-    /// registration protocol.
-    ///
-    /// This can arise if any servers are misbehaving or running an unexpected
-    /// version of the protocol, or if the user is concurrently executing
-    /// requests.
-    ProtocolError,
+    /// A software error has occured. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software,
+    /// updates and try again.
+    Assertion,
+
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
 }
 
 /// Successful return type of [`Client::register_generation`].
@@ -95,16 +93,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                         found_earlier_generations,
                     }) => {
                         if found_earlier_generations {
-                            if let Err(delete_err) = self.delete_up_to(Some(generation)).await {
-                                println!("client: warning: register failed to clean up earlier registrations: {delete_err:?}");
-                            }
+                            _ = self.delete_up_to(Some(generation)).await;
                         }
                         Ok(())
                     }
 
                     Err(RegisterGenError::Error(e)) => Err(e),
 
-                    Err(RegisterGenError::Retry(_)) => Err(RegisterError::ProtocolError),
+                    Err(RegisterGenError::Retry(_)) => Err(RegisterError::Assertion),
                 }
             }
         }
@@ -135,23 +131,24 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             // The next generation number that is available on every server (so
             // far).
             let mut retry_generation = None;
-            let mut network_errors = 0;
+            let mut found_errors: Vec<RegisterError> = Vec::new();
             for result in join_all(register1_requests).await {
                 match result {
                     Ok(oprf_pin) => {
                         oprfs_pin.push(Some(oprf_pin));
                     }
-                    Err(RegisterGenError::Error(e @ RegisterError::NetworkError)) => {
-                        println!("client: warning: transient error during register1: {e:?}");
-                        network_errors += 1;
-                        if self.configuration.realms.len() - network_errors
+                    Err(RegisterGenError::Error(error)) => {
+                        found_errors.push(error);
+
+                        if self.configuration.realms.len() - found_errors.len()
                             < usize::from(self.configuration.register_threshold)
                         {
-                            return Err(RegisterGenError::Error(e));
+                            found_errors.sort_unstable();
+                            return Err(RegisterGenError::Error(found_errors[0]));
                         }
+
                         oprfs_pin.push(None);
                     }
-                    Err(e @ RegisterGenError::Error(_)) => return Err(e),
                     Err(RegisterGenError::Retry(generation)) => match retry_generation {
                         None => retry_generation = Some(generation),
                         Some(g) => {
@@ -237,16 +234,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
         );
         match register1_request.await {
-            Err(RequestError::Network) => Err(RegisterGenError::Error(RegisterError::NetworkError)),
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                Err(RegisterGenError::Error(RegisterError::ProtocolError))
-            }
-            Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::Session) => todo!(),
-            Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => {
-                Err(RegisterGenError::Error(RegisterError::NetworkError))
-            }
+            Err(RequestError::Transient) => Err(RegisterGenError::Error(RegisterError::Transient)),
+            Err(RequestError::Assertion) => Err(RegisterGenError::Error(RegisterError::Assertion)),
             Err(RequestError::InvalidAuth) => {
                 Err(RegisterGenError::Error(RegisterError::InvalidAuth))
             }
@@ -256,12 +245,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     let oprf_pin = blinded_pin
                         .state
                         .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
-                        .map_err(|e| {
-                            println!("failed to unblind oprf result: {e:?}");
-                            RegisterGenError::Error(RegisterError::ProtocolError)
-                        })?;
+                        .map_err(|_e| RegisterGenError::Error(RegisterError::Assertion))?;
                     if oprf_pin.len() != oprf_output_size() {
-                        return Err(RegisterGenError::Error(RegisterError::ProtocolError));
+                        return Err(RegisterGenError::Error(RegisterError::Assertion));
                     }
                     Ok(OprfResult(oprf_pin))
                 }
@@ -271,7 +257,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 }
             },
 
-            Ok(_) => todo!(),
+            Ok(_) => Err(RegisterGenError::Error(RegisterError::Assertion)),
         }
     }
 
@@ -304,14 +290,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         );
 
         match register2_request.await {
-            Err(RequestError::Network) => Err(RegisterError::NetworkError),
-            Err(RequestError::Deserialization(_) | RequestError::Serialization(_)) => {
-                Err(RegisterError::ProtocolError)
-            }
-            Err(RequestError::HttpStatus(_status)) => todo!(),
-            Err(RequestError::Session) => todo!(),
-            Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => Err(RegisterError::NetworkError),
+            Err(RequestError::Transient) => Err(RegisterError::Transient),
+            Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
 
             Ok(SecretsResponse::Register2(rr)) => match rr {
@@ -321,10 +301,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     found_earlier_generations,
                 }),
                 Register2Response::NotRegistering | Register2Response::AlreadyRegistered => {
-                    Err(RegisterError::ProtocolError)
+                    Err(RegisterError::Assertion)
                 }
             },
-            Ok(_) => Err(RegisterError::ProtocolError),
+            Ok(_) => Err(RegisterError::Assertion),
         }
     }
 }

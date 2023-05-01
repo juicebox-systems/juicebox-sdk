@@ -10,8 +10,8 @@
 
 typedef enum {
   LoamDeleteErrorInvalidAuth = 0,
-  LoamDeleteErrorNetwork = 1,
-  LoamDeleteErrorProtocol = 2,
+  LoamDeleteErrorTransient = 1,
+  LoamDeleteErrorAssertion = 2,
 } LoamDeleteError;
 
 typedef enum {
@@ -38,16 +38,16 @@ typedef enum {
 
 typedef enum {
   LoamRecoverErrorReasonInvalidAuth = 0,
-  LoamRecoverErrorReasonNetwork = 1,
-  LoamRecoverErrorReasonUnsuccessful = 2,
-  LoamRecoverErrorReasonProtocol = 3,
+  LoamRecoverErrorReasonInvalidPin = 1,
+  LoamRecoverErrorReasonNotRegistered = 2,
+  LoamRecoverErrorReasonTransient = 3,
+  LoamRecoverErrorReasonAssertion = 4,
 } LoamRecoverErrorReason;
 
 typedef enum {
   LoamRegisterErrorInvalidAuth = 0,
-  LoamRegisterErrorNetwork = 1,
-  LoamRegisterErrorProtocol = 2,
-  LoamRegisterErrorUnavailable = 3,
+  LoamRegisterErrorTransient = 1,
+  LoamRegisterErrorAssertion = 2,
 } LoamRegisterError;
 
 typedef struct LoamClient LoamClient;

@@ -83,16 +83,20 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::InvalidAuth,
                 guesses_remaining: None,
             },
-            sdk::RecoverError::NetworkError => Self {
-                reason: RecoverErrorReason::Network,
+            sdk::RecoverError::InvalidPin { guesses_remaining } => Self {
+                reason: RecoverErrorReason::InvalidPin,
+                guesses_remaining: Some(guesses_remaining),
+            },
+            sdk::RecoverError::NotRegistered => Self {
+                reason: RecoverErrorReason::NotRegistered,
                 guesses_remaining: None,
             },
-            sdk::RecoverError::Unsuccessful(state) => Self {
-                reason: RecoverErrorReason::Unsuccessful,
-                guesses_remaining: state.guesses_remaining(),
+            sdk::RecoverError::Transient => Self {
+                reason: RecoverErrorReason::Transient,
+                guesses_remaining: None,
             },
-            sdk::RecoverError::ProtocolError => Self {
-                reason: RecoverErrorReason::Protocol,
+            sdk::RecoverError::Assertion => Self {
+                reason: RecoverErrorReason::Assertion,
                 guesses_remaining: None,
             },
         }
@@ -311,7 +315,7 @@ mod tests {
             .register(Vec::from("1234"), Vec::from("apollo"), 2)
             .await;
         assert!(
-            matches!(result, Err(RegisterError::Protocol)),
+            matches!(result, Err(RegisterError::Assertion)),
             "got {result:?}"
         );
     }
@@ -324,7 +328,7 @@ mod tests {
             matches!(
                 result,
                 Err(RecoverError {
-                    reason: RecoverErrorReason::Protocol,
+                    reason: RecoverErrorReason::Assertion,
                     guesses_remaining: None
                 })
             ),
@@ -350,7 +354,7 @@ mod tests {
         let client = client("https://httpbin.org/anything/");
         let result = client.delete_all().await;
         assert!(
-            matches!(result, Err(DeleteError::Protocol)),
+            matches!(result, Err(DeleteError::Assertion)),
             "got {result:?}"
         );
     }

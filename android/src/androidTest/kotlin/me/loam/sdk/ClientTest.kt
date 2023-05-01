@@ -19,7 +19,7 @@ class ClientTest {
                 client.register("test".toByteArray(), "secret".toByteArray(), 5)
             }
         }
-        assertEquals(RegisterError.PROTOCOL, exception.error)
+        assertEquals(RegisterError.ASSERTION, exception.error)
     }
 
     @Test
@@ -30,7 +30,7 @@ class ClientTest {
                 client.recover("test".toByteArray())
             }
         }
-        assertEquals(RecoverError.PROTOCOL, exception.error)
+        assertEquals(RecoverError.ASSERTION, exception.error)
     }
 
     @Test
@@ -41,7 +41,7 @@ class ClientTest {
                 client.deleteAll()
             }
         }
-        assertEquals(DeleteError.PROTOCOL, exception.error)
+        assertEquals(DeleteError.ASSERTION, exception.error)
     }
 
     @Ignore
@@ -93,7 +93,7 @@ class ClientTest {
                 client.recover("4321".toByteArray())
             }
         }
-        assertEquals(RecoverError.UNSUCCESSFUL, exception1.error)
+        assertEquals(RecoverError.INVALID_PIN, exception1.error)
         assertEquals(1.toShort(), exception1.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
@@ -108,7 +108,7 @@ class ClientTest {
                 client.recover("4321".toByteArray())
             }
         }
-        assertEquals(RecoverError.UNSUCCESSFUL, exception2.error)
+        assertEquals(RecoverError.INVALID_PIN, exception2.error)
         assertEquals(1.toShort(), exception2.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
@@ -118,7 +118,7 @@ class ClientTest {
                 client.recover("4321".toByteArray())
             }
         }
-        assertEquals(RecoverError.UNSUCCESSFUL, exception3.error)
+        assertEquals(RecoverError.INVALID_PIN, exception3.error)
         assertEquals(0.toShort(), exception3.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
@@ -128,7 +128,7 @@ class ClientTest {
                 client.recover("1234".toByteArray())
             }
         }
-        assertEquals(RecoverError.UNSUCCESSFUL, exception4.error)
+        assertEquals(RecoverError.INVALID_PIN, exception4.error)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
         Log.i("ClientTest", "Starting register (allowing 2 guesses)")
@@ -141,7 +141,7 @@ class ClientTest {
                 client.recover("zyxw".toByteArray())
             }
         }
-        assertEquals(RecoverError.UNSUCCESSFUL, exception5.error)
+        assertEquals(RecoverError.INVALID_PIN, exception5.error)
         assertEquals(1.toShort(), exception5.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
 
@@ -160,7 +160,7 @@ class ClientTest {
                 client.recover("abcd".toByteArray())
             }
         }
-        assertEquals(RecoverError.UNSUCCESSFUL, exception6.error)
+        assertEquals(RecoverError.NOT_REGISTERED, exception6.error)
         assertEquals(null, exception6.guessesRemaining)
         Log.i("ClientTest", "Recover expectedly unsuccessful")
     }

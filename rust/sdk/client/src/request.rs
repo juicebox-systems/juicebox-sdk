@@ -16,32 +16,26 @@ use loam_sdk_networking::rpc::{self, RpcError};
 use loam_sdk_noise::client as noise;
 
 pub(crate) enum RequestError {
-    /// See [`RpcError::Network`].
-    Network,
-    /// See [`RpcError::HttpStatus`].
-    HttpStatus(u16),
-    /// Local errors serializing an outer or encapsulated request.
-    Serialization(marshalling::SerializationError),
-    /// Local errors deserializing an outer or encapsulated response.
-    Deserialization(marshalling::DeserializationError),
-    /// See [`ClientResponse::Unavailable`].
-    Unavailable,
-    /// See [`ClientResponse::InvalidAuth`].
+    /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
-    /// Local or remote errors with encrypting/decrypting Noise sessions,
-    /// including [`ClientResponse::SessionError`].
-    Session,
-    /// See [`ClientResponse::DecodingError`].
-    Decoding,
+
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
+
+    /// A software error has occured. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software,
+    /// updates and try again.
+    Assertion,
 }
 
 impl From<RpcError> for RequestError {
     fn from(e: RpcError) -> Self {
         match e {
-            RpcError::Network => Self::Network,
-            RpcError::HttpStatus(s) => Self::HttpStatus(s),
-            RpcError::Serialization(e) => Self::Serialization(e),
-            RpcError::Deserialization(e) => Self::Deserialization(e),
+            RpcError::Network => Self::Transient,
+            RpcError::HttpStatus(_) => Self::Transient,
+            RpcError::Serialization(_) => Self::Assertion,
+            RpcError::Deserialization(_) => Self::Assertion,
         }
     }
 }
@@ -77,7 +71,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             x25519::PublicKey::from(buf)
         };
         let (handshake, fields) = noise::Handshake::start(&realm_public_key, request, &mut OsRng)
-            .map_err(|_| RequestError::Session)?;
+            .map_err(|_| RequestError::Assertion)?;
         let session_id = SessionId(OsRng.next_u32());
 
         match rpc::send(
@@ -103,7 +97,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }) => {
                 let (transport, response) = handshake
                     .finish(&handshake_response)
-                    .map_err(|_| RequestError::Session)?;
+                    .map_err(|_| RequestError::Assertion)?;
                 Ok((
                     Session {
                         session_id,
@@ -116,9 +110,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
             ClientResponse::Ok(NoiseResponse::Transport { .. })
             | ClientResponse::MissingSession
-            | ClientResponse::SessionError => Err(RequestError::Session),
-            ClientResponse::DecodingError => Err(RequestError::Decoding),
-            ClientResponse::Unavailable => Err(RequestError::Unavailable),
+            | ClientResponse::SessionError => Err(RequestError::Assertion),
+            ClientResponse::DecodingError => Err(RequestError::Assertion),
+            ClientResponse::Unavailable => Err(RequestError::Transient),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth),
         }
     }
@@ -141,7 +135,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     ciphertext: session
                         .transport
                         .encrypt(request)
-                        .map_err(|_| RequestError::Session)?,
+                        .map_err(|_| RequestError::Assertion)?,
                 },
             },
         )
@@ -153,13 +147,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 Ok(session
                     .transport
                     .decrypt(ciphertext.as_slice())
-                    .map_err(|_| RequestError::Session)?)
+                    .map_err(|_| RequestError::Assertion)?)
             }
             ClientResponse::Ok(NoiseResponse::Handshake { .. }) | ClientResponse::SessionError => {
-                Err(RequestError::Session.into())
+                Err(RequestError::Assertion.into())
             }
-            ClientResponse::DecodingError => Err(RequestError::Decoding.into()),
-            ClientResponse::Unavailable => Err(RequestError::Unavailable.into()),
+            ClientResponse::DecodingError => Err(RequestError::Assertion.into()),
+            ClientResponse::Unavailable => Err(RequestError::Transient.into()),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth.into()),
             ClientResponse::MissingSession => Err(RequestErrorOrMissingSession::MissingSession),
         }
@@ -177,14 +171,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 let (mut session, handshake_response) =
                     self.make_handshake_request(realm, &[]).await?;
                 if !handshake_response.is_empty() {
-                    return Err(RequestError::Session.into());
+                    return Err(RequestError::Assertion.into());
                 }
                 let response = self
                     .make_transport_request(realm, &mut session, request)
                     .await
                     .map_err(|e| match e {
                         RequestErrorOrMissingSession::RequestError(e) => e,
-                        RequestErrorOrMissingSession::MissingSession => RequestError::Session,
+                        RequestErrorOrMissingSession::MissingSession => RequestError::Assertion,
                     })?;
                 Ok((session, response))
             }
@@ -207,7 +201,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         request: SecretsRequest,
     ) -> Result<SecretsResponse, RequestError> {
         let needs_forward_secrecy = NeedsForwardSecrecy(request.needs_forward_secrecy());
-        let request = marshalling::to_vec(&request).map_err(RequestError::Serialization)?;
+        let request = marshalling::to_vec(&request).map_err(|_| RequestError::Assertion)?;
         // TODO: should we add some padding to the requests? and their responses?
         let mut locked = self.sessions.get(&realm.id).unwrap().lock().await;
 
@@ -229,9 +223,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     *locked = Some(session);
                     std::mem::drop(locked);
                     return marshalling::from_slice::<SecretsResponse>(response.as_slice())
-                        .map_err(RequestError::Deserialization);
+                        .map_err(|_| RequestError::Assertion);
                 }
-                Err(RequestErrorOrMissingSession::RequestError(RequestError::Unavailable)) => {
+                Err(RequestErrorOrMissingSession::RequestError(RequestError::Transient)) => {
                     // This could be due to an in progress leadership transfer, or other transitory problem.
                     // We can retry this as it'll likely need a new session anyway.
                     self.sleeper.sleep(Duration::from_millis(5)).await;
@@ -245,6 +239,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 }
             }
         }
-        Err(RequestError::Session)
+        Err(RequestError::Transient)
     }
 }

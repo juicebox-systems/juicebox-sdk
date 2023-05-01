@@ -8,15 +8,19 @@ use loam_sdk_core::{
 };
 
 /// Error return type for [`Client::delete_all`].
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DeleteError {
-    /// A transient error in sending or receiving requests to a realm.
-    NetworkError,
-
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    ProtocolError,
+    /// A software error has occured. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software,
+    /// updates and try again.
+    Assertion,
+
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
+    Transient,
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
@@ -54,20 +58,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .await;
 
         match delete_result {
-            Err(RequestError::Network) => Err(DeleteError::NetworkError),
-            Err(RequestError::Deserialization(_)) | Err(RequestError::Serialization(_)) => {
-                Err(DeleteError::ProtocolError)
-            }
-            Err(RequestError::HttpStatus(_status)) => Err(DeleteError::NetworkError),
-            Err(RequestError::Session) => todo!(),
-            Err(RequestError::Decoding) => todo!(),
-            Err(RequestError::Unavailable) => Err(DeleteError::NetworkError),
+            Err(RequestError::Transient) => Err(DeleteError::Transient),
+            Err(RequestError::Assertion) => Err(DeleteError::Assertion),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
 
             Ok(SecretsResponse::Delete(dr)) => match dr {
                 DeleteResponse::Ok => Ok(()),
             },
-            Ok(_) => todo!(),
+            Ok(_) => Err(DeleteError::Assertion),
         }
     }
 }

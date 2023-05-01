@@ -2,9 +2,10 @@ package me.loam.sdk
 
 public enum class RecoverError {
     INVALID_AUTH,
-    NETWORK,
-    UNSUCCESSFUL,
-    PROTOCOL,
+    INVALID_PIN,
+    NOT_REGISTERED,
+    TRANSIENT,
+    ASSERTION,
 }
 
 public class RecoverException(val error: RecoverError, val guessesRemaining: Short?) : Exception(error.name)

@@ -14,17 +14,16 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 #[derive(Debug)]
 pub enum RegisterError {
     InvalidAuth = 0,
-    Network = 1,
-    Protocol = 2,
-    Unavailable = 3,
+    Transient = 1,
+    Assertion = 2,
 }
 
 impl From<sdk::RegisterError> for RegisterError {
     fn from(value: sdk::RegisterError) -> Self {
         match value {
             sdk::RegisterError::InvalidAuth => Self::InvalidAuth,
-            sdk::RegisterError::NetworkError => Self::Network,
-            sdk::RegisterError::ProtocolError => Self::Protocol,
+            sdk::RegisterError::Transient => Self::Transient,
+            sdk::RegisterError::Assertion => Self::Assertion,
         }
     }
 }
@@ -41,9 +40,10 @@ impl From<RegisterError> for JsValue {
 #[derive(Clone, Copy, Debug)]
 pub enum RecoverErrorReason {
     InvalidAuth = 0,
-    Network = 1,
-    Unsuccessful = 2,
-    Protocol = 3,
+    InvalidPin = 1,
+    NotRegistered = 2,
+    Transient = 3,
+    Assertion = 4,
 }
 
 #[cfg(feature = "wasm")]
@@ -68,21 +68,20 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::InvalidAuth,
                 guesses_remaining: std::ptr::null(),
             },
-            sdk::RecoverError::NetworkError => Self {
-                reason: RecoverErrorReason::Network,
+            sdk::RecoverError::InvalidPin { guesses_remaining } => Self {
+                reason: RecoverErrorReason::InvalidPin,
+                guesses_remaining: Box::into_raw(Box::from(guesses_remaining)) as *const u16,
+            },
+            sdk::RecoverError::NotRegistered => Self {
+                reason: RecoverErrorReason::NotRegistered,
                 guesses_remaining: std::ptr::null(),
             },
-            sdk::RecoverError::Unsuccessful(state) => Self {
-                reason: RecoverErrorReason::Unsuccessful,
-                guesses_remaining: match state.guesses_remaining() {
-                    Some(guesses_remaining) => {
-                        Box::into_raw(Box::from(guesses_remaining)) as *const u16
-                    }
-                    None => std::ptr::null(),
-                },
+            sdk::RecoverError::Transient => Self {
+                reason: RecoverErrorReason::Transient,
+                guesses_remaining: std::ptr::null(),
             },
-            sdk::RecoverError::ProtocolError => Self {
-                reason: RecoverErrorReason::Protocol,
+            sdk::RecoverError::Assertion => Self {
+                reason: RecoverErrorReason::Assertion,
                 guesses_remaining: std::ptr::null(),
             },
         }
@@ -102,16 +101,16 @@ impl Drop for RecoverError {
 #[derive(Debug)]
 pub enum DeleteError {
     InvalidAuth = 0,
-    Network = 1,
-    Protocol = 2,
+    Transient = 1,
+    Assertion = 2,
 }
 
 impl From<sdk::DeleteError> for DeleteError {
     fn from(value: sdk::DeleteError) -> Self {
         match value {
             sdk::DeleteError::InvalidAuth => DeleteError::InvalidAuth,
-            sdk::DeleteError::NetworkError => DeleteError::Network,
-            sdk::DeleteError::ProtocolError => DeleteError::Protocol,
+            sdk::DeleteError::Transient => DeleteError::Transient,
+            sdk::DeleteError::Assertion => DeleteError::Assertion,
         }
     }
 }
