@@ -102,7 +102,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
         let hashed_pin = pin
-            .hash(&self.configuration.pin_hashing_mode, &self.auth_token)
+            .hash(&configuration.pin_hashing_mode, &self.auth_token)
             .expect("pin hashing error");
 
         // First, try the latest generation on each server (represented as
@@ -191,8 +191,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
                     found_errors.push(error);
 
-                    if self.configuration.realms.len() - found_errors.len()
-                        < usize::from(self.configuration.recover_threshold)
+                    if configuration.realms.len() - found_errors.len()
+                        < usize::from(configuration.recover_threshold)
                     {
                         found_errors.sort_unstable();
 
