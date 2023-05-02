@@ -82,10 +82,10 @@ let secret = client.recover(
 ).await.unwrap();
 ```
 
-And when you're ready to delete all secrets from remote store, simply call:
+And when you're ready to delete any secret from the remote store, simply call:
 
 ```rust
-client.delete_all().await.unwrap();
+client.delete().await.unwrap();
 ```
 
 ### Features

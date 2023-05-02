@@ -81,7 +81,7 @@ impl Pin {
             .ok()?;
 
         Some((
-            AccessKey::from(hashed_pin[0..32].to_vec()),
+            AccessKey::from(hashed_pin[..32].to_vec()),
             UserSecretEncryptionKey::from(hashed_pin[32..].to_vec()),
         ))
     }

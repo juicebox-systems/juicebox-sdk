@@ -77,8 +77,8 @@ To recover the secret you just registered, you can call:
 val secret = String(client.recover("1234".toByteArray()))
 ```
 
-And when you're ready to delete all secrets from remote store, simply call:
+And when you're ready to delete any secret from the remote store, simply call:
 
 ```kotlin
-client.deleteAll()
+client.delete()
 ```

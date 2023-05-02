@@ -75,8 +75,8 @@ let secret = try await client.recover(
 )
 ```
 
-And when you're ready to delete all secrets from remote store, simply call:
+And when you're ready to delete any secret from the remote store, simply call:
 
 ```swift
-try await client.deleteAll()
+try await client.delete()
 ```
