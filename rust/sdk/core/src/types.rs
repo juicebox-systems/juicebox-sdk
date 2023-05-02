@@ -12,28 +12,33 @@ use subtle::ConstantTimeEq;
 
 use super::marshalling::serialize_secret;
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecretBytes(Vec<u8>);
+
 impl Zeroize for SecretBytes {
     fn zeroize(&mut self) {
         self.0.zeroize();
     }
 }
+
 impl Drop for SecretBytes {
     fn drop(&mut self) {
         self.zeroize();
     }
 }
+
 impl Debug for SecretBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("SecretBytes(REDACTED)")
     }
 }
+
 impl ExposeSecret<Vec<u8>> for SecretBytes {
     fn expose_secret(&self) -> &Vec<u8> {
         &self.0
     }
 }
+
 impl From<Vec<u8>> for SecretBytes {
     fn from(value: Vec<u8>) -> Self {
         Self(value)
@@ -46,6 +51,7 @@ pub type OprfBlindedResult = voprf::EvaluationElement<OprfCipherSuite>;
 pub type OprfClient = voprf::OprfClient<OprfCipherSuite>;
 pub type OprfServer = voprf::OprfServer<OprfCipherSuite>;
 pub struct OprfResult(pub digest::Output<<OprfCipherSuite as voprf::CipherSuite>::Hash>);
+pub const OPRF_DERIVATION_INFO: &[u8] = b"juicebox-oprf";
 
 impl Debug for OprfResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -53,19 +59,16 @@ impl Debug for OprfResult {
     }
 }
 
-/// A private oprf key generated for each registration.
-#[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct OprfKey(SecretBytes);
+/// A private oprf seed used to derive an oprf key.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct OprfSeed(SecretBytes);
 
-impl OprfKey {
-    /// Generates a new oprf key with random data.
-    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Option<Self> {
+impl OprfSeed {
+    /// Generates a new oprf seed with random data.
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
         let mut seed = vec![0; 32];
         rng.fill_bytes(&mut seed);
-
-        let secret_key =
-            voprf::derive_key::<OprfCipherSuite>(&seed, &[], voprf::Mode::Oprf).ok()?;
-        Some(Self::from(secret_key.as_bytes().to_vec()))
+        Self::from(seed)
     }
 
     pub fn expose_secret(&self) -> &[u8] {
@@ -73,7 +76,7 @@ impl OprfKey {
     }
 }
 
-impl From<Vec<u8>> for OprfKey {
+impl From<Vec<u8>> for OprfSeed {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
     }
@@ -130,7 +133,8 @@ impl From<String> for AuthToken {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+/// Used for hashing `Pin`s with Argon2.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Salt(SecretBytes);
 
 impl Salt {
@@ -167,7 +171,7 @@ pub struct SessionId(pub u32);
 ///
 /// The client needs a threshold number of such shares to recover the user's
 /// secret.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserSecretShare(#[serde(serialize_with = "serialize_secret")] SecretBytes);
 
 impl UserSecretShare {
@@ -204,7 +208,7 @@ pub struct Policy {
 ///
 /// The client needs the correct PIN and a threshold number of such shares and
 /// OPRF results to recover the tag-generating key.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MaskedTgkShare(SecretBytes);
 
 impl MaskedTgkShare {
@@ -222,7 +226,7 @@ impl From<Vec<u8>> for MaskedTgkShare {
 /// A pseudo-random value that the client assigns to a realm when registering a
 /// share of the user's secret and must provide to the realm during recovery to
 /// get back the share.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UnlockTag(SecretBytes);
 
 impl ConstantTimeEq for UnlockTag {

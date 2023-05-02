@@ -6,8 +6,8 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfKey, Policy, RealmId, Salt,
-    SessionId, UnlockTag, UserSecretShare,
+    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
+    Salt, SessionId, UnlockTag, UserSecretShare,
 };
 use loam_sdk_noise as noise;
 
@@ -150,21 +150,21 @@ pub enum SecretsResponse {
     Delete(DeleteResponse),
 }
 
-/// Request message for the second phase of registration.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Register2Request {
-    pub salt: Salt,
-    pub oprf_key: OprfKey,
-    pub tag: UnlockTag,
-    pub masked_tgk_share: MaskedTgkShare,
-    pub secret_share: UserSecretShare,
-    pub policy: Policy,
-}
-
 /// Response message for the first phase of registration.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Register1Response {
     Ok,
+}
+
+/// Request message for the second phase of registration.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Register2Request {
+    pub salt: Salt,
+    pub oprf_seed: OprfSeed,
+    pub tag: UnlockTag,
+    pub masked_tgk_share: MaskedTgkShare,
+    pub secret_share: UserSecretShare,
+    pub policy: Policy,
 }
 
 /// Response message for the second phase of registration.
@@ -207,7 +207,7 @@ pub struct Recover3Request {
 /// Response message for the third phase of recovery.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover3Response {
-    Ok(UserSecretShare),
+    Ok { secret_share: UserSecretShare },
     NotRegistered,
     BadUnlockTag { guesses_remaining: u16 },
 }

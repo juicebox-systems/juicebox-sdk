@@ -1,4 +1,4 @@
-use futures::future::join_all;
+use futures::{stream::FuturesUnordered, StreamExt};
 use rand::rngs::OsRng;
 use sharks::Sharks;
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use loam_sdk_core::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
     },
-    types::{MaskedTgkShare, OprfBlindedResult, OprfClient, Salt, UnlockTag, UserSecretShare},
+    types::{OprfClient, Salt, UnlockTag, UserSecretShare},
 };
 
 use crate::{
@@ -78,19 +78,20 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         pin: &Pin,
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
-        let recover1_requests = configuration
+        let mut recover1_requests: FuturesUnordered<_> = configuration
             .realms
             .iter()
-            .map(|realm| self.recover1_on_realm(realm));
+            .map(|realm| self.recover1_on_realm(realm))
+            .collect();
 
         let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
-        let mut found_errors: Vec<RecoverError> = Vec::new();
+        let mut recover1_errors: Vec<RecoverError> = Vec::new();
 
-        for result in join_all(recover1_requests).await {
+        while let Some(result) = recover1_requests.next().await {
             match result {
                 Ok((salt, realm)) => realms_per_salt.entry(salt).or_insert(vec![]).push(realm),
                 Err(error) => self.collect_errors(
-                    &mut found_errors,
+                    &mut recover1_errors,
                     error,
                     configuration.realms.len(),
                     configuration.recover_threshold.into(),
@@ -98,18 +99,24 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
         }
 
-        realms_per_salt
-            .retain(|_, realms| realms.len() >= usize::from(configuration.recover_threshold));
+        realms_per_salt.retain(|_, realms| realms.len() >= configuration.recover_threshold.into());
 
-        let recover_attempts = realms_per_salt.iter().map(|(salt, realms)| {
-            self.complete_recover_on_realms(pin, salt, realms, configuration)
-        });
+        let mut recover_attempts: FuturesUnordered<_> = realms_per_salt
+            .iter()
+            .map(|(salt, realms)| self.complete_recover_on_realms(pin, salt, realms, configuration))
+            .collect();
+        let mut recover_attempt_errors: Vec<RecoverError> = Vec::new();
 
-        for result in join_all(recover_attempts).await {
+        while let Some(result) = recover_attempts.next().await {
             return match result {
                 Ok(secret) => Ok(secret),
                 Err(error) => {
-                    self.collect_errors(&mut found_errors, error, realms_per_salt.len(), 1)?;
+                    self.collect_errors(
+                        &mut recover_attempt_errors,
+                        error,
+                        realms_per_salt.len(),
+                        1,
+                    )?;
                     continue;
                 }
             };
@@ -131,16 +138,21 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .hash(&configuration.pin_hashing_mode, salt)
             .ok_or(RecoverError::Assertion)?;
 
-        let recover2_requests = realms
+        let mut recover2_requests: FuturesUnordered<_> = realms
             .iter()
-            .map(|realm| self.recover2_on_realm(realm, &hashed_pin));
+            .map(|realm| self.recover2_on_realm(realm, &hashed_pin))
+            .collect();
 
         let mut tgk_shares: Vec<sharks::Share> = Vec::new();
         let mut recover2_errors: Vec<RecoverError> = Vec::new();
-        for result in join_all(recover2_requests).await {
+        while let Some(result) = recover2_requests.next().await {
             match result {
                 Ok(tgk_share) => {
                     tgk_shares.push(tgk_share.0);
+
+                    if tgk_shares.len() >= configuration.recover_threshold.into() {
+                        break;
+                    }
                 }
 
                 Err(error) => self.collect_errors(
@@ -152,7 +164,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
         }
 
-        if tgk_shares.len() < usize::from(configuration.recover_threshold) {
+        if tgk_shares.len() < configuration.recover_threshold.into() {
             return Err(RecoverError::NotRegistered);
         }
 
@@ -164,17 +176,22 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
         };
 
-        let recover3_requests = realms
+        let mut recover3_requests: FuturesUnordered<_> = realms
             .iter()
-            .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)));
+            .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)))
+            .collect();
 
         let mut secret_shares = Vec::<sharks::Share>::new();
         let mut recover3_errors: Vec<RecoverError> = Vec::new();
-        for result in join_all(recover3_requests).await {
+        while let Some(result) = recover3_requests.next().await {
             match result {
                 Ok(secret_share) => match sharks::Share::try_from(secret_share.expose_secret()) {
                     Ok(secret_share) => {
                         secret_shares.push(secret_share);
+
+                        if secret_shares.len() >= configuration.recover_threshold.into() {
+                            break;
+                        }
                     }
 
                     Err(_) => return Err(RecoverError::Assertion),
@@ -230,17 +247,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }),
         );
 
-        // This is a verbose way to copy some fields out to this outer scope.
-        // It helps avoid having to process these fields at a high level of
-        // indentation.
-        struct OkResponse {
-            blinded_oprf_pin: OprfBlindedResult,
-            masked_tgk_share: MaskedTgkShare,
-        }
-        let OkResponse {
-            blinded_oprf_pin,
-            masked_tgk_share,
-        } = match recover2_request.await {
+        let (blinded_oprf_pin, masked_tgk_share) = match recover2_request.await {
             Err(RequestError::Transient) => return Err(RecoverError::Transient),
             Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
@@ -249,10 +256,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 Recover2Response::Ok {
                     blinded_oprf_pin,
                     masked_tgk_share,
-                } => OkResponse {
-                    blinded_oprf_pin,
-                    masked_tgk_share,
-                },
+                } => (blinded_oprf_pin, masked_tgk_share),
 
                 Recover2Response::NotRegistered => {
                     return Err(RecoverError::NotRegistered);
@@ -295,7 +299,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 
             Ok(SecretsResponse::Recover3(rr)) => match rr {
-                Recover3Response::Ok(secret_share) => Ok(secret_share),
+                Recover3Response::Ok { secret_share } => Ok(secret_share),
                 Recover3Response::NotRegistered => Err(RecoverError::NotRegistered),
                 Recover3Response::BadUnlockTag { guesses_remaining } => {
                     Err(RecoverError::InvalidPin { guesses_remaining })

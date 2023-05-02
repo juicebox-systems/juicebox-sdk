@@ -1,4 +1,4 @@
-use futures::future::join_all;
+use futures::{stream::FuturesUnordered, StreamExt};
 use loam_sdk_core::{requests::Register1Response, types::MaskedTgkShare};
 use rand::rngs::OsRng;
 use sharks::Sharks;
@@ -7,7 +7,7 @@ use tracing::instrument;
 
 use loam_sdk_core::{
     requests::{Register2Request, Register2Response, SecretsRequest, SecretsResponse},
-    types::{OprfKey, OprfResult, OprfServer, Salt, UserSecretShare},
+    types::{OprfResult, OprfSeed, OprfServer, Salt, UserSecretShare, OPRF_DERIVATION_INFO},
 };
 
 use crate::{
@@ -41,52 +41,53 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         secret: &UserSecret,
         policy: Policy,
     ) -> Result<(), RegisterError> {
-        let register1_requests = self
+        let mut register1_requests: FuturesUnordered<_> = self
             .configuration
             .realms
             .iter()
-            .map(|realm| self.register1_on_realm(realm));
+            .map(|realm| self.register1_on_realm(realm))
+            .collect();
 
         let mut register1_errors: Vec<RegisterError> = Vec::new();
-        for result in join_all(register1_requests).await {
-            match result {
-                Ok(()) => {}
-                Err(error) => self.collect_errors(
+        while let Some(result) = register1_requests.next().await {
+            if let Err(error) = result {
+                self.collect_errors(
                     &mut register1_errors,
                     error,
                     self.configuration.realms.len(),
                     self.configuration.register_threshold.into(),
-                )?,
+                )?;
             }
         }
 
         let salt = Salt::new_random(&mut OsRng);
         let hashed_pin = pin
             .hash(&self.configuration.pin_hashing_mode, &salt)
-            .ok_or(RegisterError::Assertion)?;
+            .expect("pin hashing failed");
 
-        let oprf_keys: Vec<OprfKey> = std::iter::repeat(())
+        let oprf_seeds: Vec<OprfSeed> = std::iter::repeat_with(|| OprfSeed::new_random(&mut OsRng))
             .take(self.configuration.realms.len())
-            .map(|_| OprfKey::new_random(&mut OsRng).ok_or(RegisterError::Assertion))
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect();
 
         let tgk = TagGeneratingKey::new_random();
 
-        let masked_tgk_shares: Vec<MaskedTgkShare> = Sharks(self.configuration.recover_threshold)
+        let tgk_shares: Vec<TgkShare> = Sharks(self.configuration.recover_threshold)
             .dealer_rng(tgk.expose_secret(), &mut OsRng)
             .take(self.configuration.realms.len())
             .map(TgkShare)
-            .enumerate()
-            .map(|(index, share)| {
-                let oprf_key = oprf_keys.get(index).ok_or(RegisterError::Assertion)?;
-                let oprf_server = OprfServer::new_with_key(oprf_key.expose_secret())
-                    .map_err(|_| RegisterError::Assertion)?;
+            .collect();
+
+        let masked_tgk_shares: Vec<MaskedTgkShare> = zip(tgk_shares, &oprf_seeds)
+            .map(|(share, seed)| {
+                let oprf_server =
+                    OprfServer::new_from_seed(seed.expose_secret(), OPRF_DERIVATION_INFO)
+                        .expect("oprf key derivation failed");
                 let oprf_pin = oprf_server
                     .evaluate(hashed_pin.expose_secret())
-                    .map_err(|_| RegisterError::Assertion)?;
-                Ok(share.mask(&OprfResult(oprf_pin)))
+                    .expect("oprf pin evaluation failed");
+                share.mask(&OprfResult(oprf_pin))
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect();
 
         let secret_shares: Vec<UserSecretShare> = Sharks(self.configuration.recover_threshold)
             .dealer_rng(secret.expose_secret(), &mut OsRng)
@@ -94,28 +95,29 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|share| UserSecretShare::from(Vec::<u8>::from(&share)))
             .collect();
 
-        let register2_requests = zip4(
+        let mut register2_requests: FuturesUnordered<_> = zip4(
             &self.configuration.realms,
-            oprf_keys,
+            oprf_seeds,
             masked_tgk_shares,
             secret_shares,
         )
-        .map(|(realm, oprf_key, masked_tgk_share, secret_share)| {
+        .map(|(realm, oprf_seed, masked_tgk_share, secret_share)| {
             self.register2_on_realm(
                 realm,
                 Register2Request {
                     salt: salt.to_owned(),
-                    oprf_key,
+                    oprf_seed,
                     tag: tgk.tag(&realm.public_key),
                     masked_tgk_share,
                     secret_share,
                     policy: policy.to_owned(),
                 },
             )
-        });
+        })
+        .collect();
 
         let mut register2_errors = Vec::new();
-        for result in join_all(register2_requests).await {
+        while let Some(result) = register2_requests.next().await {
             if let Err(error) = result {
                 self.collect_errors(
                     &mut register2_errors,
