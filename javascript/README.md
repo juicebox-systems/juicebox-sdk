@@ -12,7 +12,7 @@ npm install -s loam-sdk
 
 Instantiate a `Client` with the appropriate `Realm`s you wish to communicate with.
 
-The auth token should be acquired out-of-band from a server you run, and that has communicated to the configured `Realm`s who a valid user is.
+The auth token should be acquired out-of-band from a server you run. All of the realms must be set up to accept this server's tokens.
 
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
@@ -23,13 +23,20 @@ const client = new Client(
     new Configuration(
         // You should receive the realm parameters from your realm provider,
         // or configure them yourself for your self-hosted realm.
-        [new Realm(
-            "https://some/realm/address",
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-        )],
-        1,
-        1,
+        [
+            new Realm(
+                "https://some/realm/address1",
+                Uint8Array.from('AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=', c => c.charCodeAt(0)),
+                Uint8Array.from('AQIDBAUGBwgJCgsMDQ4PEA==', c => c.charCodeAt(0)),
+            ),
+            new Realm(
+                "https://some/realm/address2",
+                Uint8Array.from('IB8eHRwbGhkYFxYVFBMSERAPDg0MCwoJCAcGBQQDAgE=', c => c.charCodeAt(0)),
+                Uint8Array.from('EA8ODQwLCgkIBwYFBAMCAQ==', c => c.charCodeAt(0)),
+            ),
+        ],
+        2,
+        2,
         PinHashingMode.Standard2019
     ),
     [],

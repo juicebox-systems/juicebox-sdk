@@ -91,7 +91,7 @@ impl From<Vec<u8>> for Pin {
 
 #[derive(Debug)]
 /// The calculated hash of a user-chosen password.
-pub struct HashedPin(SecretBytes);
+pub(crate) struct HashedPin(SecretBytes);
 
 impl HashedPin {
     /// Access the underlying secret bytes.
@@ -107,7 +107,7 @@ impl From<Vec<u8>> for HashedPin {
 }
 
 impl Pin {
-    pub fn hash(&self, mode: &PinHashingMode, auth_token: &AuthToken) -> Option<HashedPin> {
+    pub(crate) fn hash(&self, mode: &PinHashingMode, auth_token: &AuthToken) -> Option<HashedPin> {
         match mode {
             PinHashingMode::None => Some(HashedPin(self.0.clone())),
             PinHashingMode::Standard2019 => {

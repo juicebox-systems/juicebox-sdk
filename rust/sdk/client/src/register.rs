@@ -14,9 +14,10 @@ use loam_sdk_core::{
 
 use crate::{
     http,
+    pin::HashedPin,
     request::RequestError,
     types::{oprf_output_size, TagGeneratingKey, TgkShare},
-    Client, HashedPin, Pin, Policy, Realm, Sleeper, UserSecret,
+    Client, Pin, Policy, Realm, Sleeper, UserSecret,
 };
 
 /// Error return type for [`Client::register`].
@@ -26,7 +27,7 @@ pub enum RegisterError {
     InvalidAuth,
 
     /// A software error has occurred. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     Assertion,
 

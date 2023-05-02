@@ -1,5 +1,4 @@
-//! Register and recover PIN-protected secrets on behalf of a particular user.
-//! See [`Client`].
+#![doc = include_str!("../../../README.md")]
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -19,7 +18,7 @@ use types::{CheckedConfiguration, Session};
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
-pub use pin::{HashedPin, Pin, PinHashingMode};
+pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use sleeper::Sleeper;
@@ -70,8 +69,9 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     /// provided must include at least one [`Realm`].
     /// * `previous_configurations` – Represents any other configurations you have
     /// previously registered with that you may not yet have migrated the data from.
-    /// During [`Client::recover`], they will be tried if the current user has not yet registered
-    /// on the current configuration. They should be ordered from newest to oldest.
+    /// During [`Client::recover`], they will be tried if the current user has not yet
+    /// registered on the current configuration. These should be ordered from most recently
+    /// to least recently used.
     /// * `auth_token` – Represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
     /// * `http` – An [`http::Client`] used to make [`http::Request`] to a [`Realm`].
@@ -128,8 +128,6 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     }
 
     /// Deletes all secrets for this user.
-    ///
-    /// Note: This does not delete the user's audit log.
     pub async fn delete_all(&self) -> Result<(), DeleteError> {
         self.delete_up_to(None).await
     }

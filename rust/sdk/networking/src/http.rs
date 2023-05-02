@@ -44,14 +44,15 @@ pub struct Response {
 }
 
 impl Response {
-    /// A [`StatusCode`] representation of the [`u8`] `status_code`.
+    /// A [`http::StatusCode`](StatusCode) representation of the [`u8`] `status_code`.
     pub fn status(&self) -> Result<StatusCode, InvalidStatusCode> {
         StatusCode::from_u16(self.status_code)
     }
 }
 
 /// A trait representing an HTTP Client that can asynchronously
-/// make requests and return responses.
+/// make requests and return responses. It should be implemented
+/// using the `async_trait` crate.
 #[cfg(feature = "threadsafe-futures")]
 #[async_trait]
 pub trait Client: Sync {
@@ -62,7 +63,8 @@ pub trait Client: Sync {
 }
 
 /// A trait representing an HTTP Client that can asynchronously
-/// make requests and return responses.
+/// make requests and return responses. It should be implemented
+/// using the `async_trait` crate.
 #[cfg(not(feature = "threadsafe-futures"))]
 #[async_trait(?Send)]
 pub trait Client: Sync {

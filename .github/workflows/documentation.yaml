@@ -90,7 +90,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: '-p loam-sdk --no-deps'
+          args: '-p loam-sdk --no-deps --features tokio'
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1

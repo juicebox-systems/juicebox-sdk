@@ -24,6 +24,9 @@ public final class Client private constructor (
      * provided must include at least one [Realm].
      * @param previousConfigurations Represents any other configurations you have
      * previously registered with that you may not yet have migrated the data from.
+     * During [recover], they will be tried if the current user has not yet
+     * registered on the current configuration. These should be ordered from most recently
+     * to least recently used.
      * @param authToken Represents the authority to act as a particular user
      * and should be valid for the lifetime of the [Client].
      */
@@ -72,8 +75,6 @@ public final class Client private constructor (
 
     /**
      * Deletes all secrets for this user.
-     *
-     * *Note:* This does not delete the user's audit log.
      *
      * @throws [DeleteException] if deletion could not be completed successfully.
      */

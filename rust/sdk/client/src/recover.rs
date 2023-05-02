@@ -16,9 +16,10 @@ use loam_sdk_core::{
 
 use crate::{
     http,
+    pin::HashedPin,
     request::RequestError,
     types::{CheckedConfiguration, TagGeneratingKey, TgkShare},
-    Client, HashedPin, Pin, Realm, Sleeper, UserSecret,
+    Client, Pin, Realm, Sleeper, UserSecret,
 };
 
 /// Error return type for [`Client::recover`].
@@ -37,7 +38,7 @@ pub enum RecoverError {
     InvalidAuth,
 
     /// A software error has occurred. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     Assertion,
 

@@ -13,7 +13,7 @@ public enum DeleteError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
     /// A software error has occurred. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     case assertion
     /// A transient error in sending or receiving requests to a realm.
@@ -42,7 +42,7 @@ public enum RecoverError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
     /// A software error has occurred. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     case assertion
     /// A transient error in sending or receiving requests to a realm.
@@ -67,7 +67,7 @@ public enum RegisterError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
     /// A software error has occurred. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     case assertion
     /// A transient error in sending or receiving requests to a realm.

@@ -13,9 +13,9 @@ import LoamSdkFfi
 
 /// Register and recover PIN-protected secrets on behalf of a particular user.
 public class Client {
-    let configuration: Configuration
-    let previousConfigurations: [Configuration]
-    let authToken: String
+    public let configuration: Configuration
+    public let previousConfigurations: [Configuration]
+    public let authToken: String
 
     #if !os(Linux)
     /// The file path of any certificate files you wish to pin realm connections against.
@@ -37,6 +37,9 @@ public class Client {
             provided must include at least one `Realm`.
         - previousConfigurations: Represents any other configurations you have
             previously registered with that you may not yet have migrated the data from.
+            During `recover`, they will be tried if the current user has not yet registered
+            on the current configuration. These should be ordered from most recently to least
+            recently used.
         - authToken: Represents the authority to act as a particular user
             and should be valid for the lifetime of the `Client`.
      */
@@ -146,8 +149,6 @@ public class Client {
 
     /**
      Deletes all secrets for this user.
-
-     - Note: This does not delete the user's audit log.
 
      - Throws: `DeleteError` if deletion could not be completed successfully.
      */
