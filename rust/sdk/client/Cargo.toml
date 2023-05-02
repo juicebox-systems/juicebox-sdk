@@ -8,6 +8,9 @@ authors = [
 ]
 edition = "2021"
 
+[lib]
+doctest = false
+
 [dependencies]
 argon2 = { workspace = true }
 async-trait = { workspace = true }

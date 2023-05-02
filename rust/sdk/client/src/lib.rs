@@ -1,5 +1,4 @@
-//! Register and recover PIN-protected secrets on behalf of a particular user.
-//! See [`Client`].
+#![doc = include_str!("../../../README.md")]
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -19,7 +18,7 @@ use types::{CheckedConfiguration, Session};
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
-pub use pin::{HashedPin, Pin, PinHashingMode};
+pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use sleeper::Sleeper;
@@ -44,7 +43,7 @@ pub struct Client<S: Sleeper, Http: http::Client> {
 impl<Http: http::Client> Client<TokioSleeper, Http> {
     /// Constructs a new `Client` that uses the tokio runtime for delaying request retries.
     ///
-    /// see also [new()]
+    /// see also [`Client::new`]
     pub fn with_tokio(
         configuration: Configuration,
         previous_configurations: Vec<Configuration>,
@@ -64,16 +63,19 @@ impl<Http: http::Client> Client<TokioSleeper, Http> {
 impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     /// Constructs a new `Client`.
     ///
-    /// The configuration provided must include at least one realm.
+    /// # Arguments
     ///
-    /// The `previous_configurations` parameter represents any other
-    /// configurations you have previously registered with that you may not yet
-    /// have migrated the data from. During recovery, they will be tried if the
-    /// current user has not yet registered on the current configuration. They
-    /// should be ordered from newest to oldest.
-    ///
-    /// The `auth_token` represents the authority to act as a particular user
+    /// * `configuration` – Represents the current configuration. The configuration
+    /// provided must include at least one [`Realm`].
+    /// * `previous_configurations` – Represents any other configurations you have
+    /// previously registered with that you may not yet have migrated the data from.
+    /// During [`Client::recover`], they will be tried if the current user has not yet
+    /// registered on the current configuration. These should be ordered from most recently
+    /// to least recently used.
+    /// * `auth_token` – Represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
+    /// * `http` – An [`http::Client`] used to make [`http::Request`] to a [`Realm`].
+    /// * `sleeper` – A [`Sleeper`] to use when the SDK needs to perform a `sleep` operation.
     pub fn new(
         configuration: Configuration,
         previous_configurations: Vec<Configuration>,
@@ -100,9 +102,7 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
         }
     }
 
-    /// Stores a new PIN-protected secret.
-    ///
-    /// If it's successful, this also deletes any prior secrets for this user.
+    /// Stores a new PIN-protected secret on the configured realms.
     ///
     /// # Warning
     ///
@@ -119,18 +119,15 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
             .await
     }
 
-    /// Retrieves a PIN-protected secret.
-    ///
-    /// If it's successful, this also deletes any earlier secrets for this
-    /// user.
+    /// Retrieves a PIN-protected secret from the configured realms, or falls
+    /// back to the previous realms if the current realms do not have a secret
+    /// registered.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
         self.recover_latest_registered_configuration(pin).await
     }
 
     /// Deletes all secrets for this user.
-    ///
-    /// Note: This does not delete the user's audit log.
     pub async fn delete_all(&self) -> Result<(), DeleteError> {
         self.delete_up_to(None).await
     }

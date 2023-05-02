@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library' version '7.4.2'
     id 'org.jetbrains.kotlin.android' version '1.8.0'
+    id 'org.jetbrains.dokka' version '1.6.0'
 }
 
 repositories {
@@ -42,6 +43,16 @@ android {
     }
 }
 
+tasks.named("dokkaHtml") {
+    moduleName.set("loam-sdk")
+    dokkaSourceSets.named("main") {
+        perPackageOption {
+            matchingRegex.set(".*\\.internal.*")
+            suppress.set(true)
+        }
+    }
+}
+
 dependencies {
     androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     androidTestImplementation 'androidx.test:runner:1.5.2'
@@ -50,14 +61,8 @@ dependencies {
     androidTestImplementation 'org.assertj:assertj-core:3.11.1'
 }
 
-gradle.projectsEvaluated {
-    android.libraryVariants.all { variant ->
-        if (variant.buildType.name == 'debug') {
-            variant.preBuildProvider.get().dependsOn 'buildDebugRustJni'
-        } else {
-            variant.preBuildProvider.get().dependsOn 'buildReleaseRustJni'
-        }
-    }
+preBuild {
+    dependsOn 'buildReleaseRustJni'
 }
 
 task buildReleaseRustJni(type:Exec) {
@@ -65,11 +70,4 @@ task buildReleaseRustJni(type:Exec) {
   description 'Build the release Rust JNI libraries'
 
   commandLine 'bash', 'jni.sh', '--release'
-}
-
-task buildDebugRustJni(type:Exec) {
-    group 'Rust'
-    description 'Build the debug Rust JNI libraries'
-
-    commandLine 'bash', 'jni.sh', '--debug'
 }

@@ -11,18 +11,45 @@ import FoundationNetworking
 #endif
 import LoamSdkFfi
 
+/// Register and recover PIN-protected secrets on behalf of a particular user.
 public class Client {
     public let configuration: Configuration
+    public let previousConfigurations: [Configuration]
     public let authToken: String
 
     #if !os(Linux)
+    /// The file path of any certificate files you wish to pin realm connections against.
+    ///
+    /// If no paths are provided, connection to realms will be permitted as long as they are
+    /// using a certificate issued by a trusted authority.
+    ///
+    /// - Note: Certificates should be provided in DER format.
     public static var pinnedCertificatePaths: [URL]?
     #endif
 
     private let opaque: OpaquePointer
 
-    public init(configuration: Configuration, previousConfigurations: [Configuration] = [], authToken: String) {
+    /**
+     Initializes a new client with the provided configuration and auth token.
+
+     - Parameters:
+        - configuration: Represents the current configuration. The configuration
+            provided must include at least one `Realm`.
+        - previousConfigurations: Represents any other configurations you have
+            previously registered with that you may not yet have migrated the data from.
+            During `recover`, they will be tried if the current user has not yet registered
+            on the current configuration. These should be ordered from most recently to least
+            recently used.
+        - authToken: Represents the authority to act as a particular user
+            and should be valid for the lifetime of the `Client`.
+     */
+    public init(
+        configuration: Configuration,
+        previousConfigurations: [Configuration] = [],
+        authToken: String
+    ) {
         self.configuration = configuration
+        self.previousConfigurations = previousConfigurations
         self.authToken = authToken
 
         self.opaque = configuration.withUnsafeFfi({ ffiConfig in
@@ -46,6 +73,21 @@ public class Client {
         loam_client_destroy(opaque)
     }
 
+    /**
+     Stores a new PIN-protected secret on the configured realms.
+
+     - Parameters:
+        - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
+            safely be a low-entropy value.
+        - secret: A user provided secret.
+        - guesses: The number of guesses allowed before the secret can no longer
+            be accessed.
+
+     - Warning: If the secrets vary in length (such as passwords), the caller should
+            add padding to obscure the secrets' length.
+
+     - Throws: `RegisterError` if registration could not be completed successfully.
+     */
     public func register(pin: Data, secret: Data, guesses: UInt16) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             pin.withLoamUnmanagedDataArray { pinArray in
@@ -71,6 +113,18 @@ public class Client {
         }
     }
 
+    /**
+     Retrieves a PIN-protected secret from the configured realms, or falls back to the
+     previous realms if the current realms do not have any secret registered.
+
+     - Parameters:
+        - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
+            safely be a low-entropy value.
+
+     - Returns: The recovered user provided secret.
+
+     - Throws: `RecoverError` if recovery could not be completed successfully.
+     */
     public func recover(pin: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
             pin.withLoamUnmanagedDataArray { pinArray in
@@ -93,6 +147,11 @@ public class Client {
         }
     }
 
+    /**
+     Deletes all secrets for this user.
+
+     - Throws: `DeleteError` if deletion could not be completed successfully.
+     */
     public func deleteAll() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             loam_client_delete_all(

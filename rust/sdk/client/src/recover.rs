@@ -16,9 +16,10 @@ use loam_sdk_core::{
 
 use crate::{
     http,
+    pin::HashedPin,
     request::RequestError,
     types::{CheckedConfiguration, TagGeneratingKey, TgkShare},
-    Client, HashedPin, Pin, Realm, Sleeper, UserSecret,
+    Client, Pin, Realm, Sleeper, UserSecret,
 };
 
 /// Error return type for [`Client::recover`].
@@ -26,7 +27,7 @@ use crate::{
 pub enum RecoverError {
     /// The secret could not be unlocked, but you can try again
     /// with a different PIN if you have guesses remaining. If no
-    /// guesses remain, this secret is locked and unaccessible.
+    /// guesses remain, this secret is locked and inaccessible.
     InvalidPin { guesses_remaining: u16 },
 
     /// The secret was not registered or not fully registered with the
@@ -36,8 +37,8 @@ pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// A software error has occured. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// A software error has occurred. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     Assertion,
 

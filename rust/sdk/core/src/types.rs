@@ -45,6 +45,7 @@ impl Debug for OprfResult {
     }
 }
 
+/// A unique 16-byte identifier for a [`Realm`](struct.Realm.html).
 #[derive(Copy, Clone, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RealmId(pub [u8; 16]);
 
@@ -111,9 +112,10 @@ pub struct SessionId(pub u32);
 /// The client needs a threshold number of such shares to recover the user's
 /// secret.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct UserSecretShare(#[serde(serialize_with = "serialize_secret")] pub SecretBytes);
+pub struct UserSecretShare(#[serde(serialize_with = "serialize_secret")] SecretBytes);
 
 impl UserSecretShare {
+    /// Access the underlying secret bytes.
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }

@@ -13,8 +13,8 @@ pub enum DeleteError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
-    /// A software error has occured. This request should not be retried
-    /// with the same parameters. Verify your inputs, check for software,
+    /// A software error has occurred. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
     Assertion,
 

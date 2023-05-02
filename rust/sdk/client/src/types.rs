@@ -27,6 +27,7 @@ pub struct Realm {
     /// A long-lived public key for which the service has the matching private
     /// key.
     pub public_key: Vec<u8>,
+    /// A unique identifier specified by the realm.
     pub id: RealmId,
 }
 
@@ -39,6 +40,7 @@ impl Debug for Realm {
     }
 }
 
+/// The parameters used to configure a [`Client`](crate::Client).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Configuration {
     /// The remote services that the client interacts with.
@@ -138,9 +140,10 @@ impl Deref for CheckedConfiguration {
 /// padding to obscure the secrets' length. Values of this type are assumed
 /// to already include such padding.
 #[derive(Clone, Debug)]
-pub struct UserSecret(pub SecretBytes);
+pub struct UserSecret(SecretBytes);
 
 impl UserSecret {
+    /// Access the underlying secret bytes.
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
