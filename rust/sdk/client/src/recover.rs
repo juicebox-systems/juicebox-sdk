@@ -301,6 +301,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Ok(SecretsResponse::Recover3(rr)) => match rr {
                 Recover3Response::Ok { secret_share } => Ok(secret_share),
                 Recover3Response::NotRegistered => Err(RecoverError::NotRegistered),
+                Recover3Response::NoGuesses => Err(RecoverError::InvalidPin {
+                    guesses_remaining: 0,
+                }),
                 Recover3Response::BadUnlockTag { guesses_remaining } => {
                     Err(RecoverError::InvalidPin { guesses_remaining })
                 }

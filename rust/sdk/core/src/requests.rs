@@ -210,6 +210,7 @@ pub enum Recover3Response {
     Ok { secret_share: UserSecretShare },
     NotRegistered,
     BadUnlockTag { guesses_remaining: u16 },
+    NoGuesses,
 }
 
 /// Response message to delete registered secrets.
