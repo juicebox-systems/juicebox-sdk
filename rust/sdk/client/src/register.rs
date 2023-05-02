@@ -61,9 +61,11 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
 
         let salt = Salt::new_random(&mut OsRng);
-        let hashed_pin = pin
+        let (access_key, user_secret_encryption_key) = pin
             .hash(&self.configuration.pin_hashing_mode, &salt)
             .expect("pin hashing failed");
+
+        let encrypted_user_secret = secret.encrypt(&user_secret_encryption_key);
 
         let oprf_seeds: Vec<OprfSeed> = std::iter::repeat_with(|| OprfSeed::new_random(&mut OsRng))
             .take(self.configuration.realms.len())
@@ -83,14 +85,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     OprfServer::new_from_seed(seed.expose_secret(), OPRF_DERIVATION_INFO)
                         .expect("oprf key derivation failed");
                 let oprf_pin = oprf_server
-                    .evaluate(hashed_pin.expose_secret())
+                    .evaluate(access_key.expose_secret())
                     .expect("oprf pin evaluation failed");
                 share.mask(&OprfResult(oprf_pin))
             })
             .collect();
 
         let secret_shares: Vec<UserSecretShare> = Sharks(self.configuration.recover_threshold)
-            .dealer_rng(secret.expose_secret(), &mut OsRng)
+            .dealer_rng(encrypted_user_secret.expose_secret(), &mut OsRng)
             .take(self.configuration.realms.len())
             .map(|share| UserSecretShare::from(Vec::<u8>::from(&share)))
             .collect();

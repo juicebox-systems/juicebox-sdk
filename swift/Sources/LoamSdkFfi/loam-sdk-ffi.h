@@ -23,17 +23,13 @@ typedef enum {
 
 typedef enum {
   /**
-   * No hashing, ensure a PIN of sufficient entropy is provided.
-   */
-  LoamPinHashingModeNone = 0,
-  /**
    * A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
    */
-  LoamPinHashingModeStandard2019 = 1,
+  LoamPinHashingModeStandard2019 = 0,
   /**
    * A fast hash used for testing. Do not use in production.
    */
-  LoamPinHashingModeFastInsecure = 2,
+  LoamPinHashingModeFastInsecure = 1,
 } LoamPinHashingMode;
 
 typedef enum {

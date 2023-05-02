@@ -14,9 +14,8 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    pin::HashedPin,
     request::RequestError,
-    types::{CheckedConfiguration, TagGeneratingKey, TgkShare},
+    types::{AccessKey, CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare},
     Client, Pin, Realm, Sleeper, UserSecret,
 };
 
@@ -134,13 +133,13 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         realms: &[Realm],
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
-        let hashed_pin = pin
+        let (access_key, user_secret_encryption_key) = pin
             .hash(&configuration.pin_hashing_mode, salt)
-            .ok_or(RecoverError::Assertion)?;
+            .expect("pin hashing failed");
 
         let mut recover2_requests: FuturesUnordered<_> = realms
             .iter()
-            .map(|realm| self.recover2_on_realm(realm, &hashed_pin))
+            .map(|realm| self.recover2_on_realm(realm, &access_key))
             .collect();
 
         let mut tgk_shares: Vec<sharks::Share> = Vec::new();
@@ -207,7 +206,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
 
         match Sharks(configuration.recover_threshold).recover(&secret_shares) {
-            Ok(secret) => Ok(UserSecret::from(secret)),
+            Ok(secret) => {
+                Ok(EncryptedUserSecret::from(secret).decrypt(&user_secret_encryption_key))
+            }
             Err(_) => Err(RecoverError::Assertion),
         }
     }
@@ -235,9 +236,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     async fn recover2_on_realm(
         &self,
         realm: &Realm,
-        hashed_pin: &HashedPin,
+        access_key: &AccessKey,
     ) -> Result<TgkShare, RecoverError> {
-        let blinded_pin = OprfClient::blind(hashed_pin.expose_secret(), &mut OsRng)
+        let blinded_pin = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
             .map_err(|_| RecoverError::Assertion)?;
 
         let recover2_request = self.make_request(
@@ -274,7 +275,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let oprf_pin = blinded_pin
             .state
-            .finalize(hashed_pin.expose_secret(), &blinded_oprf_pin)
+            .finalize(access_key.expose_secret(), &blinded_oprf_pin)
             .map_err(|_| RecoverError::Assertion)?;
 
         let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin)

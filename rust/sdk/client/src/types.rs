@@ -1,5 +1,7 @@
 use blake2::Blake2s256;
-use digest::Digest;
+use chacha20poly1305::aead::Aead;
+use chacha20poly1305::ChaCha20Poly1305;
+use digest::{Digest, KeyInit};
 use hmac::{Mac, SimpleHmac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
@@ -147,9 +149,76 @@ impl UserSecret {
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
+
+    pub(crate) fn encrypt(&self, encryption_key: &UserSecretEncryptionKey) -> EncryptedUserSecret {
+        let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
+        cipher
+            .encrypt(&[0u8; 12].into(), self.expose_secret())
+            .map(EncryptedUserSecret::from)
+            .expect("secret encryption failed")
+    }
 }
 
 impl From<Vec<u8>> for UserSecret {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct EncryptedUserSecret(SecretBytes);
+
+impl EncryptedUserSecret {
+    /// Access the underlying secret bytes.
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+
+    pub(crate) fn decrypt(&self, encryption_key: &UserSecretEncryptionKey) -> UserSecret {
+        let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
+        cipher
+            .decrypt(&[0u8; 12].into(), self.expose_secret())
+            .map(UserSecret::from)
+            .expect("secret decryption failed")
+    }
+}
+
+impl From<Vec<u8>> for EncryptedUserSecret {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
+    }
+}
+
+/// A user's access key, derived from the user's [`PIN`](crate::pin).
+#[derive(Clone, Debug)]
+pub(crate) struct AccessKey(SecretBytes);
+
+impl AccessKey {
+    /// Access the underlying secret bytes.
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for AccessKey {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytes::from(value))
+    }
+}
+
+/// A key used to encrypt the [`UserSecret`], derived from the
+/// user's [`PIN`](crate::pin).
+#[derive(Clone, Debug)]
+pub(crate) struct UserSecretEncryptionKey(SecretBytes);
+
+impl UserSecretEncryptionKey {
+    /// Access the underlying secret bytes.
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for UserSecretEncryptionKey {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
     }
@@ -172,7 +241,7 @@ impl TagGeneratingKey {
 
     /// Computes a derived secret-unlocking tag for the realm.
     pub fn tag(&self, realm_id: &[u8]) -> UnlockTag {
-        let mut mac = SimpleHmac::<Blake2s256>::new_from_slice(self.expose_secret())
+        let mut mac = <SimpleHmac<Blake2s256> as Mac>::new_from_slice(self.expose_secret())
             .expect("failed to initialize HMAC");
         mac.update(realm_id);
         UnlockTag::from(mac.finalize().into_bytes().to_vec())

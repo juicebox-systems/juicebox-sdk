@@ -175,7 +175,7 @@ class ClientTest {
                 )),
                 registerThreshold = 1,
                 recoverThreshold = 1,
-                pinHashingMode = PinHashingMode.NONE
+                pinHashingMode = PinHashingMode.FAST_INSECURE
             ),
             authToken = "test"
         )

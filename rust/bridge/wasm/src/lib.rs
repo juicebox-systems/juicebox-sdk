@@ -388,7 +388,7 @@ mod tests {
                 },
                 register_threshold: 1,
                 recover_threshold: 1,
-                pin_hashing_mode: PinHashingMode::None,
+                pin_hashing_mode: PinHashingMode::FastInsecure,
             },
             to_value::<Vec<sdk::Configuration>>(&vec![]).unwrap().into(),
             "token".to_string(),
