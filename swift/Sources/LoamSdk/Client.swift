@@ -79,12 +79,9 @@ public class Client {
      - Parameters:
         - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
             safely be a low-entropy value.
-        - secret: A user provided secret.
+        - secret: A user provided secret with a maximum length of 128-bytes.
         - guesses: The number of guesses allowed before the secret can no longer
             be accessed.
-
-     - Warning: If the secrets vary in length (such as passwords), the caller should
-            add padding to obscure the secrets' length.
 
      - Throws: `RegisterError` if registration could not be completed successfully.
      */

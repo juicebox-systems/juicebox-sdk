@@ -149,10 +149,9 @@ void loam_client_destroy(LoamClient *client);
 /**
  * Stores a new PIN-protected secret on the configured realms.
  *
- * # Warning
+ * # Note
  *
- * If the secrets vary in length (such as passwords), the caller should
- * add padding to obscure the secrets' length.
+ * The provided secret must have a maximum length of 128-bytes.
  */
 void loam_client_register(LoamClient *client,
                           const void *context,

@@ -118,10 +118,9 @@ pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient>) {
 
 /// Stores a new PIN-protected secret on the configured realms.
 ///
-/// # Warning
+/// # Note
 ///
-/// If the secrets vary in length (such as passwords), the caller should
-/// add padding to obscure the secrets' length.
+/// The provided secret must have a maximum length of 128-bytes.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_register(

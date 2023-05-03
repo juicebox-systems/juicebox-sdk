@@ -46,7 +46,7 @@ public final class Client private constructor (
      *
      * @param pin A user provided PIN. If using a strong [PinHashingMode], this can
      * safely be a low-entropy value.
-     * @param secret A user provided secret.
+     * @param secret A user provided secret with a maximum length of 128-bytes.
      * @param numGuesses The number of guesses allowed before the secret can no longer
      * be accessed.
      *

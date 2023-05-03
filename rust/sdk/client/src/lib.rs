@@ -103,11 +103,6 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     }
 
     /// Stores a new PIN-protected secret on the configured realms.
-    ///
-    /// # Warning
-    ///
-    /// If the secrets vary in length (such as passwords), the caller should
-    /// add padding to obscure the secrets' length.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn register(
         &self,
