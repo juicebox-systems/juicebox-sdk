@@ -61,11 +61,11 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
 
         let salt = Salt::new_random(&mut OsRng);
-        let (access_key, user_secret_encryption_key) = pin
+        let (access_key, encryption_key) = pin
             .hash(&self.configuration.pin_hashing_mode, &salt)
             .expect("pin hashing failed");
 
-        let encrypted_user_secret = secret.encrypt(&user_secret_encryption_key);
+        let encrypted_user_secret = secret.encrypt(&encryption_key);
 
         let oprf_seeds: Vec<OprfSeed> = std::iter::repeat_with(|| OprfSeed::new_random(&mut OsRng))
             .take(self.configuration.realms.len())

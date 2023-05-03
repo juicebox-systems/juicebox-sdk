@@ -15,7 +15,9 @@ use loam_sdk_core::{
 use crate::{
     http,
     request::RequestError,
-    types::{AccessKey, CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare},
+    types::{
+        CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey,
+    },
     Client, Pin, Realm, Sleeper, UserSecret,
 };
 
@@ -133,7 +135,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         realms: &[Realm],
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
-        let (access_key, user_secret_encryption_key) = pin
+        let (access_key, encryption_key) = pin
             .hash(&configuration.pin_hashing_mode, salt)
             .expect("pin hashing failed");
 
@@ -206,9 +208,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
 
         match Sharks(configuration.recover_threshold).recover(&secret_shares) {
-            Ok(secret) => {
-                Ok(EncryptedUserSecret::from(secret).decrypt(&user_secret_encryption_key))
-            }
+            Ok(secret) => Ok(EncryptedUserSecret::try_from(secret)
+                .map_err(|_| RecoverError::Assertion)?
+                .decrypt(&encryption_key)),
             Err(_) => Err(RecoverError::Assertion),
         }
     }
@@ -236,7 +238,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     async fn recover2_on_realm(
         &self,
         realm: &Realm,
-        access_key: &AccessKey,
+        access_key: &UserSecretAccessKey,
     ) -> Result<TgkShare, RecoverError> {
         let blinded_pin = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
             .map_err(|_| RecoverError::Assertion)?;

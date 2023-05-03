@@ -1,7 +1,7 @@
-use crate::types::{AccessKey, UserSecretEncryptionKey};
-use argon2::{Algorithm, Argon2, ParamsBuilder, Version};
+use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
+use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
 use loam_sdk_core::types::{Salt, SecretBytes};
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, Zeroize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// A strategy for hashing the user provided [`Pin`]
@@ -46,7 +46,7 @@ impl Pin {
         &self,
         mode: &PinHashingMode,
         salt: &Salt,
-    ) -> Option<(AccessKey, UserSecretEncryptionKey)> {
+    ) -> Option<(UserSecretAccessKey, UserSecretEncryptionKey)> {
         match mode {
             PinHashingMode::Standard2019 => {
                 let params = ParamsBuilder::new()
@@ -59,9 +59,9 @@ impl Pin {
             }
             PinHashingMode::FastInsecure => {
                 let params = ParamsBuilder::new()
-                    .m_cost(128)
-                    .t_cost(1)
-                    .p_cost(1)
+                    .m_cost(Params::MIN_M_COST)
+                    .t_cost(Params::MIN_T_COST)
+                    .p_cost(Params::MIN_P_COST)
                     .build()
                     .ok()?;
                 self.argon2(params, salt)
@@ -73,17 +73,21 @@ impl Pin {
         &self,
         params: argon2::Params,
         salt: &Salt,
-    ) -> Option<(AccessKey, UserSecretEncryptionKey)> {
-        let context = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    ) -> Option<(UserSecretAccessKey, UserSecretEncryptionKey)> {
         let mut hashed_pin = vec![0u8; 64];
-        context
+
+        Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
             .hash_password_into(self.expose_secret(), salt.expose_secret(), &mut hashed_pin)
             .ok()?;
 
-        Some((
-            AccessKey::from(hashed_pin[..32].to_vec()),
+        let derived_keys = (
+            UserSecretAccessKey::from(hashed_pin[..32].to_vec()),
             UserSecretEncryptionKey::from(hashed_pin[32..].to_vec()),
-        ))
+        );
+
+        hashed_pin.zeroize();
+
+        Some(derived_keys)
     }
 }
 

@@ -137,6 +137,11 @@ impl Deref for CheckedConfiguration {
 /// The maximum allowed bytes for a [`UserSecret`].
 pub const MAX_USER_SECRET_LENGTH: usize = 128;
 
+/// The nonce used for encrypting / decrypting a [`UserSecret`].
+/// Since a new randomly seeded encryption key is generated every
+/// time we encrypt a [`UserSecret`], it is safe to use a fixed nonce.
+const USER_SECRET_ENCRYPTION_NONCE: [u8; 12] = [0u8; 12];
+
 /// A user-chosen secret with a maximum length of 128-bytes.
 #[derive(Clone, Debug)]
 pub struct UserSecret(SecretBytes);
@@ -151,15 +156,23 @@ impl UserSecret {
         let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
         let padded_secret = PaddedUserSecret::from(self);
         cipher
-            .encrypt(&[0u8; 12].into(), padded_secret.expose_secret())
-            .map(EncryptedUserSecret::from)
+            .encrypt(
+                &USER_SECRET_ENCRYPTION_NONCE.into(),
+                padded_secret.expose_secret(),
+            )
+            .map(EncryptedUserSecret::try_from)
             .expect("secret encryption failed")
+            .unwrap()
     }
 }
 
 impl From<Vec<u8>> for UserSecret {
     fn from(value: Vec<u8>) -> Self {
-        assert!(value.len() <= MAX_USER_SECRET_LENGTH);
+        assert!(
+            value.len() <= MAX_USER_SECRET_LENGTH,
+            "secret exceeds the maximum of {} bytes",
+            MAX_USER_SECRET_LENGTH
+        );
         Self(SecretBytes::from(value))
     }
 }
@@ -215,32 +228,37 @@ impl EncryptedUserSecret {
     pub(crate) fn decrypt(&self, encryption_key: &UserSecretEncryptionKey) -> UserSecret {
         let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
         let padded_secret = cipher
-            .decrypt(&[0u8; 12].into(), self.expose_secret())
+            .decrypt(&USER_SECRET_ENCRYPTION_NONCE.into(), self.expose_secret())
             .map(PaddedUserSecret::from)
             .expect("secret decryption failed");
         UserSecret::from(&padded_secret)
     }
 }
 
-impl From<Vec<u8>> for EncryptedUserSecret {
-    fn from(value: Vec<u8>) -> Self {
-        assert_eq!(value.len(), 145);
-        Self(SecretBytes::from(value))
+impl TryFrom<Vec<u8>> for EncryptedUserSecret {
+    type Error = String;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        if value.len() != 145 {
+            return Err("invalid ciphertext length".into());
+        }
+        Ok(Self(SecretBytes::from(value)))
     }
 }
 
-/// A user's access key, derived from the user's [`PIN`](crate::pin).
+/// An access key derived from the user's [`PIN`](crate::pin),
+/// used to recover and register the user's [`UserSecret`].
 #[derive(Clone, Debug)]
-pub(crate) struct AccessKey(SecretBytes);
+pub(crate) struct UserSecretAccessKey(SecretBytes);
 
-impl AccessKey {
+impl UserSecretAccessKey {
     /// Access the underlying secret bytes.
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
 }
 
-impl From<Vec<u8>> for AccessKey {
+impl From<Vec<u8>> for UserSecretAccessKey {
     fn from(value: Vec<u8>) -> Self {
         Self(SecretBytes::from(value))
     }
@@ -422,7 +440,7 @@ mod tests {
     #[test]
     fn test_secret_decryption() {
         let key = UserSecretEncryptionKey::from(vec![8; 32]);
-        let encrypted_secret = EncryptedUserSecret::from(vec![
+        let encrypted_secret = EncryptedUserSecret::try_from(vec![
             1, 134, 178, 251, 18, 193, 244, 162, 122, 194, 0, 239, 255, 128, 253, 39, 199, 249,
             145, 226, 252, 83, 165, 81, 50, 46, 17, 1, 94, 108, 224, 139, 51, 137, 152, 176, 230,
             203, 184, 172, 75, 181, 206, 151, 188, 22, 100, 113, 224, 151, 68, 63, 202, 164, 225,
@@ -431,7 +449,8 @@ mod tests {
             172, 149, 20, 2, 43, 102, 29, 82, 89, 102, 225, 83, 64, 229, 247, 232, 194, 207, 6,
             129, 183, 46, 4, 52, 205, 109, 240, 64, 67, 15, 226, 185, 186, 54, 162, 20, 219, 250,
             162, 103, 164, 76, 121, 87, 140, 147, 118, 109, 107, 35, 7,
-        ]);
+        ])
+        .unwrap();
         let secret = encrypted_secret.decrypt(&key);
         let expected_secret = b"artemis".to_vec();
         assert_eq!(&expected_secret, secret.expose_secret());
