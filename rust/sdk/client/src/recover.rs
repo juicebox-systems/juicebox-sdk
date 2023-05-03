@@ -186,17 +186,18 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let mut recover3_errors: Vec<RecoverError> = Vec::new();
         while let Some(result) = recover3_requests.next().await {
             match result {
-                Ok(secret_share) => match sharks::Share::try_from(secret_share.expose_secret()) {
-                    Ok(secret_share) => {
-                        secret_shares.push(secret_share);
+                Ok(secret_share) => {
+                    secret_shares.push(
+                        secret_share
+                            .expose_secret()
+                            .try_into()
+                            .expect("failed to parse user_secret_share"),
+                    );
 
-                        if secret_shares.len() >= configuration.recover_threshold.into() {
-                            break;
-                        }
+                    if secret_shares.len() >= configuration.recover_threshold.into() {
+                        break;
                     }
-
-                    Err(_) => return Err(RecoverError::Assertion),
-                },
+                }
 
                 Err(error) => self.collect_errors(
                     &mut recover3_errors,
@@ -241,7 +242,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         access_key: &UserSecretAccessKey,
     ) -> Result<TgkShare, RecoverError> {
         let blinded_pin = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
-            .map_err(|_| RecoverError::Assertion)?;
+            .expect("failed to blind access_key");
 
         let recover2_request = self.make_request(
             realm,
@@ -278,10 +279,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let oprf_pin = blinded_pin
             .state
             .finalize(access_key.expose_secret(), &blinded_oprf_pin)
-            .map_err(|_| RecoverError::Assertion)?;
+            .expect("failed to unblind oprf_pin");
 
         let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin)
-            .map_err(|_| RecoverError::Assertion)?;
+            .expect("failed to unmask tgk_share");
 
         Ok(tgk_share)
     }
