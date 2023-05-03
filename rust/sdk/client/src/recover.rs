@@ -152,6 +152,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     tgk_shares.push(tgk_share.0);
 
                     if tgk_shares.len() >= configuration.recover_threshold.into() {
+                        drop(recover2_requests);
                         break;
                     }
                 }
@@ -193,10 +194,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                             .try_into()
                             .expect("failed to parse user_secret_share"),
                     );
-
-                    if secret_shares.len() >= configuration.recover_threshold.into() {
-                        break;
-                    }
                 }
 
                 Err(error) => self.collect_errors(
