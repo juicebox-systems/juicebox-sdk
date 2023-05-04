@@ -103,10 +103,20 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let recover_attempts = realms_per_salt.iter().map(|(salt, realms)| {
             self.complete_recover_on_realms(pin, salt, realms, configuration)
         });
-        match join_only_threshold(recover_attempts, 1).await {
-            Ok(results) => Ok(results.into_iter().next().unwrap()),
-            Err(errors) => Err(min(errors)),
+
+        // These futures are different because (1) they should run to
+        // completion if they're started (to not burn guesses), and (2) they
+        // each hash the PIN, which may be resource-intensive. Since having
+        // more than one future here is unlikely, these are simply run
+        // sequentially.
+        let mut errors = Vec::new();
+        for recover_attempt in recover_attempts {
+            match recover_attempt.await {
+                Ok(user_secret) => return Ok(user_secret),
+                Err(e) => errors.push(e),
+            }
         }
+        Err(min(errors))
     }
 
     /// Performs phase 2 and 3 of recovery on the given realms.
