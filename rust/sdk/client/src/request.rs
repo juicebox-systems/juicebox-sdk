@@ -254,7 +254,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 /// The results and errors are returned in no particular order. An `Ok` return
 /// value will contain at least `threshold` results. An `Error` return value
 /// will contain at least `max(1, total - threshold)` errors.
-pub(crate) async fn join_all_need_threshold<I, F, T, E>(
+pub(crate) async fn join_at_least_threshold<I, F, T, E>(
     futures: I,
     threshold: usize,
 ) -> Result<Vec<T>, Vec<E>>
@@ -295,9 +295,9 @@ where
 /// or if the threshold is 0.
 ///
 /// The results and errors are returned in no particular order. An `Ok` return
-/// value will contain at least `threshold` results. An `Error` return value
+/// value will contain exactly `threshold` results. An `Error` return value
 /// will contain at least `max(1, total - threshold)` errors.
-pub(crate) async fn join_only_threshold<I, F, T, E>(
+pub(crate) async fn join_until_threshold<I, F, T, E>(
     futures: I,
     threshold: usize,
 ) -> Result<Vec<T>, Vec<E>>

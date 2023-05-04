@@ -13,7 +13,7 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    request::{join_all_need_threshold, join_only_threshold, min, RequestError},
+    request::{join_at_least_threshold, join_until_threshold, min, RequestError},
     types::{
         CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey,
     },
@@ -84,7 +84,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|realm| self.recover1_on_realm(realm));
 
         let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
-        match join_all_need_threshold(recover1_requests, configuration.recover_threshold.into())
+        match join_at_least_threshold(recover1_requests, configuration.recover_threshold.into())
             .await
         {
             Ok(results) => {
@@ -137,7 +137,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|realm| self.recover2_on_realm(realm, &access_key));
 
         let tgk_shares: Vec<TgkShare> =
-            join_only_threshold(recover2_requests, configuration.recover_threshold.into())
+            join_until_threshold(recover2_requests, configuration.recover_threshold.into())
                 .await
                 .map_err(min)?;
 
@@ -154,7 +154,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .iter()
             .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)));
 
-        let secret_shares: Vec<sharks::Share> = match join_all_need_threshold(
+        let secret_shares: Vec<sharks::Share> = match join_at_least_threshold(
             recover3_requests,
             configuration.recover_threshold.into(),
         )

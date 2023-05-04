@@ -11,7 +11,7 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    request::{join_all_need_threshold, min, RequestError},
+    request::{join_at_least_threshold, min, RequestError},
     types::{TagGeneratingKey, TgkShare},
     Client, Pin, Policy, Realm, Sleeper, UserSecret,
 };
@@ -45,7 +45,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .realms
             .iter()
             .map(|realm| self.register1_on_realm(realm));
-        join_all_need_threshold(
+        join_at_least_threshold(
             register1_requests,
             self.configuration.register_threshold.into(),
         )
@@ -109,7 +109,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             )
         });
 
-        join_all_need_threshold(
+        join_at_least_threshold(
             register2_requests,
             self.configuration.register_threshold.into(),
         )
