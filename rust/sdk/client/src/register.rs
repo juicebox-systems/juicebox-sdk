@@ -45,11 +45,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .realms
             .iter()
             .map(|realm| self.register1_on_realm(realm));
-        join_at_least_threshold(
-            register1_requests,
-            self.configuration.register_threshold.into(),
-        )
-        .await?;
+        join_at_least_threshold(register1_requests, self.configuration.register_threshold).await?;
 
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
@@ -108,11 +104,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             )
         });
 
-        join_at_least_threshold(
-            register2_requests,
-            self.configuration.register_threshold.into(),
-        )
-        .await?;
+        join_at_least_threshold(register2_requests, self.configuration.register_threshold).await?;
 
         Ok(())
     }

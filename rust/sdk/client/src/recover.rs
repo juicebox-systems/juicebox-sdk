@@ -85,8 +85,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
         for (salt, realm) in
-            join_at_least_threshold(recover1_requests, configuration.recover_threshold.into())
-                .await?
+            join_at_least_threshold(recover1_requests, configuration.recover_threshold).await?
         {
             realms_per_salt.entry(salt).or_default().push(realm);
         }
@@ -137,7 +136,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|realm| self.recover2_on_realm(realm, &access_key));
 
         let tgk_shares: Vec<TgkShare> =
-            join_until_threshold(recover2_requests, configuration.recover_threshold.into()).await?;
+            join_until_threshold(recover2_requests, configuration.recover_threshold).await?;
 
         let tgk = match Sharks(configuration.recover_threshold)
             .recover(tgk_shares.iter().map(|share| &share.0))
@@ -156,8 +155,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         });
 
         let secret_shares: Vec<sharks::Share> =
-            join_at_least_threshold(recover3_requests, configuration.recover_threshold.into())
-                .await?;
+            join_at_least_threshold(recover3_requests, configuration.recover_threshold).await?;
 
         match Sharks(configuration.recover_threshold).recover(&secret_shares) {
             Ok(secret) => Ok(EncryptedUserSecret::try_from(secret)

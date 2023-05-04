@@ -256,7 +256,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 /// will be the smallest error seen (using `Ord`).
 pub(crate) async fn join_at_least_threshold<I, F, T, E>(
     futures: I,
-    threshold: usize,
+    threshold: u8,
 ) -> Result<Vec<T>, E>
 where
     I: IntoIterator<Item = F>,
@@ -265,6 +265,7 @@ where
 {
     let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
     let total = futures.len();
+    let threshold = usize::from(threshold);
     assert!(total >= threshold);
     assert!(threshold > 0);
     let mut oks = Vec::with_capacity(total);
@@ -298,10 +299,7 @@ where
 /// The results and errors are returned in no particular order. An `Ok` return
 /// value will contain exactly `threshold` results. An `Error` return value
 /// will be the smallest error seen (using `Ord`).
-pub(crate) async fn join_until_threshold<I, F, T, E>(
-    futures: I,
-    threshold: usize,
-) -> Result<Vec<T>, E>
+pub(crate) async fn join_until_threshold<I, F, T, E>(futures: I, threshold: u8) -> Result<Vec<T>, E>
 where
     I: IntoIterator<Item = F>,
     F: Future<Output = Result<T, E>>,
@@ -309,6 +307,7 @@ where
 {
     let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
     let total = futures.len();
+    let threshold = usize::from(threshold);
     assert!(total >= threshold);
     assert!(threshold > 0);
     let mut oks = Vec::with_capacity(threshold);
