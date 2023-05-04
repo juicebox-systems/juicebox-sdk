@@ -253,14 +253,15 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 ///
 /// The results and errors are returned in no particular order. An `Ok` return
 /// value will contain at least `threshold` results. An `Error` return value
-/// will contain at least `max(1, total - threshold)` errors.
+/// will be the smallest error seen (using `Ord`).
 pub(crate) async fn join_at_least_threshold<I, F, T, E>(
     futures: I,
     threshold: usize,
-) -> Result<Vec<T>, Vec<E>>
+) -> Result<Vec<T>, E>
 where
     I: IntoIterator<Item = F>,
     F: Future<Output = Result<T, E>>,
+    E: Ord,
 {
     let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
     let total = futures.len();
@@ -278,7 +279,7 @@ where
             Err(error) => {
                 errors.push(error);
                 if errors.len() > total - threshold {
-                    return Err(errors);
+                    return Err(min(errors));
                 }
             }
         }
@@ -296,14 +297,15 @@ where
 ///
 /// The results and errors are returned in no particular order. An `Ok` return
 /// value will contain exactly `threshold` results. An `Error` return value
-/// will contain at least `max(1, total - threshold)` errors.
+/// will be the smallest error seen (using `Ord`).
 pub(crate) async fn join_until_threshold<I, F, T, E>(
     futures: I,
     threshold: usize,
-) -> Result<Vec<T>, Vec<E>>
+) -> Result<Vec<T>, E>
 where
     I: IntoIterator<Item = F>,
     F: Future<Output = Result<T, E>>,
+    E: Ord,
 {
     let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
     let total = futures.len();
@@ -324,7 +326,7 @@ where
             Err(error) => {
                 errors.push(error);
                 if errors.len() > total - threshold {
-                    return Err(errors);
+                    return Err(min(errors));
                 }
             }
         }
@@ -336,6 +338,6 @@ where
 /// Consumes a `Vec` and returns its minimum value.
 ///
 /// This is used for selecting the "best" error out of a set of errors.
-pub(crate) fn min<T: Ord>(values: Vec<T>) -> T {
+fn min<T: Ord>(values: Vec<T>) -> T {
     values.into_iter().min().unwrap()
 }

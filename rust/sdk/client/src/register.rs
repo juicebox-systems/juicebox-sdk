@@ -11,7 +11,7 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    request::{join_at_least_threshold, min, RequestError},
+    request::{join_at_least_threshold, RequestError},
     types::{TagGeneratingKey, TgkShare},
     Client, Pin, Policy, Realm, Sleeper, UserSecret,
 };
@@ -49,8 +49,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             register1_requests,
             self.configuration.register_threshold.into(),
         )
-        .await
-        .map_err(min)?;
+        .await?;
 
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
@@ -113,8 +112,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             register2_requests,
             self.configuration.register_threshold.into(),
         )
-        .await
-        .map_err(min)?;
+        .await?;
 
         Ok(())
     }

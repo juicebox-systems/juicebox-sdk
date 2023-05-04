@@ -13,7 +13,7 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    request::{join_at_least_threshold, join_until_threshold, min, RequestError},
+    request::{join_at_least_threshold, join_until_threshold, RequestError},
     types::{
         CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey,
     },
@@ -84,16 +84,12 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|realm| self.recover1_on_realm(realm));
 
         let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
-        match join_at_least_threshold(recover1_requests, configuration.recover_threshold.into())
-            .await
+        for (salt, realm) in
+            join_at_least_threshold(recover1_requests, configuration.recover_threshold.into())
+                .await?
         {
-            Ok(results) => {
-                for (salt, realm) in results {
-                    realms_per_salt.entry(salt).or_default().push(realm);
-                }
-            }
-            Err(errors) => return Err(min(errors)),
-        };
+            realms_per_salt.entry(salt).or_default().push(realm);
+        }
 
         realms_per_salt.retain(|_, realms| realms.len() >= configuration.recover_threshold.into());
 
@@ -116,7 +112,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 Err(e) => errors.push(e),
             }
         }
-        Err(min(errors))
+        Err(errors.into_iter().min().unwrap())
     }
 
     /// Performs phase 2 and 3 of recovery on the given realms.
@@ -137,9 +133,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|realm| self.recover2_on_realm(realm, &access_key));
 
         let tgk_shares: Vec<TgkShare> =
-            join_until_threshold(recover2_requests, configuration.recover_threshold.into())
-                .await
-                .map_err(min)?;
+            join_until_threshold(recover2_requests, configuration.recover_threshold.into()).await?;
 
         let tgk = match Sharks(configuration.recover_threshold)
             .recover(tgk_shares.iter().map(|share| &share.0))
@@ -150,27 +144,20 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
         };
 
-        let recover3_requests = realms
-            .iter()
-            .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)));
+        let recover3_requests = realms.iter().map(|realm| async {
+            let share: UserSecretShare = self
+                .recover3_on_realm(realm, tgk.tag(&realm.public_key))
+                .await?;
+            let share: sharks::Share = share
+                .expose_secret()
+                .try_into()
+                .expect("failed to parse user_secret_share");
+            Ok(share)
+        });
 
-        let secret_shares: Vec<sharks::Share> = match join_at_least_threshold(
-            recover3_requests,
-            configuration.recover_threshold.into(),
-        )
-        .await
-        {
-            Ok(secret_shares) => secret_shares
-                .into_iter()
-                .map(|share| {
-                    share
-                        .expose_secret()
-                        .try_into()
-                        .expect("failed to parse user_secret_share")
-                })
-                .collect(),
-            Err(errors) => return Err(min(errors)),
-        };
+        let secret_shares: Vec<sharks::Share> =
+            join_at_least_threshold(recover3_requests, configuration.recover_threshold.into())
+                .await?;
 
         match Sharks(configuration.recover_threshold).recover(&secret_shares) {
             Ok(secret) => Ok(EncryptedUserSecret::try_from(secret)
