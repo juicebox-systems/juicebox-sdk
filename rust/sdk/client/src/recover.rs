@@ -148,11 +148,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             let share: UserSecretShare = self
                 .recover3_on_realm(realm, tgk.tag(&realm.public_key))
                 .await?;
-            let share: sharks::Share = share
-                .expose_secret()
-                .try_into()
-                .expect("failed to parse user_secret_share");
-            Ok(share)
+            sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
         });
 
         let secret_shares: Vec<sharks::Share> =
