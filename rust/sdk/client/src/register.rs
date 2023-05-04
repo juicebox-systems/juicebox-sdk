@@ -1,4 +1,3 @@
-use futures::{stream::FuturesUnordered, StreamExt};
 use loam_sdk_core::{requests::Register1Response, types::MaskedTgkShare};
 use rand::rngs::OsRng;
 use sharks::Sharks;
@@ -12,7 +11,7 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    request::RequestError,
+    request::{join_all_need_threshold, min, RequestError},
     types::{TagGeneratingKey, TgkShare},
     Client, Pin, Policy, Realm, Sleeper, UserSecret,
 };
@@ -41,24 +40,17 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         secret: &UserSecret,
         policy: Policy,
     ) -> Result<(), RegisterError> {
-        let mut register1_requests: FuturesUnordered<_> = self
+        let register1_requests = self
             .configuration
             .realms
             .iter()
-            .map(|realm| self.register1_on_realm(realm))
-            .collect();
-
-        let mut register1_errors: Vec<RegisterError> = Vec::new();
-        while let Some(result) = register1_requests.next().await {
-            if let Err(error) = result {
-                self.collect_errors(
-                    &mut register1_errors,
-                    error,
-                    self.configuration.realms.len(),
-                    self.configuration.register_threshold.into(),
-                )?;
-            }
-        }
+            .map(|realm| self.register1_on_realm(realm));
+        join_all_need_threshold(
+            register1_requests,
+            self.configuration.register_threshold.into(),
+        )
+        .await
+        .map_err(min)?;
 
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
@@ -97,7 +89,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|share| UserSecretShare::from(Vec::<u8>::from(&share)))
             .collect();
 
-        let mut register2_requests: FuturesUnordered<_> = zip4(
+        let register2_requests = zip4(
             &self.configuration.realms,
             oprf_seeds,
             masked_tgk_shares,
@@ -115,20 +107,15 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                     policy: policy.to_owned(),
                 },
             )
-        })
-        .collect();
+        });
 
-        let mut register2_errors = Vec::new();
-        while let Some(result) = register2_requests.next().await {
-            if let Err(error) = result {
-                self.collect_errors(
-                    &mut register2_errors,
-                    error,
-                    self.configuration.realms.len(),
-                    self.configuration.register_threshold.into(),
-                )?;
-            }
-        }
+        join_all_need_threshold(
+            register2_requests,
+            self.configuration.register_threshold.into(),
+        )
+        .await
+        .map_err(min)?;
+
         Ok(())
     }
 

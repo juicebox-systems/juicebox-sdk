@@ -1,4 +1,3 @@
-use futures::{stream::FuturesUnordered, StreamExt};
 use rand::rngs::OsRng;
 use sharks::Sharks;
 use std::collections::HashMap;
@@ -14,7 +13,7 @@ use loam_sdk_core::{
 
 use crate::{
     http,
-    request::RequestError,
+    request::{join_all_need_threshold, join_only_threshold, min, RequestError},
     types::{
         CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey,
     },
@@ -79,51 +78,35 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         pin: &Pin,
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
-        let mut recover1_requests: FuturesUnordered<_> = configuration
+        let recover1_requests = configuration
             .realms
             .iter()
-            .map(|realm| self.recover1_on_realm(realm))
-            .collect();
+            .map(|realm| self.recover1_on_realm(realm));
 
         let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
-        let mut recover1_errors: Vec<RecoverError> = Vec::new();
-
-        while let Some(result) = recover1_requests.next().await {
-            match result {
-                Ok((salt, realm)) => realms_per_salt.entry(salt).or_insert(vec![]).push(realm),
-                Err(error) => self.collect_errors(
-                    &mut recover1_errors,
-                    error,
-                    configuration.realms.len(),
-                    configuration.recover_threshold.into(),
-                )?,
+        match join_all_need_threshold(recover1_requests, configuration.recover_threshold.into())
+            .await
+        {
+            Ok(results) => {
+                for (salt, realm) in results {
+                    realms_per_salt.entry(salt).or_default().push(realm);
+                }
             }
-        }
+            Err(errors) => return Err(min(errors)),
+        };
 
         realms_per_salt.retain(|_, realms| realms.len() >= configuration.recover_threshold.into());
 
-        let mut recover_attempts: FuturesUnordered<_> = realms_per_salt
-            .iter()
-            .map(|(salt, realms)| self.complete_recover_on_realms(pin, salt, realms, configuration))
-            .collect();
-        let mut recover_attempt_errors: Vec<RecoverError> = Vec::new();
-
-        while let Some(result) = recover_attempts.next().await {
-            return match result {
-                Ok(secret) => Ok(secret),
-                Err(error) => {
-                    self.collect_errors(
-                        &mut recover_attempt_errors,
-                        error,
-                        realms_per_salt.len(),
-                        1,
-                    )?;
-                    continue;
-                }
-            };
+        if realms_per_salt.is_empty() {
+            return Err(RecoverError::NotRegistered);
         }
-
-        Err(RecoverError::NotRegistered)
+        let recover_attempts = realms_per_salt.iter().map(|(salt, realms)| {
+            self.complete_recover_on_realms(pin, salt, realms, configuration)
+        });
+        match join_only_threshold(recover_attempts, 1).await {
+            Ok(results) => Ok(results.into_iter().next().unwrap()),
+            Err(errors) => Err(min(errors)),
+        }
     }
 
     /// Performs phase 2 and 3 of recovery on the given realms.
@@ -139,71 +122,45 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .hash(&configuration.pin_hashing_mode, salt)
             .expect("pin hashing failed");
 
-        let mut recover2_requests: FuturesUnordered<_> = realms
+        let recover2_requests = realms
             .iter()
-            .map(|realm| self.recover2_on_realm(realm, &access_key))
-            .collect();
+            .map(|realm| self.recover2_on_realm(realm, &access_key));
 
-        let mut tgk_shares: Vec<sharks::Share> = Vec::new();
-        let mut recover2_errors: Vec<RecoverError> = Vec::new();
-        while let Some(result) = recover2_requests.next().await {
-            match result {
-                Ok(tgk_share) => {
-                    tgk_shares.push(tgk_share.0);
+        let tgk_shares: Vec<TgkShare> =
+            join_only_threshold(recover2_requests, configuration.recover_threshold.into())
+                .await
+                .map_err(min)?;
 
-                    if tgk_shares.len() >= configuration.recover_threshold.into() {
-                        drop(recover2_requests);
-                        break;
-                    }
-                }
-
-                Err(error) => self.collect_errors(
-                    &mut recover2_errors,
-                    error,
-                    realms.len(),
-                    configuration.recover_threshold.into(),
-                )?,
-            }
-        }
-
-        if tgk_shares.len() < configuration.recover_threshold.into() {
-            return Err(RecoverError::NotRegistered);
-        }
-
-        let tgk = match Sharks(configuration.recover_threshold).recover(&tgk_shares) {
+        let tgk = match Sharks(configuration.recover_threshold)
+            .recover(tgk_shares.iter().map(|share| &share.0))
+        {
             Ok(tgk) => TagGeneratingKey::from(tgk),
-
             Err(_) => {
                 return Err(RecoverError::Assertion);
             }
         };
 
-        let mut recover3_requests: FuturesUnordered<_> = realms
+        let recover3_requests = realms
             .iter()
-            .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)))
-            .collect();
+            .map(|realm| self.recover3_on_realm(realm, tgk.tag(&realm.public_key)));
 
-        let mut secret_shares = Vec::<sharks::Share>::new();
-        let mut recover3_errors: Vec<RecoverError> = Vec::new();
-        while let Some(result) = recover3_requests.next().await {
-            match result {
-                Ok(secret_share) => {
-                    secret_shares.push(
-                        secret_share
-                            .expose_secret()
-                            .try_into()
-                            .expect("failed to parse user_secret_share"),
-                    );
-                }
-
-                Err(error) => self.collect_errors(
-                    &mut recover3_errors,
-                    error,
-                    realms.len(),
-                    configuration.recover_threshold.into(),
-                )?,
-            }
-        }
+        let secret_shares: Vec<sharks::Share> = match join_all_need_threshold(
+            recover3_requests,
+            configuration.recover_threshold.into(),
+        )
+        .await
+        {
+            Ok(secret_shares) => secret_shares
+                .into_iter()
+                .map(|share| {
+                    share
+                        .expose_secret()
+                        .try_into()
+                        .expect("failed to parse user_secret_share")
+                })
+                .collect(),
+            Err(errors) => return Err(min(errors)),
+        };
 
         match Sharks(configuration.recover_threshold).recover(&secret_shares) {
             Ok(secret) => Ok(EncryptedUserSecret::try_from(secret)
