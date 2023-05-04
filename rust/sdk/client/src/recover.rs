@@ -93,6 +93,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         realms_per_salt.retain(|_, realms| realms.len() >= configuration.recover_threshold.into());
 
+        // TODO: Require `configuration.recover_threshold * 2 >
+        // configuration.realms.len()`, so that `realms_per_salt.len() <= 1`,
+        // which would avoid the weirdness below.
+
         if realms_per_salt.is_empty() {
             return Err(RecoverError::NotRegistered);
         }
