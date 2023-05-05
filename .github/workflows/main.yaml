@@ -151,16 +151,16 @@ jobs:
         with:
           command: audit
 
-      - name: Install latest nightly
+      - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2023-05-01
           components: rust-src
 
       - name: Build no_std
         uses: actions-rs/cargo@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2023-05-01
           args: -p loam-sdk-core -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
           command: build
 
