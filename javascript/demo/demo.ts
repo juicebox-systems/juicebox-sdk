@@ -135,7 +135,7 @@ async function main() {
     console.log("[JavaScript] Recovered secret: " + decoder.decode(secret2));
 
     console.log("[JavaScript] Deleting secret");
-    await client.delete_all();
+    await client.delete();
     console.log("[JavaScript] Deleting succeeded");
 
     console.log("[JavaScript] Starting recover with correct PIN after delete");

@@ -12,6 +12,7 @@ edition = "2021"
 ciborium = { workspace = true }
 digest = { workspace = true }
 loam-sdk-noise = { path = "../../sdk/noise" }
+rand_core = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
 subtle = { workspace = true }

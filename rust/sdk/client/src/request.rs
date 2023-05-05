@@ -1,5 +1,7 @@
+use futures::{stream::FuturesUnordered, StreamExt};
 use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
+use std::future::Future;
 use std::time::Duration;
 use x25519_dalek as x25519;
 
@@ -241,4 +243,100 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
         Err(RequestError::Transient)
     }
+}
+
+/// Waits for all the futures to complete, unless enough fail that there is no
+/// way for the threshold to be met.
+///
+/// Panics if the total number of `futures` given is less than the threshold,
+/// or if the threshold is 0.
+///
+/// The results and errors are returned in no particular order. An `Ok` return
+/// value will contain at least `threshold` results. An `Error` return value
+/// will be the smallest error seen (using `Ord`).
+pub(crate) async fn join_at_least_threshold<I, F, T, E>(
+    futures: I,
+    threshold: u8,
+) -> Result<Vec<T>, E>
+where
+    I: IntoIterator<Item = F>,
+    F: Future<Output = Result<T, E>>,
+    E: Ord,
+{
+    let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
+    let total = futures.len();
+    let threshold = usize::from(threshold);
+    assert!(total >= threshold);
+    assert!(threshold > 0);
+    let mut oks = Vec::with_capacity(total);
+    let mut errors = Vec::new();
+
+    while let Some(result) = futures.next().await {
+        match result {
+            Ok(ok) => {
+                oks.push(ok);
+            }
+
+            Err(error) => {
+                errors.push(error);
+                if errors.len() > total - threshold {
+                    return Err(min(errors));
+                }
+            }
+        }
+    }
+
+    assert!(oks.len() >= threshold);
+    Ok(oks)
+}
+
+/// Waits for a threshold of futures to succeed, unless enough fail that there
+/// is no way for the threshold to be met.
+///
+/// Panics if the total number of `futures` given is less than the threshold,
+/// or if the threshold is 0.
+///
+/// The results and errors are returned in no particular order. An `Ok` return
+/// value will contain exactly `threshold` results. An `Error` return value
+/// will be the smallest error seen (using `Ord`).
+pub(crate) async fn join_until_threshold<I, F, T, E>(futures: I, threshold: u8) -> Result<Vec<T>, E>
+where
+    I: IntoIterator<Item = F>,
+    F: Future<Output = Result<T, E>>,
+    E: Ord,
+{
+    let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
+    let total = futures.len();
+    let threshold = usize::from(threshold);
+    assert!(total >= threshold);
+    assert!(threshold > 0);
+    let mut oks = Vec::with_capacity(threshold);
+    let mut errors = Vec::new();
+
+    while let Some(result) = futures.next().await {
+        match result {
+            Ok(ok) => {
+                oks.push(ok);
+                if oks.len() >= threshold {
+                    return Ok(oks);
+                }
+            }
+
+            Err(error) => {
+                errors.push(error);
+                if errors.len() > total - threshold {
+                    return Err(min(errors));
+                }
+            }
+        }
+    }
+
+    unreachable!();
+}
+
+/// Consumes a `Vec` and returns its minimum value.
+///
+/// This is used for selecting the "best" error out of a set of errors.
+fn min<T: Ord>(values: Vec<T>) -> T {
+    values.into_iter().min().unwrap()
 }

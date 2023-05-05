@@ -8,7 +8,7 @@
 import Foundation
 import LoamSdkFfi
 
-/// Error thrown from `Client.deleteAll`
+/// Error thrown from `Client.delete`
 public enum DeleteError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth

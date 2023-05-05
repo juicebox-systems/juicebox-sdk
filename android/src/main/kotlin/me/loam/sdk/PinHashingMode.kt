@@ -5,11 +5,6 @@ package me.loam.sdk
  */
 public enum class PinHashingMode {
     /**
-     * No hashing, ensure a PIN of sufficient entropy is provided.
-     */
-    NONE,
-
-    /**
      * A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
      */
     STANDARD_2019,

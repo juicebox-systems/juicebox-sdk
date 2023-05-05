@@ -1,7 +1,7 @@
 package me.loam.sdk
 
 /**
- * An error returned from [Client.deleteAll]
+ * An error returned from [Client.delete]
  */
 public enum class DeleteError {
     /**

@@ -103,11 +103,6 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     }
 
     /// Stores a new PIN-protected secret on the configured realms.
-    ///
-    /// # Warning
-    ///
-    /// If the secrets vary in length (such as passwords), the caller should
-    /// add padding to obscure the secrets' length.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn register(
         &self,
@@ -115,8 +110,7 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
         secret: &UserSecret,
         policy: Policy,
     ) -> Result<(), RegisterError> {
-        self.register_first_available_generation(pin, secret, policy)
-            .await
+        self.perform_register(pin, secret, policy).await
     }
 
     /// Retrieves a PIN-protected secret from the configured realms, or falls
@@ -124,11 +118,11 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     /// registered.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
-        self.recover_latest_registered_configuration(pin).await
+        self.perform_recover(pin).await
     }
 
-    /// Deletes all secrets for this user.
-    pub async fn delete_all(&self) -> Result<(), DeleteError> {
-        self.delete_up_to(None).await
+    /// Deletes the registered secret for this user, if any.
+    pub async fn delete(&self) -> Result<(), DeleteError> {
+        self.perform_delete().await
     }
 }

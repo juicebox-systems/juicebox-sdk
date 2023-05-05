@@ -58,16 +58,21 @@ impl From<&Realm> for sdk::Realm {
     }
 }
 
-/// Creates a new opaque `LoamClient` reference.
+/// Constructs a new opaque `LoamClient`.
 ///
-/// The configuration provided must include at least one realm.
+/// # Arguments
 ///
-/// The `auth_token` represents the authority to act as a particular user and
-/// should be valid for the lifetime of the `LoamClient`. It should be a
-/// base64-encoded JWT.
-///
-/// The function pointer `http_send` will be called when the client wishes to
-/// make a network request. The appropriate request should be executed by you,
+/// * `configuration` – Represents the current configuration. The configuration
+/// provided must include at least one `LoamRealm`.
+/// * `previous_configurations` – Represents any other configurations you have
+/// previously registered with that you may not yet have migrated the data from.
+/// During `loam_client_recover`, they will be tried if the current user has not yet
+/// registered on the current configuration. These should be ordered from most recently
+/// to least recently used.
+/// * `auth_token` – Represents the authority to act as a particular user
+/// and should be valid for the lifetime of the `LoamClient`.
+/// * `http_send` – A function pointer `http_send` that will be called when the client
+/// wishes to make a network request. The appropriate request should be executed by you,
 /// and the the response provided to the response function pointer. This send
 /// should be performed asynchronously. `http_send` should not block on
 /// performing the request, and the response should be returned to the
@@ -111,14 +116,11 @@ pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient>) {
     drop(Box::from_raw(client))
 }
 
-/// Stores a new PIN-protected secret.
+/// Stores a new PIN-protected secret on the configured realms.
 ///
-/// If it's successful, this also deletes any prior secrets for this user.
+/// # Note
 ///
-/// # Warning
-///
-/// If the secrets vary in length (such as passwords), the caller should
-/// add padding to obscure the secrets' length.
+/// The provided secret must have a maximum length of 128-bytes.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_register(
@@ -150,11 +152,9 @@ pub unsafe extern "C" fn loam_client_register(
     });
 }
 
-/// Retrieves a PIN-protected secret.
-///
-/// If it's successful, this also deletes any earlier secrets for this
-/// user. If there's an error, the number of `guesses_remaining` may
-/// be provided.
+/// Retrieves a PIN-protected secret from the configured realms, or falls
+/// back to the previous realms if the current realms do not have a secret
+/// registered.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_recover(
@@ -189,12 +189,10 @@ pub unsafe extern "C" fn loam_client_recover(
     });
 }
 
-/// Deletes all secrets for this user.
-///
-/// Note: This does not delete the user's audit log.
+/// Deletes the registered secret for this user, if any.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_delete_all(
+pub unsafe extern "C" fn loam_client_delete(
     client: *mut Client<HttpClient>,
     context: *const c_void,
     response: extern "C" fn(context: &c_void, error: *const DeleteError),
@@ -204,7 +202,7 @@ pub unsafe extern "C" fn loam_client_delete_all(
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client.runtime.block_on(client.sdk.delete_all()) {
+        match client.runtime.block_on(client.sdk.delete()) {
             Ok(_) => (response)(context, ptr::null()),
             Err(err) => {
                 let error = DeleteError::from(err);

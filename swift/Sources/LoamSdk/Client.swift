@@ -79,12 +79,9 @@ public class Client {
      - Parameters:
         - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
             safely be a low-entropy value.
-        - secret: A user provided secret.
+        - secret: A user provided secret with a maximum length of 128-bytes.
         - guesses: The number of guesses allowed before the secret can no longer
             be accessed.
-
-     - Warning: If the secrets vary in length (such as passwords), the caller should
-            add padding to obscure the secrets' length.
 
      - Throws: `RegisterError` if registration could not be completed successfully.
      */
@@ -148,13 +145,13 @@ public class Client {
     }
 
     /**
-     Deletes all secrets for this user.
+     Deletes the registered secret for this user, if any.
 
      - Throws: `DeleteError` if deletion could not be completed successfully.
      */
-    public func deleteAll() async throws {
+    public func delete() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            loam_client_delete_all(
+            loam_client_delete(
                 opaque,
                 Unmanaged.passRetained(Box(continuation)).toOpaque()
             ) { context, error in

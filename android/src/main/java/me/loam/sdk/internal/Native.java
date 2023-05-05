@@ -33,7 +33,7 @@ public final class Native {
        @NotNull byte[] pin
    ) throws RecoverException;
 
-   public static native void clientDeleteAll(
+   public static native void clientDelete(
        @NotNull long client
    ) throws DeleteException;
 

@@ -144,9 +144,16 @@ pub struct Client(sdk::Client<WasmSleeper, HttpClient>);
 impl Client {
     /// Constructs a new `Client`.
     ///
-    /// The configuration provided must include at least one realm.
+    /// # Arguments
     ///
-    /// The `auth_token` represents the authority to act as a particular user
+    /// * `configuration` – Represents the current configuration. The configuration
+    /// provided must include at least one `Realm`.
+    /// * `previous_configurations` – Represents any other configurations you have
+    /// previously registered with that you may not yet have migrated the data from.
+    /// During `Client.recover`, they will be tried if the current user has not yet
+    /// registered on the current configuration. These should be ordered from most recently
+    /// to least recently used.
+    /// * `auth_token` – Represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
     #[wasm_bindgen(constructor)]
     pub fn new(
@@ -168,16 +175,13 @@ impl Client {
         Self(sdk)
     }
 
-    /// Stores a new PIN-protected secret.
+    /// Stores a new PIN-protected secret on the configured realms.
     ///
-    /// If it's successful, this also deletes any prior secrets for this user.
+    /// # Note
     ///
-    /// Upon failure, a `Register` will be provided.
+    /// The provided secret must have a maximum length of 128-bytes.
     ///
-    /// # Warning
-    ///
-    /// If the secrets vary in length (such as passwords), the caller should
-    /// add padding to obscure the secrets' length.
+    /// Upon failure, a `RegisterError` will be provided.
     pub async fn register(
         &self,
         pin: Vec<u8>,
@@ -194,10 +198,9 @@ impl Client {
             .map_err(RegisterError::from)
     }
 
-    /// Retrieves a PIN-protected secret.
-    ///
-    /// If it's successful, this also deletes any earlier secrets for this
-    /// user.
+    /// Retrieves a PIN-protected secret from the configured realms, or falls
+    /// back to the previous realms if the current realms do not have a secret
+    /// registered.
     ///
     /// Upon failure, a `RecoverError` will be provided.
     pub async fn recover(&self, pin: Vec<u8>) -> Result<Uint8Array, RecoverError> {
@@ -207,11 +210,11 @@ impl Client {
         }
     }
 
-    /// Deletes all secrets for this user.
+    /// Deletes the registered secret for this user, if any.
     ///
     /// Upon failure, a `DeleteError` will be provided.
-    pub async fn delete_all(&self) -> Result<(), DeleteError> {
-        self.0.delete_all().await.map_err(DeleteError::from)
+    pub async fn delete(&self) -> Result<(), DeleteError> {
+        self.0.delete().await.map_err(DeleteError::from)
     }
 }
 
@@ -363,7 +366,7 @@ mod tests {
     #[wasm_bindgen_test]
     async fn test_delete() {
         let client = client("https://httpbin.org/anything/");
-        let result = client.delete_all().await;
+        let result = client.delete().await;
         assert!(
             matches!(result, Err(DeleteError::Assertion)),
             "got {result:?}"
@@ -384,7 +387,7 @@ mod tests {
                 },
                 register_threshold: 1,
                 recover_threshold: 1,
-                pin_hashing_mode: PinHashingMode::None,
+                pin_hashing_mode: PinHashingMode::FastInsecure,
             },
             to_value::<Vec<sdk::Configuration>>(&vec![]).unwrap().into(),
             "token".to_string(),

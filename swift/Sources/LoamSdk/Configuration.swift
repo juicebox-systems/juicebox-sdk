@@ -1,6 +1,6 @@
 //
 //  Configuration.swift
-//  
+//
 //
 //  Created by Nora Trapp on 3/29/23.
 //
@@ -46,12 +46,10 @@ public struct Configuration {
 
     /// A strategy for hashing the user provided pin.
     public enum PinHashingMode: UInt32 {
-        /// No hashing, ensure a PIN of sufficient entropy is provided.
-        case none = 0
         /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
-        case standard2019 = 1
+        case standard2019 = 0
         /// A fast hash used for testing. Do not use in production.
-        case fastInsecure = 2
+        case fastInsecure = 1
     }
 
     /// Defines how the provided PIN will be hashed before register and recover

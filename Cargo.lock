@@ -64,12 +64,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "349a06037c7bf932dd7e7d1f653678b2038b9ad46a74102f1fc7bd7872678cce"
 
 [[package]]
-name = "base64"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
-
-[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -804,8 +798,8 @@ version = "0.1.0"
 dependencies = [
  "argon2",
  "async-trait",
- "base64",
  "blake2",
+ "chacha20poly1305",
  "digest 0.10.6",
  "futures",
  "hmac",
@@ -816,7 +810,6 @@ dependencies = [
  "rand",
  "secrecy",
  "serde",
- "serde_json",
  "serde_repr",
  "sharks",
  "tokio",
@@ -845,6 +838,7 @@ dependencies = [
  "ciborium",
  "digest 0.10.6",
  "loam-sdk-noise",
+ "rand_core 0.6.4",
  "secrecy",
  "serde",
  "subtle",

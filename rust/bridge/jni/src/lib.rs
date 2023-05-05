@@ -160,14 +160,14 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDeleteAll(
+pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDelete(
     mut env: JNIEnv,
     _class: JClass,
     client: jlong,
 ) {
     let client = &*(client as *const Client<HttpClient>);
 
-    if let Err(err) = client.runtime.block_on(client.sdk.delete_all()) {
+    if let Err(err) = client.runtime.block_on(client.sdk.delete()) {
         let error = DeleteError::from(err);
         throw(&mut env, error as i32, "Delete");
     }

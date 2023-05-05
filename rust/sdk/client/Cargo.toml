@@ -14,8 +14,8 @@ doctest = false
 [dependencies]
 argon2 = { workspace = true }
 async-trait = { workspace = true }
-base64 = { workspace = true }
 blake2 = { workspace = true }
+chacha20poly1305 = { workspace = true }
 digest = { workspace = true }
 futures = { workspace = true }
 hmac = { workspace = true }
@@ -26,7 +26,6 @@ loam-sdk-noise = { path = "../../sdk/noise" }
 rand = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 serde_repr = { workspace = true }
 sharks = { workspace = true }
 tokio = { workspace = true }

@@ -46,7 +46,7 @@ public final class Client private constructor (
      *
      * @param pin A user provided PIN. If using a strong [PinHashingMode], this can
      * safely be a low-entropy value.
-     * @param secret A user provided secret.
+     * @param secret A user provided secret with a maximum length of 128-bytes.
      * @param numGuesses The number of guesses allowed before the secret can no longer
      * be accessed.
      *
@@ -74,13 +74,13 @@ public final class Client private constructor (
     }
 
     /**
-     * Deletes all secrets for this user.
+     * Deletes the registered secret for this user, if any.
      *
      * @throws [DeleteException] if deletion could not be completed successfully.
      */
     @Throws(DeleteException::class)
-    public suspend fun deleteAll() {
-        Native.clientDeleteAll(native)
+    public suspend fun delete() {
+        Native.clientDelete(native)
     }
 
     protected fun finalize() {
@@ -140,9 +140,9 @@ public final class Client private constructor (
                     }.toTypedArray()
 
                     if (response.statusCode == 200.toShort()) {
-                        response.body = urlConnection.inputStream.readAllBytes()
+                        response.body = urlConnection.inputStream.readBytes()
                     } else {
-                        response.body = urlConnection.errorStream.readAllBytes()
+                        response.body = urlConnection.errorStream.readBytes()
                     }
 
                     Native.httpClientRequestComplete(httpClient, response)
