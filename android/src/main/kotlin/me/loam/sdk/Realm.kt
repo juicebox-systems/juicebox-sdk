@@ -5,13 +5,14 @@ package me.loam.sdk
  *
  * @property id A unique identifier specified by the realm.
  * @property address The network address to connect to the service.
- * @property publicKey A long-lived public key for which the service
- * has the matching private key.
+ * @property publicKey A long-lived public key for which a hardware
+ * backed service maintains a matching private key. Software realms
+ * do not require public keys.
  */
 public final data class Realm(
     val id: ByteArray,
     val address: String,
-    val publicKey: ByteArray
+    val publicKey: ByteArray? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

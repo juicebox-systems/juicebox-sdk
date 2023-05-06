@@ -148,9 +148,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         };
 
         let recover3_requests = realms.iter().map(|realm| async {
-            let share: UserSecretShare = self
-                .recover3_on_realm(realm, tgk.tag(&realm.public_key))
-                .await?;
+            let share: UserSecretShare = self.recover3_on_realm(realm, tgk.tag(&realm.id)).await?;
             sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
         });
 

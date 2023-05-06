@@ -6,8 +6,8 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
-    Salt, SessionId, UnlockTag, UserSecretShare,
+    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfKey, Policy, RealmId, Salt,
+    SessionId, UnlockTag, UserSecretShare,
 };
 use loam_sdk_noise as noise;
 
@@ -160,7 +160,7 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub salt: Salt,
-    pub oprf_seed: OprfSeed,
+    pub oprf_key: OprfKey,
     pub tag: UnlockTag,
     pub masked_tgk_share: MaskedTgkShare,
     pub secret_share: UserSecretShare,

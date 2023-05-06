@@ -31,20 +31,20 @@ extern "C" {
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Serialize, Deserialize)]
 pub struct Realm {
-    pub address: String,
-    pub public_key: Vec<u8>,
     pub id: Vec<u8>,
+    pub address: String,
+    pub public_key: Option<Vec<u8>>,
 }
 
 #[wasm_bindgen]
 impl Realm {
     #[wasm_bindgen(constructor)]
-    pub fn new(address: String, public_key: Vec<u8>, id: Vec<u8>) -> Self {
+    pub fn new(address: String, public_key: Option<Vec<u8>>, id: Vec<u8>) -> Self {
         console_error_panic_hook::set_once();
         Self {
+            id,
             address,
             public_key,
-            id,
         }
     }
 }
@@ -378,9 +378,9 @@ mod tests {
             Configuration {
                 realms: RealmArray {
                     obj: to_value(&vec![Realm {
-                        address: url.to_string(),
-                        public_key: vec![0; 32],
                         id: vec![0; 16],
+                        address: url.to_string(),
+                        public_key: None,
                     }])
                     .unwrap()
                     .into(),

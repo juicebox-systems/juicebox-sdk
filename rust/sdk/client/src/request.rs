@@ -2,7 +2,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
 use std::future::Future;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 use x25519_dalek as x25519;
 
 use crate::{http, types::Session, Client, Realm, Sleeper};
@@ -35,7 +35,10 @@ impl From<RpcError> for RequestError {
     fn from(e: RpcError) -> Self {
         match e {
             RpcError::Network => Self::Transient,
-            RpcError::HttpStatus(_) => Self::Transient,
+            RpcError::HttpStatus(code) => match code {
+                401 => Self::InvalidAuth,
+                _ => Self::Transient,
+            },
             RpcError::Serialization(_) => Self::Assertion,
             RpcError::Deserialization(_) => Self::Assertion,
         }
@@ -62,14 +65,15 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     async fn make_handshake_request(
         &self,
         realm: &Realm,
+        public_key: &Vec<u8>,
         request: &[u8],
     ) -> Result<(Session, Vec<u8>), RequestError> {
         let realm_public_key = {
             // Whether the public key looks valid is checked with the
             // `Configuration`, so it's OK to panic on that here.
-            assert_eq!(realm.public_key.len(), 32);
+            assert_eq!(public_key.len(), 32);
             let mut buf = [0u8; 32];
-            buf.copy_from_slice(&realm.public_key);
+            buf.copy_from_slice(public_key);
             x25519::PublicKey::from(buf)
         };
         let (handshake, fields) = noise::Handshake::start(&realm_public_key, request, &mut OsRng)
@@ -90,6 +94,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 },
                 encrypted: NoiseRequest::Handshake { handshake: fields },
             },
+            None,
         )
         .await?
         {
@@ -140,6 +145,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                         .map_err(|_| RequestError::Assertion)?,
                 },
             },
+            None,
         )
         .await
         .map_err(RequestError::from)?
@@ -164,6 +170,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     async fn try_make_request(
         &self,
         realm: &Realm,
+        public_key: &Vec<u8>,
         session: Option<Session>,
         request: &[u8],
         needs_forward_secrecy: NeedsForwardSecrecy,
@@ -171,7 +178,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         match session {
             None if needs_forward_secrecy.0 => {
                 let (mut session, handshake_response) =
-                    self.make_handshake_request(realm, &[]).await?;
+                    self.make_handshake_request(realm, public_key, &[]).await?;
                 if !handshake_response.is_empty() {
                     return Err(RequestError::Assertion.into());
                 }
@@ -187,7 +194,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
             None => {
                 assert!(!needs_forward_secrecy.0);
-                Ok(self.make_handshake_request(realm, request).await?)
+                Ok(self
+                    .make_handshake_request(realm, public_key, request)
+                    .await?)
             }
 
             Some(mut session) => self
@@ -200,6 +209,55 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
     pub(crate) async fn make_request(
         &self,
         realm: &Realm,
+        request: SecretsRequest,
+    ) -> Result<SecretsResponse, RequestError> {
+        match &realm.public_key {
+            Some(public_key) => {
+                self.make_hardware_realm_request(realm, public_key, request)
+                    .await
+            }
+            None => self.make_software_realm_request(realm, request).await,
+        }
+    }
+
+    async fn make_software_realm_request(
+        &self,
+        realm: &Realm,
+        request: SecretsRequest,
+    ) -> Result<SecretsResponse, RequestError> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.auth_token.expose_secret()),
+        );
+
+        for _attempt in 0..2 {
+            return match rpc::send(
+                &self.http,
+                &realm.address,
+                request.clone(),
+                Some(headers.clone()),
+            )
+            .await
+            .map_err(RequestError::from)
+            {
+                Ok(response) => Ok(response),
+                Err(RequestError::Transient) => {
+                    // This could be due to an in progress leadership transfer, or other transitory problem.
+                    // We can retry this as it'll likely need a new session anyway.
+                    self.sleeper.sleep(Duration::from_millis(5)).await;
+                    continue;
+                }
+                Err(e) => Err(e),
+            };
+        }
+        Err(RequestError::Transient)
+    }
+
+    async fn make_hardware_realm_request(
+        &self,
+        realm: &Realm,
+        public_key: &Vec<u8>,
         request: SecretsRequest,
     ) -> Result<SecretsResponse, RequestError> {
         let needs_forward_secrecy = NeedsForwardSecrecy(request.needs_forward_secrecy());
@@ -218,7 +276,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 .take()
                 .filter(|session| session.last_used.elapsed() < session.lifetime);
             match self
-                .try_make_request(realm, session, &request, needs_forward_secrecy)
+                .try_make_request(realm, public_key, session, &request, needs_forward_secrecy)
                 .await
             {
                 Ok((session, response)) => {

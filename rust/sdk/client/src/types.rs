@@ -22,15 +22,16 @@ use loam_sdk_noise::client as noise;
 use crate::PinHashingMode;
 
 /// A remote service that the client interacts with directly.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Realm {
-    /// The network address to connect to the service.
-    pub address: Url,
-    /// A long-lived public key for which the service has the matching private
-    /// key.
-    pub public_key: Vec<u8>,
     /// A unique identifier specified by the realm.
     pub id: RealmId,
+    /// The network address to connect to the service.
+    pub address: Url,
+    /// A long-lived public key for which a hardware backed service
+    /// maintains a matching private key. Software realms do not
+    /// require public keys.
+    pub public_key: Option<Vec<u8>>,
 }
 
 impl Debug for Realm {
@@ -97,11 +98,13 @@ impl CheckedConfiguration {
         );
 
         for realm in &c.realms {
-            assert_eq!(
-                realm.public_key.len(),
-                32,
-                "realm public keys must be 32 bytes" // (x25519 for now)
-            );
+            if let Some(public_key) = realm.public_key.as_ref() {
+                assert_eq!(
+                    public_key.len(),
+                    32,
+                    "realm public keys must be 32 bytes" // (x25519 for now)
+                );
+            }
         }
 
         assert!(
@@ -298,10 +301,10 @@ impl TagGeneratingKey {
     }
 
     /// Computes a derived secret-unlocking tag for the realm.
-    pub fn tag(&self, realm_id: &[u8]) -> UnlockTag {
+    pub fn tag(&self, realm_id: &RealmId) -> UnlockTag {
         let mut mac = <SimpleHmac<Blake2s256> as Mac>::new_from_slice(self.expose_secret())
             .expect("failed to initialize HMAC");
-        mac.update(realm_id);
+        mac.update(&realm_id.0);
         UnlockTag::from(mac.finalize().into_bytes().to_vec())
     }
 
