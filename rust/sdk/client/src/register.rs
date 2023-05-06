@@ -80,7 +80,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let secret_shares: Vec<UserSecretShare> = Sharks(self.configuration.recover_threshold)
             .dealer_rng(encrypted_user_secret.expose_secret(), &mut OsRng)
             .take(self.configuration.realms.len())
-            .map(|share| UserSecretShare::from(Vec::<u8>::from(&share)))
+            .map(|share| {
+                UserSecretShare::try_from(Vec::<u8>::from(&share))
+                    .expect("unexpected secret share length")
+            })
             .collect();
 
         let register2_requests = zip4(

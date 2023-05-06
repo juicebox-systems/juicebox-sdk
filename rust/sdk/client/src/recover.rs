@@ -114,7 +114,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let tgk = match Sharks(configuration.recover_threshold)
             .recover(tgk_shares.iter().map(|share| &share.0))
         {
-            Ok(tgk) => TagGeneratingKey::from(tgk),
+            Ok(tgk) => TagGeneratingKey::try_from(tgk).map_err(|_| RecoverError::Assertion)?,
             Err(_) => {
                 return Err(RecoverError::Assertion);
             }

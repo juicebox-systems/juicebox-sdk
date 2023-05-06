@@ -116,7 +116,8 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             }
             ClientResponse::Ok(NoiseResponse::Transport { .. })
             | ClientResponse::MissingSession
-            | ClientResponse::SessionError => Err(RequestError::Assertion),
+            | ClientResponse::SessionError
+            | ClientResponse::PayloadTooLarge => Err(RequestError::Assertion),
             ClientResponse::DecodingError => Err(RequestError::Assertion),
             ClientResponse::Unavailable => Err(RequestError::Transient),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth),
@@ -158,7 +159,9 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             ClientResponse::Ok(NoiseResponse::Handshake { .. }) | ClientResponse::SessionError => {
                 Err(RequestError::Assertion.into())
             }
-            ClientResponse::DecodingError => Err(RequestError::Assertion.into()),
+            ClientResponse::DecodingError | ClientResponse::PayloadTooLarge => {
+                Err(RequestError::Assertion.into())
+            }
             ClientResponse::Unavailable => Err(RequestError::Transient.into()),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth.into()),
             ClientResponse::MissingSession => Err(RequestErrorOrMissingSession::MissingSession),

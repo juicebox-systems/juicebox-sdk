@@ -1,5 +1,6 @@
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 use core::time::Duration;
@@ -52,6 +53,8 @@ pub enum ClientResponse {
     // The server could not deserialize the [`ClientRequest`] or the
     // encapsulated [`SecretsRequest`].
     DecodingError,
+    /// The payload sent to the server was too large to be processed.
+    PayloadTooLarge,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -191,7 +194,7 @@ pub struct Recover2Request {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover2Response {
     Ok {
-        blinded_oprf_pin: OprfBlindedResult,
+        blinded_oprf_pin: Box<OprfBlindedResult>,
         masked_tgk_share: MaskedTgkShare,
     },
     NotRegistered,

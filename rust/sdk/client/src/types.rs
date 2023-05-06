@@ -1,7 +1,7 @@
 use blake2::Blake2s256;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
-use digest::{Digest, KeyInit};
+use digest::KeyInit;
 use hmac::{Mac, SimpleHmac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
@@ -15,7 +15,7 @@ use std::ops::Deref;
 use url::Url;
 
 use loam_sdk_core::types::{
-    MaskedTgkShare, OprfCipherSuite, OprfResult, RealmId, SecretBytes, SessionId, UnlockTag,
+    MaskedTgkShare, OprfResult, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockTag,
 };
 use loam_sdk_noise::client as noise;
 
@@ -151,7 +151,7 @@ const USER_SECRET_ENCRYPTION_NONCE: [u8; 12] = [0u8; 12];
 
 /// A user-chosen secret with a maximum length of 128-bytes.
 #[derive(Clone, Debug)]
-pub struct UserSecret(SecretBytes);
+pub struct UserSecret(SecretBytesVec);
 
 impl UserSecret {
     /// Access the underlying secret bytes.
@@ -180,7 +180,7 @@ impl From<Vec<u8>> for UserSecret {
             "secret exceeds the maximum of {} bytes",
             MAX_USER_SECRET_LENGTH
         );
-        Self(SecretBytes::from(value))
+        Self(SecretBytesVec::from(value))
     }
 }
 
@@ -191,7 +191,7 @@ impl From<Vec<u8>> for UserSecret {
 /// The first byte represents the unpadded length, followed
 /// by the unpadded data, and then null bytes to fill up
 /// to [`MAX_USER_SECRET_LENGTH`].
-struct PaddedUserSecret(SecretBytes);
+struct PaddedUserSecret(SecretBytesArray<129>);
 
 impl PaddedUserSecret {
     /// Access the underlying secret bytes.
@@ -205,7 +205,7 @@ impl From<&UserSecret> for PaddedUserSecret {
         let mut padded_secret = value.expose_secret().to_vec();
         padded_secret.insert(0, padded_secret.len().try_into().unwrap());
         padded_secret.resize(MAX_USER_SECRET_LENGTH + 1, 0);
-        Self::from(padded_secret)
+        Self::try_from(padded_secret).unwrap()
     }
 }
 
@@ -216,15 +216,16 @@ impl From<&PaddedUserSecret> for UserSecret {
     }
 }
 
-impl From<Vec<u8>> for PaddedUserSecret {
-    fn from(value: Vec<u8>) -> Self {
-        assert!(value.len() == MAX_USER_SECRET_LENGTH + 1);
-        Self(SecretBytes::from(value))
+impl TryFrom<Vec<u8>> for PaddedUserSecret {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct EncryptedUserSecret(SecretBytes);
+pub(crate) struct EncryptedUserSecret(SecretBytesArray<145>);
 
 impl EncryptedUserSecret {
     /// Access the underlying secret bytes.
@@ -236,27 +237,25 @@ impl EncryptedUserSecret {
         let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
         let padded_secret = cipher
             .decrypt(&USER_SECRET_ENCRYPTION_NONCE.into(), self.expose_secret())
-            .map(PaddedUserSecret::from)
-            .expect("secret decryption failed");
+            .map(PaddedUserSecret::try_from)
+            .expect("secret decryption failed")
+            .expect("incorrectly sized padded secret");
         UserSecret::from(&padded_secret)
     }
 }
 
 impl TryFrom<Vec<u8>> for EncryptedUserSecret {
-    type Error = String;
+    type Error = &'static str;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if value.len() != 145 {
-            return Err("invalid ciphertext length".into());
-        }
-        Ok(Self(SecretBytes::from(value)))
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
 /// An access key derived from the user's [`PIN`](crate::pin),
 /// used to recover and register the user's [`UserSecret`].
 #[derive(Clone, Debug)]
-pub(crate) struct UserSecretAccessKey(SecretBytes);
+pub(crate) struct UserSecretAccessKey(SecretBytesArray<32>);
 
 impl UserSecretAccessKey {
     /// Access the underlying secret bytes.
@@ -265,16 +264,18 @@ impl UserSecretAccessKey {
     }
 }
 
-impl From<Vec<u8>> for UserSecretAccessKey {
-    fn from(value: Vec<u8>) -> Self {
-        Self(SecretBytes::from(value))
+impl TryFrom<Vec<u8>> for UserSecretAccessKey {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
 /// A key used to encrypt the [`UserSecret`], derived from the
 /// user's [`PIN`](crate::pin).
 #[derive(Clone, Debug)]
-pub(crate) struct UserSecretEncryptionKey(SecretBytes);
+pub(crate) struct UserSecretEncryptionKey(SecretBytesArray<32>);
 
 impl UserSecretEncryptionKey {
     /// Access the underlying secret bytes.
@@ -283,23 +284,32 @@ impl UserSecretEncryptionKey {
     }
 }
 
-impl From<Vec<u8>> for UserSecretEncryptionKey {
-    fn from(value: Vec<u8>) -> Self {
-        Self(SecretBytes::from(value))
+impl From<[u8; 32]> for UserSecretEncryptionKey {
+    fn from(value: [u8; 32]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
+
+impl TryFrom<Vec<u8>> for UserSecretEncryptionKey {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
 /// A random key that is used to derive secret-unlocking tags
 /// ([`UnlockTag`]) for each realm.
-pub(crate) struct TagGeneratingKey(SecretBytes);
+///
+/// Note: The TGK should be one byte smaller than the OPRF output,
+/// so that the TGK shares can be masked with the OPRF output.
+/// The `sharks` library adds an extra byte for the x-coordinate.
+pub(crate) struct TagGeneratingKey(SecretBytesArray<63>);
 
 impl TagGeneratingKey {
     /// Generates a new key with random data.
     pub fn new_random() -> Self {
-        // The TGK should be one byte smaller than the OPRF output,
-        // so that the TGK shares can be masked with the OPRF output.
-        // The `sharks` library adds an extra byte for the x-coordinate.
-        let mut tgk = vec![0u8; oprf_output_size() - 1];
+        let mut tgk = [0u8; 63];
         OsRng.fill_bytes(&mut tgk);
         Self::from(tgk)
     }
@@ -309,7 +319,7 @@ impl TagGeneratingKey {
         let mut mac = <SimpleHmac<Blake2s256> as Mac>::new_from_slice(self.expose_secret())
             .expect("failed to initialize HMAC");
         mac.update(&realm_id.0);
-        UnlockTag::from(mac.finalize().into_bytes().to_vec())
+        UnlockTag::from(Into::<[u8; 32]>::into(mac.finalize().into_bytes()))
     }
 
     pub fn expose_secret(&self) -> &[u8] {
@@ -317,9 +327,17 @@ impl TagGeneratingKey {
     }
 }
 
-impl From<Vec<u8>> for TagGeneratingKey {
-    fn from(value: Vec<u8>) -> Self {
-        Self(SecretBytes::from(value))
+impl From<[u8; 63]> for TagGeneratingKey {
+    fn from(value: [u8; 63]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
+
+impl TryFrom<Vec<u8>> for TagGeneratingKey {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
@@ -362,12 +380,8 @@ impl TgkShare {
         let share = Vec::from(&self.0);
         assert_eq!(oprf_pin.0.len(), share.len());
         let vec: Vec<u8> = zip(oprf_pin.0, share).map(|(a, b)| a ^ b).collect();
-        MaskedTgkShare::from(vec)
+        MaskedTgkShare::try_from(vec).expect("incorrect masked tgk share length")
     }
-}
-
-pub(crate) fn oprf_output_size() -> usize {
-    <OprfCipherSuite as voprf::CipherSuite>::Hash::output_size()
 }
 
 /// An established Noise communication channel.
@@ -429,7 +443,7 @@ mod tests {
     #[test]
     fn test_secret_encryption() {
         let secret = UserSecret::from(b"artemis".to_vec());
-        let key = UserSecretEncryptionKey::from(vec![8; 32]);
+        let key = UserSecretEncryptionKey::from([8; 32]);
         let encrypted_secret = secret.encrypt(&key);
         let expected_encrypted_secret = vec![
             1, 134, 178, 251, 18, 193, 244, 162, 122, 194, 0, 239, 255, 128, 253, 39, 199, 249,
@@ -446,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_secret_decryption() {
-        let key = UserSecretEncryptionKey::from(vec![8; 32]);
+        let key = UserSecretEncryptionKey::from([8; 32]);
         let encrypted_secret = EncryptedUserSecret::try_from(vec![
             1, 134, 178, 251, 18, 193, 244, 162, 122, 194, 0, 239, 255, 128, 253, 39, 199, 249,
             145, 226, 252, 83, 165, 81, 50, 46, 17, 1, 94, 108, 224, 139, 51, 137, 152, 176, 230,
