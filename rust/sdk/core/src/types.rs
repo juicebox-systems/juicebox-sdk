@@ -259,7 +259,7 @@ pub struct Policy {
 /// The client needs the correct PIN and a threshold number of such shares and
 /// OPRF results to recover the tag-generating key.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct MaskedTgkShare(SecretBytesArray<64>);
+pub struct MaskedTgkShare(SecretBytesArray<33>);
 
 impl MaskedTgkShare {
     pub fn expose_secret(&self) -> &[u8] {

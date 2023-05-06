@@ -301,15 +301,18 @@ impl TryFrom<Vec<u8>> for UserSecretEncryptionKey {
 /// A random key that is used to derive secret-unlocking tags
 /// ([`UnlockTag`]) for each realm.
 ///
-/// Note: The TGK should be one byte smaller than the OPRF output,
-/// so that the TGK shares can be masked with the OPRF output.
-/// The `sharks` library adds an extra byte for the x-coordinate.
-pub(crate) struct TagGeneratingKey(SecretBytesArray<63>);
+/// # Note
+///
+/// The TGK should be at least one byte smaller than the OPRF
+/// output (64 bytes) so that the TGK shares can be masked with the
+/// OPRF output. The `sharks` library adds an extra byte for the
+/// x-coordinate.
+pub(crate) struct TagGeneratingKey(SecretBytesArray<32>);
 
 impl TagGeneratingKey {
     /// Generates a new key with random data.
     pub fn new_random() -> Self {
-        let mut tgk = [0u8; 63];
+        let mut tgk = [0u8; 32];
         OsRng.fill_bytes(&mut tgk);
         Self::from(tgk)
     }
@@ -327,8 +330,8 @@ impl TagGeneratingKey {
     }
 }
 
-impl From<[u8; 63]> for TagGeneratingKey {
-    fn from(value: [u8; 63]) -> Self {
+impl From<[u8; 32]> for TagGeneratingKey {
+    fn from(value: [u8; 32]) -> Self {
         Self(SecretBytesArray::from(value))
     }
 }
@@ -363,7 +366,7 @@ impl TgkShare {
         masked_share: &MaskedTgkShare,
         oprf_pin: &[u8],
     ) -> Result<Self, LengthMismatchError> {
-        if masked_share.expose_secret().len() == oprf_pin.len() {
+        if oprf_pin.len() >= masked_share.expose_secret().len() {
             let share: Vec<u8> = zip(oprf_pin, masked_share.expose_secret())
                 .map(|(a, b)| a ^ b)
                 .collect();
@@ -378,7 +381,7 @@ impl TgkShare {
 
     pub fn mask(&self, oprf_pin: &OprfResult) -> MaskedTgkShare {
         let share = Vec::from(&self.0);
-        assert_eq!(oprf_pin.0.len(), share.len());
+        assert!(oprf_pin.0.len() >= share.len());
         let vec: Vec<u8> = zip(oprf_pin.0, share).map(|(a, b)| a ^ b).collect();
         MaskedTgkShare::try_from(vec).expect("incorrect masked tgk share length")
     }
