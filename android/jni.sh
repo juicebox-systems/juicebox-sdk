@@ -9,25 +9,16 @@ USAGE: $(basename "$0") [-d|-r] [-v]
 Builds the necessary Rust JNI dependencies for Android.
 
 OPTIONS:
-  -d, --debug             debug build (default)
-  -r, --release           release build
   -v, --verbose           verbose build
 
   -h, --help              show this help information
 END
 }
 
-RELEASE=
 VERBOSE=
 
 while [ "${1:-}" != "" ]; do
   case $1 in
-    -d | --debug )
-      RELEASE=
-      ;;
-    -r | --release )
-      RELEASE=release
-      ;;
     -v | --verbose )
       VERBOSE=1
       ;;
@@ -80,17 +71,12 @@ for target in "${TARGETS[@]}"; do
         exit 1
     fi
 
-    echo cargo build -p loam-sdk-jni ${RELEASE:+--release} ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
-    cargo build -p loam-sdk-jni ${RELEASE:+--release} ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
+    echo cargo build -p loam-sdk-jni --release ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
+    cargo build -p loam-sdk-jni --release ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
 
-    echo mkdir -p "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
-    mkdir -p "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
+    echo mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
 
-    echo mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
-    mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
-
-    if [[ -z "${RELEASE}" ]]; then
-        echo mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.d" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
-        mv "target/${CARGO_BUILD_TARGET}/${RELEASE:-debug}/libloam_sdk_jni.d" "${ANDROID_LIB_DIR}/${RELEASE:-debug}/${ANDROID_BUILD_TARGET}"
-    fi
+    echo mv "target/${CARGO_BUILD_TARGET}/release/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    mv "target/${CARGO_BUILD_TARGET}/release/libloam_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
 done
