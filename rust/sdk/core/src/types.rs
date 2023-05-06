@@ -54,7 +54,7 @@ impl<const N: usize> TryFrom<Vec<u8>> for SecretBytesArray<N> {
     }
 }
 
-#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct SecretBytesVec(Vec<u8>);
 
 impl Zeroize for SecretBytesVec {
@@ -88,15 +88,59 @@ impl From<Vec<u8>> for SecretBytesVec {
 }
 
 pub type OprfCipherSuite = voprf::Ristretto255;
-pub type OprfBlindedInput = voprf::BlindedElement<OprfCipherSuite>;
-pub type OprfBlindedResult = voprf::EvaluationElement<OprfCipherSuite>;
+pub type OprfBlindedElement = voprf::BlindedElement<OprfCipherSuite>;
+pub type OprfEvaluationElement = voprf::EvaluationElement<OprfCipherSuite>;
 pub type OprfClient = voprf::OprfClient<OprfCipherSuite>;
 pub type OprfServer = voprf::OprfServer<OprfCipherSuite>;
-pub struct OprfResult(pub digest::Output<<OprfCipherSuite as voprf::CipherSuite>::Hash>);
+pub type OprfHash = digest::Output<<OprfCipherSuite as voprf::CipherSuite>::Hash>;
 
-impl Debug for OprfResult {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("OprfResult(REDACTED)")
+#[derive(Debug)]
+pub struct OprfResult(SecretBytesArray<64>);
+
+impl From<OprfHash> for OprfResult {
+    fn from(value: OprfHash) -> Self {
+        Self(SecretBytesArray(Into::<[u8; 64]>::into(value)))
+    }
+}
+
+impl OprfResult {
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct OprfBlindedInput(SecretBytesArray<32>);
+
+impl From<OprfBlindedElement> for OprfBlindedInput {
+    fn from(value: OprfBlindedElement) -> Self {
+        Self(SecretBytesArray::from(Into::<[u8; 32]>::into(
+            value.serialize(),
+        )))
+    }
+}
+
+impl OprfBlindedInput {
+    pub fn expose_secret(&self) -> OprfBlindedElement {
+        OprfBlindedElement::deserialize(self.0.expose_secret()).expect("invalid blinded element")
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct OprfBlindedResult(SecretBytesArray<32>);
+
+impl From<OprfEvaluationElement> for OprfBlindedResult {
+    fn from(value: OprfEvaluationElement) -> Self {
+        Self(SecretBytesArray::from(Into::<[u8; 32]>::into(
+            value.serialize(),
+        )))
+    }
+}
+
+impl OprfBlindedResult {
+    pub fn expose_secret(&self) -> OprfEvaluationElement {
+        OprfEvaluationElement::deserialize(self.0.expose_secret())
+            .expect("invalid evaluation element")
     }
 }
 
@@ -115,7 +159,7 @@ impl OprfKey {
 
         seed.zeroize();
 
-        Self::from(key.as_bytes().to_vec())
+        Self::from(Into::<[u8; 32]>::into(*key.as_bytes()))
     }
 
     pub fn expose_secret(&self) -> &[u8] {

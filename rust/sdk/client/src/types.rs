@@ -364,10 +364,10 @@ impl Debug for TgkShare {
 impl TgkShare {
     pub fn try_from_masked(
         masked_share: &MaskedTgkShare,
-        oprf_pin: &[u8],
+        oprf_result: &OprfResult,
     ) -> Result<Self, LengthMismatchError> {
-        if oprf_pin.len() >= masked_share.expose_secret().len() {
-            let share: Vec<u8> = zip(oprf_pin, masked_share.expose_secret())
+        if oprf_result.expose_secret().len() >= masked_share.expose_secret().len() {
+            let share: Vec<u8> = zip(oprf_result.expose_secret(), masked_share.expose_secret())
                 .map(|(a, b)| a ^ b)
                 .collect();
             match sharks::Share::try_from(share.as_slice()) {
@@ -379,10 +379,12 @@ impl TgkShare {
         }
     }
 
-    pub fn mask(&self, oprf_pin: &OprfResult) -> MaskedTgkShare {
+    pub fn mask(&self, oprf_result: &OprfResult) -> MaskedTgkShare {
         let share = Vec::from(&self.0);
-        assert!(oprf_pin.0.len() >= share.len());
-        let vec: Vec<u8> = zip(oprf_pin.0, share).map(|(a, b)| a ^ b).collect();
+        assert!(oprf_result.expose_secret().len() >= share.len());
+        let vec: Vec<u8> = zip(oprf_result.expose_secret(), share)
+            .map(|(a, b)| a ^ b)
+            .collect();
         MaskedTgkShare::try_from(vec).expect("incorrect masked tgk share length")
     }
 }

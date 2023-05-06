@@ -1,12 +1,13 @@
-use loam_sdk_core::{requests::Register1Response, types::MaskedTgkShare};
 use rand::rngs::OsRng;
 use sharks::Sharks;
 use std::iter::zip;
 use tracing::instrument;
 
 use loam_sdk_core::{
-    requests::{Register2Request, Register2Response, SecretsRequest, SecretsResponse},
-    types::{OprfKey, OprfResult, OprfServer, Salt, UserSecretShare},
+    requests::{
+        Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
+    },
+    types::{MaskedTgkShare, OprfKey, OprfServer, Salt, UserSecretShare},
 };
 
 use crate::{
@@ -70,10 +71,11 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(|(share, key)| {
                 let oprf_server = OprfServer::new_with_key(key.expose_secret())
                     .expect("oprf key derivation failed");
-                let oprf_pin = oprf_server
+                let oprf_result = oprf_server
                     .evaluate(access_key.expose_secret())
-                    .expect("oprf pin evaluation failed");
-                share.mask(&OprfResult(oprf_pin))
+                    .expect("oprf pin evaluation failed")
+                    .into();
+                share.mask(&oprf_result)
             })
             .collect();
 
@@ -131,7 +133,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         request: Register2Request,
     ) -> Result<(), RegisterError> {
         match self
-            .make_request(realm, SecretsRequest::Register2(request))
+            .make_request(realm, SecretsRequest::Register2(Box::new(request)))
             .await
         {
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),

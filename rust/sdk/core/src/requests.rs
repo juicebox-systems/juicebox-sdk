@@ -108,7 +108,7 @@ impl fmt::Debug for NoiseResponse {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum SecretsRequest {
     Register1,
-    Register2(Register2Request),
+    Register2(Box<Register2Request>),
     Recover1,
     Recover2(Recover2Request),
     Recover3(Recover3Request),
@@ -187,14 +187,14 @@ pub enum Recover1Response {
 /// Request message for the second phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
-    pub blinded_pin: OprfBlindedInput,
+    pub blinded_oprf_input: OprfBlindedInput,
 }
 
 /// Response message for the second phase of recovery.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover2Response {
     Ok {
-        blinded_oprf_pin: Box<OprfBlindedResult>,
+        blinded_oprf_result: Box<OprfBlindedResult>,
         masked_tgk_share: MaskedTgkShare,
     },
     NotRegistered,
