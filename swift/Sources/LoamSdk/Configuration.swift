@@ -41,7 +41,7 @@ public struct Configuration {
     /// A recovery (or an adversary) will need the cooperation of this many
     /// realms to retrieve the secret.
     ///
-    /// Must be between `1` and `realms.count`, inclusive.
+    /// Must be between `ceil(realms.count / 2)` and `realms.count`, inclusive.
     public let recoverThreshold: UInt8
 
     /// A strategy for hashing the user provided pin.

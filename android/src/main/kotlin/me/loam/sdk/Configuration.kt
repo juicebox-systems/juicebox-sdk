@@ -10,12 +10,12 @@ package me.loam.sdk
  * @property registerThreshold A registration will be considered successful
  * if it's successful on at least this many realms.
  *
- * Must be between `recoverThreshold` and `realms.count`, inclusive.
+ * Must be between `recoverThreshold` and `realms.size`, inclusive.
  *
  * @property recoverThreshold A recovery (or an adversary) will need the
  * cooperation of this many realms to retrieve the secret.
  *
- * Must be between `1` and `realms.count`, inclusive.
+ * Must be between `ceil(realms.size / 2)` and `realms.size`, inclusive.
  *
  * @property pinHashingMode Defines how the provided PIN will be hashed
  * before register and recover operations. Changing modes will make previous

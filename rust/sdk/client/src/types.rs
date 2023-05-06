@@ -59,7 +59,7 @@ pub struct Configuration {
     /// A recovery (or an adversary) will need the cooperation of this many
     /// realms to retrieve the secret.
     ///
-    /// Must be between `1` and `realms.len()`, inclusive.
+    /// Must be between `(realms.len() / 2).ceil()` and `realms.len()`, inclusive.
     pub recover_threshold: u8,
 
     /// Defines how the provided PIN will be hashed before register and recover
@@ -111,6 +111,10 @@ impl CheckedConfiguration {
         assert!(
             usize::from(c.recover_threshold) <= c.realms.len(),
             "Configuration recover_threshold cannot exceed number of realms"
+        );
+        assert!(
+            usize::from(c.recover_threshold) > c.realms.len() / 2,
+            "Configuration recover_threshold must contain a majority of realms"
         );
 
         assert!(

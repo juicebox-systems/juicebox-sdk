@@ -92,41 +92,14 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         realms_per_salt.retain(|_, realms| realms.len() >= configuration.recover_threshold.into());
 
-        // TODO: Require `configuration.recover_threshold * 2 >
-        // configuration.realms.len()`, so that `realms_per_salt.len() <= 1`,
-        // which would avoid the weirdness below.
+        // We enforce a strict majority for the `recover_threshold`, so there should always
+        // be one or none realms with consensus on a salt available to recover from.
+        assert!(realms_per_salt.len() <= 1);
 
-        if realms_per_salt.is_empty() {
+        let Some((salt, realms)) = realms_per_salt.iter().next() else {
             return Err(RecoverError::NotRegistered);
-        }
+        };
 
-        // These futures are different because (1) they should run to
-        // completion if they're started (to not burn guesses), and (2) they
-        // each hash the PIN, which may be resource-intensive. Since having
-        // more than one salt here is unlikely, these are simply run
-        // sequentially.
-        let mut errors = Vec::new();
-        for (salt, realms) in &realms_per_salt {
-            match self
-                .complete_recover_on_realms(pin, salt, realms, configuration)
-                .await
-            {
-                Ok(user_secret) => return Ok(user_secret),
-                Err(e) => errors.push(e),
-            }
-        }
-        Err(errors.into_iter().min().unwrap())
-    }
-
-    /// Performs phase 2 and 3 of recovery on the given realms.
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
-    async fn complete_recover_on_realms(
-        &self,
-        pin: &Pin,
-        salt: &Salt,
-        realms: &[Realm],
-        configuration: &CheckedConfiguration,
-    ) -> Result<UserSecret, RecoverError> {
         let (access_key, encryption_key) = pin
             .hash(&configuration.pin_hashing_mode, salt)
             .expect("pin hashing failed");
