@@ -7,13 +7,12 @@ use core::fmt::{self, Debug};
 use rand_core::{CryptoRng, RngCore};
 use secrecy::{ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
-use serde_big_array::BigArray;
 use subtle::ConstantTimeEq;
 
-use super::marshalling::serialize_secret;
+use super::marshalling::{bytes, serialize_secret};
 
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct SecretBytesArray<const N: usize>(#[serde(with = "BigArray")] [u8; N]);
+pub struct SecretBytesArray<const N: usize>(#[serde(with = "bytes")] [u8; N]);
 
 impl<const N: usize> Zeroize for SecretBytesArray<N> {
     fn zeroize(&mut self) {

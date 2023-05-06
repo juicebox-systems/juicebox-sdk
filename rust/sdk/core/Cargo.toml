@@ -15,6 +15,5 @@ loam-sdk-noise = { path = "../../sdk/noise" }
 rand_core = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
-serde-big-array = { workspace = true }
 subtle = { workspace = true }
 voprf = { workspace = true }
