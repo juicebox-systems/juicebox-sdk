@@ -94,7 +94,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                 },
                 encrypted: NoiseRequest::Handshake { handshake: fields },
             },
-            None,
         )
         .await?
         {
@@ -145,7 +144,6 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
                         .map_err(|_| RequestError::Assertion)?,
                 },
             },
-            None,
         )
         .await
         .map_err(RequestError::from)?
@@ -232,19 +230,17 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         );
 
         for _attempt in 0..2 {
-            return match rpc::send(
+            return match rpc::send_with_headers(
                 &self.http,
                 &realm.address,
                 request.clone(),
-                Some(headers.clone()),
+                headers.clone(),
             )
             .await
             .map_err(RequestError::from)
             {
                 Ok(response) => Ok(response),
                 Err(RequestError::Transient) => {
-                    // This could be due to an in progress leadership transfer, or other transitory problem.
-                    // We can retry this as it'll likely need a new session anyway.
                     self.sleeper.sleep(Duration::from_millis(5)).await;
                     continue;
                 }

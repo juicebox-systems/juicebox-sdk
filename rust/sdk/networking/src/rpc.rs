@@ -77,13 +77,21 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     http: &Http,
     base_url: &Url,
     request: R,
-    additional_headers: Option<HashMap<String, String>>,
+) -> Result<R::Response, RpcError> {
+    send_with_headers(http, base_url, request, HashMap::new()).await
+}
+
+pub async fn send_with_headers<Http: http::Client, R: Rpc<F>, F: Service>(
+    http: &Http,
+    base_url: &Url,
+    request: R,
+    headers: HashMap<String, String>,
 ) -> Result<R::Response, RpcError> {
     let url = base_url.join(R::PATH).unwrap();
     let body = marshalling::to_vec(&request).map_err(RpcError::Serialization)?;
 
     #[allow(unused_mut)]
-    let mut headers = additional_headers.unwrap_or_default();
+    let mut headers = headers;
 
     #[cfg(feature = "distributed-tracing")]
     {
