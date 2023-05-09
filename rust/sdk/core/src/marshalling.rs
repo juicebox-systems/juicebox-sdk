@@ -103,3 +103,47 @@ pub(crate) mod bytes {
         deserializer.deserialize_bytes(BytesVisitor::<N>)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::SecretBytesArray;
+    use secrecy::ExposeSecret;
+
+    #[test]
+    fn test_bytes() {
+        let slice = &[15; 16];
+        let slice_length = u8::try_from(slice.len()).unwrap();
+
+        let mut serialized_secret_bytes: Vec<u8> = Vec::new();
+        ciborium::ser::into_writer(
+            &SecretBytesArray::from(*slice),
+            &mut serialized_secret_bytes,
+        )
+        .unwrap();
+
+        // cbor bytes are tagged with 0x40 & length (a simplification, this gets more complicated for larger length values)
+        let bytes_marker = 0x40;
+        let mut expected_serialized_bytes = vec![bytes_marker + slice_length];
+        expected_serialized_bytes.extend_from_slice(slice);
+
+        assert_eq!(serialized_secret_bytes, expected_serialized_bytes);
+
+        let mut serialized_array: Vec<u8> = Vec::new();
+        ciborium::ser::into_writer(slice, &mut serialized_array).unwrap();
+
+        // cbor arrays are tagged with 0x80 & length (a simplification, this gets more complicated for larger length values)
+        let array_marker: u8 = 0x80;
+        let mut expected_serialized_array = vec![array_marker + slice_length];
+        expected_serialized_array.extend_from_slice(slice);
+
+        assert_eq!(serialized_array, expected_serialized_array);
+
+        let deserialized_secret_bytes_array: SecretBytesArray<16> =
+            ciborium::de::from_reader(expected_serialized_bytes.as_slice()).unwrap();
+        assert_eq!(deserialized_secret_bytes_array.expose_secret(), slice);
+
+        let deserialized_array: [u8; 16] =
+            ciborium::de::from_reader(expected_serialized_array.as_slice()).unwrap();
+        assert_eq!(&deserialized_array, slice);
+    }
+}
