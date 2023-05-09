@@ -58,7 +58,7 @@ typedef struct {
 typedef struct {
   uint8_t id[16];
   const char *address;
-  LoamUnmanagedDataArray public_key;
+  const LoamUnmanagedDataArray *public_key;
 } LoamRealm;
 
 typedef struct {

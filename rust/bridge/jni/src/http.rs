@@ -90,7 +90,7 @@ impl sdk::http::Client for HttpClient {
                     headers_array = Some(
                         env.new_object_array(
                             request.headers.len().try_into().unwrap(),
-                            jni_object!(LOAM_JNI_HTTP_HEADER_TYPE),
+                            LOAM_JNI_HTTP_HEADER_TYPE,
                             java_header,
                         )
                         .unwrap(),

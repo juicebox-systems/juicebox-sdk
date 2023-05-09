@@ -7,7 +7,7 @@ use url::Url;
 
 use crate::http;
 use loam_sdk_core::marshalling;
-use loam_sdk_core::requests::{ClientRequest, ClientResponse};
+use loam_sdk_core::requests::{ClientRequest, ClientResponse, SecretsRequest, SecretsResponse};
 
 pub trait Service: Sync {}
 
@@ -65,16 +65,30 @@ impl Rpc<LoadBalancerService> for ClientRequest {
     type Response = ClientResponse;
 }
 
+pub struct SoftwareRealm();
+impl Service for SoftwareRealm {}
+
+impl Rpc<SoftwareRealm> for SecretsRequest {
+    const PATH: &'static str = "req";
+    type Response = SecretsResponse;
+}
+
 pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     http: &Http,
     base_url: &Url,
     request: R,
 ) -> Result<R::Response, RpcError> {
+    send_with_headers(http, base_url, request, HashMap::new()).await
+}
+
+pub async fn send_with_headers<Http: http::Client, R: Rpc<F>, F: Service>(
+    http: &Http,
+    base_url: &Url,
+    request: R,
+    #[allow(unused_mut)] mut headers: HashMap<String, String>,
+) -> Result<R::Response, RpcError> {
     let url = base_url.join(R::PATH).unwrap();
     let body = marshalling::to_vec(&request).map_err(RpcError::Serialization)?;
-
-    #[allow(unused_mut)]
-    let mut headers = HashMap::new();
 
     #[cfg(feature = "distributed-tracing")]
     {

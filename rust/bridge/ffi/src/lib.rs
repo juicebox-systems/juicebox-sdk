@@ -37,7 +37,7 @@ impl From<&Configuration> for sdk::Configuration {
 pub struct Realm {
     pub id: [u8; 16],
     pub address: *const c_char,
-    pub public_key: UnmanagedArray<u8>,
+    pub public_key: *const UnmanagedArray<u8>,
 }
 
 impl From<&Realm> for sdk::Realm {
@@ -48,12 +48,16 @@ impl From<&Realm> for sdk::Realm {
             .expect("invalid string for address");
         let address = Url::from_str(address_str).expect("invalid URL for address");
 
-        let public_key = ffi.public_key.to_vec();
+        let public_key = if ffi.public_key.is_null() {
+            None
+        } else {
+            Some(unsafe { (*ffi.public_key).to_vec() })
+        };
 
         sdk::Realm {
+            id: sdk::RealmId(ffi.id),
             address,
             public_key,
-            id: sdk::RealmId(ffi.id),
         }
     }
 }

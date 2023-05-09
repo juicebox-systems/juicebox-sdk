@@ -16,11 +16,12 @@ public struct Configuration {
         public let id: UUID
         /// The network address to connect to the service.
         public let address: URL
-        /// A long-lived public key for which the service has the matching private
-        /// key.
-        public let publicKey: Data
+        /// A long-lived public key for which a hardware backed service
+        /// maintains a matching private key. Software realms do not
+        /// require public keys.
+        public let publicKey: Data?
 
-        public init(id: UUID, address: URL, publicKey: Data) {
+        public init(id: UUID, address: URL, publicKey: Data? = nil) {
             self.id = id
             self.address = address
             self.publicKey = publicKey
@@ -92,13 +93,24 @@ extension Configuration.Realm: FfiConvertible {
 
     func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result {
         try address.absoluteString.withCString { addressCStr in
-            try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
-                try body(.init(
+            if let publicKey = publicKey {
+                return try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
+                    try withUnsafePointer(to: publicKeyArray) { publicKeyArrayPointer in
+                        try body(.init(
+                            id: id.uuid,
+                            address: addressCStr,
+                            public_key: publicKeyArrayPointer
+                        ))
+                    }
+                }
+            } else {
+                return try body(.init(
                     id: id.uuid,
                     address: addressCStr,
-                    public_key: publicKeyArray
+                    public_key: nil
                 ))
             }
+
         }
     }
 }

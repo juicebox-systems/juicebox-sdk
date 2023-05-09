@@ -6,7 +6,7 @@ use tracing::instrument;
 
 use loam_sdk_core::{
     requests::{Register2Request, Register2Response, SecretsRequest, SecretsResponse},
-    types::{OprfResult, OprfSeed, OprfServer, Salt, UserSecretShare, OPRF_DERIVATION_INFO},
+    types::{OprfKey, OprfResult, OprfServer, Salt, UserSecretShare},
 };
 
 use crate::{
@@ -54,7 +54,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let encrypted_user_secret = secret.encrypt(&encryption_key);
 
-        let oprf_seeds: Vec<OprfSeed> = std::iter::repeat_with(|| OprfSeed::new_random(&mut OsRng))
+        let oprf_keys: Vec<OprfKey> = std::iter::repeat_with(|| OprfKey::new_random(&mut OsRng))
             .take(self.configuration.realms.len())
             .collect();
 
@@ -66,11 +66,10 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map(TgkShare)
             .collect();
 
-        let masked_tgk_shares: Vec<MaskedTgkShare> = zip(tgk_shares, &oprf_seeds)
-            .map(|(share, seed)| {
-                let oprf_server =
-                    OprfServer::new_from_seed(seed.expose_secret(), OPRF_DERIVATION_INFO)
-                        .expect("oprf key derivation failed");
+        let masked_tgk_shares: Vec<MaskedTgkShare> = zip(tgk_shares, &oprf_keys)
+            .map(|(share, key)| {
+                let oprf_server = OprfServer::new_with_key(key.expose_secret())
+                    .expect("oprf key derivation failed");
                 let oprf_pin = oprf_server
                     .evaluate(access_key.expose_secret())
                     .expect("oprf pin evaluation failed");
@@ -86,17 +85,17 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let register2_requests = zip4(
             &self.configuration.realms,
-            oprf_seeds,
+            oprf_keys,
             masked_tgk_shares,
             secret_shares,
         )
-        .map(|(realm, oprf_seed, masked_tgk_share, secret_share)| {
+        .map(|(realm, oprf_key, masked_tgk_share, secret_share)| {
             self.register2_on_realm(
                 realm,
                 Register2Request {
                     salt: salt.to_owned(),
-                    oprf_seed,
-                    tag: tgk.tag(&realm.public_key),
+                    oprf_key,
+                    tag: tgk.tag(&realm.id),
                     masked_tgk_share,
                     secret_share,
                     policy: policy.to_owned(),

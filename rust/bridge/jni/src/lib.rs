@@ -183,9 +183,9 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestCompl
 ) {
     let http_client = http_client as *const HttpClient;
 
-    let id = get_byte_array(&mut env, &response, "id");
+    let id = get_byte_array(&mut env, &response, "id").expect("id should not be null");
     let status_code = get_short(&mut env, &response, "statusCode");
-    let body = get_byte_array(&mut env, &response, "body");
+    let body = get_byte_array(&mut env, &response, "body").expect("body should not be null");
 
     let java_headers: JObjectArray = env
         .get_field(
@@ -230,14 +230,17 @@ fn get_string(env: &mut JNIEnv, obj: &JObject, name: &str) -> String {
     env.get_string(&jstring).unwrap().into()
 }
 
-fn get_byte_array(env: &mut JNIEnv, obj: &JObject, name: &str) -> Vec<u8> {
-    let jbytearray: JByteArray = env
+fn get_byte_array(env: &mut JNIEnv, obj: &JObject, name: &str) -> Option<Vec<u8>> {
+    let jobject = env
         .get_field(obj, name, jni_array!(JNI_BYTE_TYPE))
         .unwrap()
         .l()
-        .unwrap()
-        .into();
-    env.convert_byte_array(jbytearray).unwrap()
+        .unwrap();
+    if jobject.is_null() {
+        return None;
+    }
+    let jbytearray: JByteArray = jobject.into();
+    Some(env.convert_byte_array(jbytearray).unwrap())
 }
 
 fn get_byte(env: &mut JNIEnv, obj: &JObject, name: &str) -> u8 {
@@ -296,7 +299,7 @@ fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
     for index in 0..jrealms_length {
         let jrealm = env.get_object_array_element(&jrealms, index).unwrap();
 
-        let id = get_byte_array(env, &jrealm, "id");
+        let id = get_byte_array(env, &jrealm, "id").expect("id should not be null");
         let address_string = get_string(env, &jrealm, "address");
         let address = Url::from_str(&address_string).unwrap();
         let public_key = get_byte_array(env, &jrealm, "publicKey");
