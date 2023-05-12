@@ -1,5 +1,6 @@
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 use core::time::Duration;
@@ -52,6 +53,8 @@ pub enum ClientResponse {
     // The server could not deserialize the [`ClientRequest`] or the
     // encapsulated [`SecretsRequest`].
     DecodingError,
+    /// The payload sent to the server was too large to be processed.
+    PayloadTooLarge,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -105,7 +108,7 @@ impl fmt::Debug for NoiseResponse {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum SecretsRequest {
     Register1,
-    Register2(Register2Request),
+    Register2(Box<Register2Request>),
     Recover1,
     Recover2(Recover2Request),
     Recover3(Recover3Request),
@@ -184,14 +187,14 @@ pub enum Recover1Response {
 /// Request message for the second phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
-    pub blinded_pin: OprfBlindedInput,
+    pub blinded_oprf_input: OprfBlindedInput,
 }
 
 /// Response message for the second phase of recovery.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover2Response {
     Ok {
-        blinded_oprf_pin: OprfBlindedResult,
+        blinded_oprf_result: OprfBlindedResult,
         masked_tgk_share: MaskedTgkShare,
     },
     NotRegistered,
@@ -217,4 +220,30 @@ pub enum Recover3Response {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum DeleteResponse {
     Ok,
+}
+
+/// The maximum expected request size from the SDK
+pub const BODY_SIZE_LIMIT: usize = 2048;
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        marshalling,
+        requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
+        types::{MaskedTgkShare, OprfKey, Policy, Salt, UnlockTag, UserSecretShare},
+    };
+
+    #[test]
+    fn test_request_body_size_limit() {
+        let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
+            salt: Salt::from([0; 32]),
+            oprf_key: OprfKey::from([0; 32]),
+            tag: UnlockTag::from([0; 32]),
+            masked_tgk_share: MaskedTgkShare::try_from(vec![0; 33]).unwrap(),
+            secret_share: UserSecretShare::try_from(vec![0; 146]).unwrap(),
+            policy: Policy { num_guesses: 1 },
+        }));
+        let serialized = marshalling::to_vec(&secrets_request).unwrap();
+        assert!(serialized.len() < BODY_SIZE_LIMIT);
+    }
 }

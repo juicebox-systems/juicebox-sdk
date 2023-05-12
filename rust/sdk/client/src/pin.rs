@@ -1,6 +1,6 @@
 use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
-use loam_sdk_core::types::{Salt, SecretBytes};
+use loam_sdk_core::types::{Salt, SecretBytesVec};
 use secrecy::{ExposeSecret, Zeroize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -26,7 +26,7 @@ impl From<u8> for PinHashingMode {
 
 #[derive(Debug)]
 /// A user-chosen password that may be low in entropy.
-pub struct Pin(SecretBytes);
+pub struct Pin(SecretBytesVec);
 
 impl Pin {
     /// Access the underlying secret bytes.
@@ -37,7 +37,7 @@ impl Pin {
 
 impl From<Vec<u8>> for Pin {
     fn from(value: Vec<u8>) -> Self {
-        Self(SecretBytes::from(value))
+        Self(SecretBytesVec::from(value))
     }
 }
 
@@ -81,8 +81,8 @@ impl Pin {
             .ok()?;
 
         let derived_keys = (
-            UserSecretAccessKey::from(hashed_pin[..32].to_vec()),
-            UserSecretEncryptionKey::from(hashed_pin[32..].to_vec()),
+            UserSecretAccessKey::try_from(hashed_pin[..32].to_vec()).unwrap(),
+            UserSecretEncryptionKey::try_from(hashed_pin[32..].to_vec()).unwrap(),
         );
 
         hashed_pin.zeroize();
@@ -98,16 +98,16 @@ mod tests {
 
     #[test]
     fn test_pin_hashing() {
-        let salt = Salt::from(b"user|tenant".to_vec());
+        let salt = Salt::from([5; 32]);
         let pin = Pin::from(b"1234".to_vec());
         let (access_key, encryption_key) = pin.hash(&PinHashingMode::Standard2019, &salt).unwrap();
         let expected_access_key: [u8; 32] = [
-            174, 157, 21, 209, 154, 164, 208, 132, 117, 13, 235, 232, 136, 230, 142, 35, 123, 163,
-            122, 118, 30, 101, 88, 19, 238, 219, 121, 188, 48, 31, 33, 146,
+            45, 200, 138, 25, 91, 126, 44, 32, 38, 38, 95, 185, 234, 240, 137, 173, 29, 248, 232,
+            128, 244, 100, 58, 153, 80, 223, 244, 132, 65, 180, 64, 158,
         ];
         let expected_encryption_key: [u8; 32] = [
-            31, 8, 146, 109, 49, 41, 213, 151, 95, 135, 224, 243, 231, 68, 46, 202, 71, 175, 147,
-            97, 83, 69, 147, 210, 63, 68, 213, 127, 180, 64, 78, 184,
+            244, 174, 18, 34, 213, 125, 130, 107, 42, 124, 149, 36, 197, 138, 48, 133, 114, 180,
+            133, 167, 244, 153, 79, 127, 237, 14, 128, 79, 86, 47, 120, 118,
         ];
         assert_eq!(*access_key.expose_secret(), expected_access_key.to_vec());
         assert_eq!(

@@ -8,7 +8,7 @@ use loam_sdk_core::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
     },
-    types::{OprfClient, Salt, UnlockTag, UserSecretShare},
+    types::{OprfClient, OprfResult, Salt, UnlockTag, UserSecretShare},
 };
 
 use crate::{
@@ -114,7 +114,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         let tgk = match Sharks(configuration.recover_threshold)
             .recover(tgk_shares.iter().map(|share| &share.0))
         {
-            Ok(tgk) => TagGeneratingKey::from(tgk),
+            Ok(tgk) => TagGeneratingKey::try_from(tgk).map_err(|_| RecoverError::Assertion)?,
             Err(_) => {
                 return Err(RecoverError::Assertion);
             }
@@ -161,26 +161,26 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         realm: &Realm,
         access_key: &UserSecretAccessKey,
     ) -> Result<TgkShare, RecoverError> {
-        let blinded_pin = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
+        let blinded_oprf_input = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
             .expect("failed to blind access_key");
 
         let recover2_request = self.make_request(
             realm,
             SecretsRequest::Recover2(Recover2Request {
-                blinded_pin: blinded_pin.message,
+                blinded_oprf_input: blinded_oprf_input.message.into(),
             }),
         );
 
-        let (blinded_oprf_pin, masked_tgk_share) = match recover2_request.await {
+        let (blinded_oprf_result, masked_tgk_share) = match recover2_request.await {
             Err(RequestError::Transient) => return Err(RecoverError::Transient),
             Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {
                 Recover2Response::Ok {
-                    blinded_oprf_pin,
+                    blinded_oprf_result,
                     masked_tgk_share,
-                } => (blinded_oprf_pin, masked_tgk_share),
+                } => (blinded_oprf_result, masked_tgk_share),
 
                 Recover2Response::NotRegistered => {
                     return Err(RecoverError::NotRegistered);
@@ -196,12 +196,16 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             Ok(_) => return Err(RecoverError::Assertion),
         };
 
-        let oprf_pin = blinded_pin
+        let oprf_result: OprfResult = blinded_oprf_input
             .state
-            .finalize(access_key.expose_secret(), &blinded_oprf_pin)
-            .expect("failed to unblind oprf_pin");
+            .finalize(
+                access_key.expose_secret(),
+                &blinded_oprf_result.expose_secret(),
+            )
+            .expect("failed to unblind blinded_oprf_input")
+            .into();
 
-        let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_pin)
+        let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_result)
             .expect("failed to unmask tgk_share");
 
         Ok(tgk_share)
