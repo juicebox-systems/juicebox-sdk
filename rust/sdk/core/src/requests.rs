@@ -221,3 +221,29 @@ pub enum Recover3Response {
 pub enum DeleteResponse {
     Ok,
 }
+
+/// The maximum expected request size from the SDK
+pub const BODY_SIZE_LIMIT: usize = 2048;
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        marshalling,
+        requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
+        types::{MaskedTgkShare, OprfKey, Policy, Salt, UnlockTag, UserSecretShare},
+    };
+
+    #[test]
+    fn test_request_body_size_limit() {
+        let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
+            salt: Salt::from([0; 32]),
+            oprf_key: OprfKey::from([0; 32]),
+            tag: UnlockTag::from([0; 32]),
+            masked_tgk_share: MaskedTgkShare::try_from(vec![0; 33]).unwrap(),
+            secret_share: UserSecretShare::try_from(vec![0; 146]).unwrap(),
+            policy: Policy { num_guesses: 1 },
+        }));
+        let serialized = marshalling::to_vec(&secrets_request).unwrap();
+        assert!(serialized.len() < BODY_SIZE_LIMIT);
+    }
+}
