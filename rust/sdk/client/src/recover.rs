@@ -101,7 +101,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         };
 
         let (access_key, encryption_key) = pin
-            .hash(&configuration.pin_hashing_mode, salt)
+            .hash(configuration.pin_hashing_mode, salt)
             .expect("pin hashing failed");
 
         let recover2_requests = realms
