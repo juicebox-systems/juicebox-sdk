@@ -194,7 +194,7 @@ pub struct Recover2Request {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Recover2Response {
     Ok {
-        blinded_oprf_result: Box<OprfBlindedResult>,
+        blinded_oprf_result: OprfBlindedResult,
         masked_tgk_share: MaskedTgkShare,
     },
     NotRegistered,

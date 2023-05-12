@@ -237,9 +237,8 @@ impl EncryptedUserSecret {
         let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
         let padded_secret = cipher
             .decrypt(&USER_SECRET_ENCRYPTION_NONCE.into(), self.expose_secret())
-            .map(PaddedUserSecret::try_from)
-            .expect("secret decryption failed")
-            .expect("incorrectly sized padded secret");
+            .map(|s| PaddedUserSecret::try_from(s).expect("incorrectly sized padded secret"))
+            .expect("secret decryption failed");
         UserSecret::from(&padded_secret)
     }
 }
