@@ -50,7 +50,7 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
 
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
-            .hash(&self.configuration.pin_hashing_mode, &salt)
+            .hash(self.configuration.pin_hashing_mode, &salt)
             .expect("pin hashing failed");
 
         let encrypted_user_secret = secret.encrypt(&encryption_key);

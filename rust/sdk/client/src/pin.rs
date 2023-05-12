@@ -5,7 +5,7 @@ use secrecy::{ExposeSecret, Zeroize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// A strategy for hashing the user provided [`Pin`]
-#[derive(Clone, Debug, Deserialize_repr, Serialize_repr)]
+#[derive(Copy, Clone, Debug, Deserialize_repr, Eq, PartialEq, Serialize_repr)]
 #[repr(u8)]
 pub enum PinHashingMode {
     /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
@@ -44,7 +44,7 @@ impl From<Vec<u8>> for Pin {
 impl Pin {
     pub(crate) fn hash(
         &self,
-        mode: &PinHashingMode,
+        mode: PinHashingMode,
         salt: &Salt,
     ) -> Option<(UserSecretAccessKey, UserSecretEncryptionKey)> {
         match mode {
@@ -100,7 +100,7 @@ mod tests {
     fn test_pin_hashing() {
         let salt = Salt::from([5; 32]);
         let pin = Pin::from(b"1234".to_vec());
-        let (access_key, encryption_key) = pin.hash(&PinHashingMode::Standard2019, &salt).unwrap();
+        let (access_key, encryption_key) = pin.hash(PinHashingMode::Standard2019, &salt).unwrap();
         let expected_access_key: [u8; 32] = [
             45, 200, 138, 25, 91, 126, 44, 32, 38, 38, 95, 185, 234, 240, 137, 173, 29, 248, 232,
             128, 244, 100, 58, 153, 80, 223, 244, 132, 65, 180, 64, 158,
