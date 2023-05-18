@@ -39,7 +39,7 @@ impl Handshake {
         rng: &mut R,
     ) -> Result<(Self, HandshakeRequest), HandshakeError> {
         Self::start_with_secret(
-            EphemeralSecret::new(rng),
+            EphemeralSecret::random_from_rng(rng),
             server_static_public,
             &[],
             payload_plaintext,
