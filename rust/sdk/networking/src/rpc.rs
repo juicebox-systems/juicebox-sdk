@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use thiserror::Error;
+use tracing::instrument;
 use url::Url;
 
 use crate::http;
@@ -81,6 +82,7 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     send_with_headers(http, base_url, request, HashMap::new()).await
 }
 
+#[instrument(level = "trace", skip(http, request), fields(%base_url))]
 pub async fn send_with_headers<Http: http::Client, R: Rpc<F>, F: Service>(
     http: &Http,
     base_url: &Url,

@@ -21,7 +21,6 @@ pub enum DeleteError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub(crate) async fn perform_delete(&self) -> Result<(), DeleteError> {
         let requests = self
             .configuration

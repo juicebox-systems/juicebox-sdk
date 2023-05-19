@@ -122,6 +122,7 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     }
 
     /// Deletes the registered secret for this user, if any.
+    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn delete(&self) -> Result<(), DeleteError> {
         self.perform_delete().await
     }

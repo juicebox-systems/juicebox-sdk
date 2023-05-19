@@ -2,6 +2,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use rand_core::{CryptoRng, RngCore};
+use tracing::instrument;
 use x25519_dalek as x25519;
 
 use super::{ChainingKey, HandshakeHash, Payload, Role};
@@ -33,6 +34,11 @@ impl Handshake {
     ///
     /// The `request` may be empty. Note that any request given here will not
     /// have forward secrecy.
+    #[instrument(
+        level = "trace",
+        name = "noise_handshake_start",
+        skip(server_static_public, payload_plaintext, rng)
+    )]
     pub fn start<R: RngCore + CryptoRng>(
         server_static_public: &x25519::PublicKey,
         payload_plaintext: &[u8],
@@ -86,6 +92,7 @@ impl Handshake {
     ///
     /// Part of a successful response is a payload from the server, which may
     /// be empty.
+    #[instrument(level = "trace", name = "noise_handshake_finish", skip(self, response))]
     pub fn finish(
         self,
         response: &HandshakeResponse,
