@@ -15,10 +15,10 @@ loam-sdk-core = { path = "../../sdk/core" }
 opentelemetry = { workspace = true, optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true, optional = true }
+tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true, optional = true }
 url = { workspace = true }
 
 [features]
-"distributed-tracing" = ["tracing", "tracing-opentelemetry", "opentelemetry"]
+"distributed-tracing" = ["tracing-opentelemetry", "opentelemetry"]
 "threadsafe-futures" = []

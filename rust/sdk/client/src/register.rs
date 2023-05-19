@@ -34,7 +34,6 @@ pub enum RegisterError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub(crate) async fn perform_register(
         &self,
         pin: &Pin,

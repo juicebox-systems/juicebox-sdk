@@ -3,6 +3,7 @@ use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
 use std::future::Future;
 use std::{collections::HashMap, time::Duration};
+use tracing::instrument;
 use x25519_dalek as x25519;
 
 use crate::{http, types::Session, Client, Realm, Sleeper};
@@ -17,6 +18,7 @@ use loam_sdk_core::{
 use loam_sdk_networking::rpc::{self, RpcError};
 use loam_sdk_noise::client as noise;
 
+#[derive(Debug)]
 pub(crate) enum RequestError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
@@ -46,6 +48,7 @@ impl From<RpcError> for RequestError {
 }
 
 /// Error type for [`Client::make_transport_request`].
+#[derive(Debug)]
 enum RequestErrorOrMissingSession {
     RequestError(RequestError),
     MissingSession,
@@ -62,6 +65,11 @@ impl From<RequestError> for RequestErrorOrMissingSession {
 struct NeedsForwardSecrecy(bool);
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
+    #[instrument(
+        level = "trace",
+        skip(self, public_key, request),
+        err(level = "trace", Debug)
+    )]
     async fn make_handshake_request(
         &self,
         realm: &Realm,
@@ -124,6 +132,11 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         }
     }
 
+    #[instrument(
+        level = "trace",
+        skip(self, session, request),
+        err(level = "trace", Debug)
+    )]
     async fn make_transport_request(
         &self,
         realm: &Realm,

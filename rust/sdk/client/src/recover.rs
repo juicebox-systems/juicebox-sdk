@@ -46,7 +46,6 @@ pub enum RecoverError {
 }
 
 impl<S: Sleeper, Http: http::Client> Client<S, Http> {
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub(crate) async fn perform_recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
         let mut configuration = &self.configuration;
         let mut iter = self.previous_configurations.iter();

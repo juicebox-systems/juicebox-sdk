@@ -12,6 +12,7 @@ hkdf = { workspace = true }
 hmac = { workspace = true }
 rand_core = { workspace = true }
 serde = { workspace = true }
+tracing = { workspace = true }
 x25519-dalek = { workspace = true }
 
 [dev-dependencies]
