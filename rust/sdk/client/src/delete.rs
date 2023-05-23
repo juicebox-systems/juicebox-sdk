@@ -1,7 +1,7 @@
 use futures::future::join_all;
 use tracing::instrument;
 
-use crate::{http, request::RequestError, Client, Realm, Sleeper};
+use crate::{auth, http, request::RequestError, Client, Realm, Sleeper};
 use loam_sdk_core::requests::{DeleteResponse, SecretsRequest, SecretsResponse};
 
 /// Error return type for [`Client::delete`].
@@ -20,7 +20,7 @@ pub enum DeleteError {
     Transient,
 }
 
-impl<S: Sleeper, Http: http::Client> Client<S, Http> {
+impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     pub(crate) async fn perform_delete(&self) -> Result<(), DeleteError> {
         let requests = self
             .configuration

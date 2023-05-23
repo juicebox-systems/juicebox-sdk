@@ -1,10 +1,10 @@
 #![doc = include_str!("../../../README.md")]
 
 use std::collections::HashMap;
-use std::fmt::Debug;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
+mod auth;
 mod delete;
 mod pin;
 mod recover;
@@ -15,6 +15,7 @@ mod types;
 
 use types::{CheckedConfiguration, Session};
 
+pub use auth::{AuthTokenManager, MapTokenManager};
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
@@ -29,38 +30,60 @@ pub use sleeper::TokioSleeper;
 
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
-#[derive(Debug)]
-pub struct Client<S: Sleeper, Http: http::Client> {
+pub struct Client<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> {
     configuration: CheckedConfiguration,
     previous_configurations: Vec<CheckedConfiguration>,
-    auth_token: AuthToken,
+    auth_token_manager: Atm,
     http: Http,
     sleeper: S,
     sessions: HashMap<RealmId, Mutex<Option<Session>>>,
 }
 
 #[cfg(feature = "tokio")]
-impl<Http: http::Client> Client<TokioSleeper, Http> {
+impl<Http: http::Client, Atm: auth::AuthTokenManager> Client<TokioSleeper, Http, Atm> {
     /// Constructs a new `Client` that uses the tokio runtime for delaying request retries.
     ///
     /// see also [`Client::new`]
     pub fn with_tokio(
         configuration: Configuration,
         previous_configurations: Vec<Configuration>,
-        auth_token: AuthToken,
+        auth_token_manager: Atm,
         http: Http,
     ) -> Self {
         Self::new(
             configuration,
             previous_configurations,
-            auth_token,
+            auth_token_manager,
             http,
             TokioSleeper,
         )
     }
 }
 
-impl<Http: http::Client, S: Sleeper> Client<S, Http> {
+impl<S: Sleeper, Http: http::Client> Client<S, Http, MapTokenManager> {
+    /// Constructs a new `Client` with a map of tokens that represent
+    /// the authority to act as a particular user on a particular realm
+    /// for the lifetime of the `Client.
+    ///
+    /// see also [`Client::new`]
+    pub fn with_auth_tokens(
+        configuration: Configuration,
+        previous_configurations: Vec<Configuration>,
+        auth_tokens: HashMap<RealmId, AuthToken>,
+        http: Http,
+        sleeper: S,
+    ) -> Self {
+        Self::new(
+            configuration,
+            previous_configurations,
+            MapTokenManager::new(auth_tokens),
+            http,
+            sleeper,
+        )
+    }
+}
+
+impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     /// Constructs a new `Client`.
     ///
     /// # Arguments
@@ -72,14 +95,14 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
     /// During [`Client::recover`], they will be tried if the current user has not yet
     /// registered on the current configuration. These should be ordered from most recently
     /// to least recently used.
-    /// * `auth_token` – Represents the authority to act as a particular user
-    /// and should be valid for the lifetime of the `Client`.
+    /// * `auth_token_manager` – An [`AuthTokenManager`] used to retrieve a token for
+    /// a given [`Realm`].
     /// * `http` – An [`http::Client`] used to make [`http::Request`] to a [`Realm`].
     /// * `sleeper` – A [`Sleeper`] to use when the SDK needs to perform a `sleep` operation.
     pub fn new(
         configuration: Configuration,
         previous_configurations: Vec<Configuration>,
-        auth_token: AuthToken,
+        auth_token_manager: Atm,
         http: Http,
         sleeper: S,
     ) -> Self {
@@ -95,7 +118,7 @@ impl<Http: http::Client, S: Sleeper> Client<S, Http> {
                 .into_iter()
                 .map(CheckedConfiguration::from)
                 .collect(),
-            auth_token,
+            auth_token_manager,
             http,
             sessions,
             sleeper,

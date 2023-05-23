@@ -33,11 +33,12 @@ final class LoamSdkTests: XCTestCase {
 
     @discardableResult
     func client(url: String) -> Client {
-        Client(
+        let realmId = UUID()
+        return Client(
             configuration: .init(
                 realms: [
                     .init(
-                        id: .init(),
+                        id: realmId,
                         address: URL(string: url)!,
                         publicKey: Data(repeating: 0, count: 32)
                     )
@@ -46,7 +47,7 @@ final class LoamSdkTests: XCTestCase {
                 recoverThreshold: 1,
                 pinHashingMode: .fastInsecure
             ),
-            authToken: "abc.123"
+            authTokens: [realmId: "fake.token"]
         )
     }
 }

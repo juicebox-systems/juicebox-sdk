@@ -33,7 +33,7 @@ dependencies {
 
 Instantiate a `Client` with the appropriate `Realm`s you wish to communicate with.
 
-The auth token should be acquired out-of-band from a server you run. All of the realms must be set up to accept this server's tokens.
+The auth tokens should be acquired out-of-band from a server you run and specific to each realm id. All of the realms must be set up to accept this server's tokens. You can either provide a map of tokens that are valid for the lifetime of the client or implement the `Client.fetchAuthTokenCallback` to dynamically fetch tokens as necessary.
 
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
@@ -61,7 +61,10 @@ val client = Client(
                     recoverThreshold = 2,
                     pinHashingMode = PinHashingMode.STANDARD_2019
                 ),
-                authToken = authToken
+                authTokens = mapOf(
+                  decoder.decode("AQIDBAUGBwgJCgsMDQ4PEA==") to authToken1,
+                  deocder.decode("EA8ODQwLCgkIBwYFBAMCAQ==") to authToken2
+                )
             )
 ```
 

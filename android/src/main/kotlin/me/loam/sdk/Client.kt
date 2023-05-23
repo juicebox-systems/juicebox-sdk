@@ -1,6 +1,7 @@
 package me.loam.sdk
 import me.loam.sdk.internal.Native
 import java.net.URL
+import java.nio.ByteBuffer
 import java.security.KeyStore
 import java.security.cert.Certificate
 import javax.net.ssl.HttpsURLConnection
@@ -14,7 +15,7 @@ import kotlin.concurrent.thread
 public final class Client private constructor (
     val configuration: Configuration,
     val previousConfigurations: Array<Configuration>,
-    val authToken: String,
+    val authTokens: Map<ByteBuffer, String>?,
     private val native: Long
 ) {
     /**
@@ -27,18 +28,20 @@ public final class Client private constructor (
      * During [recover], they will be tried if the current user has not yet
      * registered on the current configuration. These should be ordered from most recently
      * to least recently used.
-     * @param authToken Represents the authority to act as a particular user
-     * and should be valid for the lifetime of the [Client].
+     * @param authTokens Represents the authority to act as a particular user on a particular
+     * realm and should be valid for the lifetime of the [Client]. Alternatively, you
+     * may omit this argument and implement [Client.fetchAuthTokenCallback]
+     * to fetch and refresh tokens as needed.
      */
     public constructor(
         configuration: Configuration,
         previousConfigurations: Array<Configuration> = emptyArray(),
-        authToken: String
+        authTokens: Map<ByteBuffer, String>? = null
     ) : this(
         configuration,
         previousConfigurations,
-        authToken,
-        createNative(configuration, previousConfigurations, authToken)
+        authTokens,
+        createNative(configuration, previousConfigurations, authTokens)
     ) {}
 
     /**
@@ -98,7 +101,15 @@ public final class Client private constructor (
          */
         public var pinnedCertificates: Array<Certificate>? = null
 
-        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authToken: String): Long {
+        /**
+         * Called when any client requires an auth token for a given realm. In general,
+         * it's recommended you maintain some form of cache for tokens and do not fetch
+         * a fresh token for every request. Said cache should be invalidated if any operation
+         * returns an `InvalidAuth` error.
+         */
+        public var fetchAuthTokenCallback: ((ByteArray) -> String?)? = null
+
+        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<ByteBuffer, String>?): Long {
             val httpSend = Native.HttpSendFn { httpClient, request ->
                 thread {
                     val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
@@ -149,7 +160,21 @@ public final class Client private constructor (
                 }
             }
 
-            return Native.clientCreate(configuration, previousConfigurations, authToken, httpSend)
+            val getAuthToken = Native.GetAuthTokenFn { context, contextId, realmId ->
+                thread {
+                    authTokens?.let {
+                        Native.authTokenGetComplete(context, contextId, it[ByteBuffer.wrap(realmId)])
+                    } ?: run {
+                        Client.fetchAuthTokenCallback?.let { callback ->
+                            Native.authTokenGetComplete(context, contextId, callback(realmId))
+                        } ?: run {
+                            Native.authTokenGetComplete(context, contextId, null)
+                        }
+                    }
+                }
+            }
+
+            return Native.clientCreate(configuration, previousConfigurations, getAuthToken, httpSend)
         }
     }
 }

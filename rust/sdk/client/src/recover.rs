@@ -12,7 +12,7 @@ use loam_sdk_core::{
 };
 
 use crate::{
-    http,
+    auth, http,
     request::{join_at_least_threshold, join_until_threshold, RequestError},
     types::{
         CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey,
@@ -45,7 +45,7 @@ pub enum RecoverError {
     Transient,
 }
 
-impl<S: Sleeper, Http: http::Client> Client<S, Http> {
+impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     pub(crate) async fn perform_recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
         let mut configuration = &self.configuration;
         let mut iter = self.previous_configurations.iter();

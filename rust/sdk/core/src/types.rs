@@ -195,7 +195,7 @@ impl Debug for RealmId {
 ///
 /// - an issuer (`iss`) set to the tenant's ID,
 /// - a subject (`sub`) set to the user's ID,
-/// - an audience (`aud`) of "loam.me",
+/// - an audience (`aud`) set to the target realm's ID,
 /// - an expiration time (`exp`) in the future,
 /// - a not-valid before time (`nbf`) in the past, and
 /// - a lifetime (difference between `nbf` and `exp`) of less than 1 day.
