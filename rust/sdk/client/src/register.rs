@@ -7,7 +7,7 @@ use loam_sdk_core::{
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
-    types::{MaskedTgkShare, OprfKey, OprfServer, Salt, UserSecretShare},
+    types::{MaskedTgkShare, OprfSeed, OprfServer, Salt, UserSecretShare, OPRF_KEY_INFO},
 };
 
 use crate::{
@@ -54,7 +54,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let encrypted_user_secret = secret.encrypt(&encryption_key);
 
-        let oprf_keys: Vec<OprfKey> = std::iter::repeat_with(|| OprfKey::new_random(&mut OsRng))
+        let oprf_seeds: Vec<OprfSeed> = std::iter::repeat_with(|| OprfSeed::new_random(&mut OsRng))
             .take(self.configuration.realms.len())
             .collect();
 
@@ -66,9 +66,9 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .map(TgkShare)
             .collect();
 
-        let masked_tgk_shares: Vec<MaskedTgkShare> = zip(tgk_shares, &oprf_keys)
+        let masked_tgk_shares: Vec<MaskedTgkShare> = zip(tgk_shares, &oprf_seeds)
             .map(|(share, key)| {
-                let oprf_server = OprfServer::new_with_key(key.expose_secret())
+                let oprf_server = OprfServer::new_from_seed(key.expose_secret(), OPRF_KEY_INFO)
                     .expect("oprf key derivation failed");
                 let oprf_result = oprf_server
                     .evaluate(access_key.expose_secret())
@@ -89,16 +89,16 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let register2_requests = zip4(
             &self.configuration.realms,
-            oprf_keys,
+            oprf_seeds,
             masked_tgk_shares,
             secret_shares,
         )
-        .map(|(realm, oprf_key, masked_tgk_share, secret_share)| {
+        .map(|(realm, oprf_seed, masked_tgk_share, secret_share)| {
             self.register2_on_realm(
                 realm,
                 Register2Request {
                     salt: salt.to_owned(),
-                    oprf_key,
+                    oprf_seed,
                     tag: tgk.tag(&realm.id),
                     masked_tgk_share,
                     secret_share,

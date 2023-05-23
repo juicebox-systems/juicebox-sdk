@@ -7,8 +7,8 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfKey, Policy, RealmId, Salt,
-    SessionId, UnlockTag, UserSecretShare,
+    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
+    Salt, SessionId, UnlockTag, UserSecretShare,
 };
 use loam_sdk_noise as noise;
 
@@ -163,7 +163,7 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub salt: Salt,
-    pub oprf_key: OprfKey,
+    pub oprf_seed: OprfSeed,
     pub tag: UnlockTag,
     pub masked_tgk_share: MaskedTgkShare,
     pub secret_share: UserSecretShare,
@@ -230,14 +230,14 @@ mod tests {
     use crate::{
         marshalling,
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
-        types::{MaskedTgkShare, OprfKey, Policy, Salt, UnlockTag, UserSecretShare},
+        types::{MaskedTgkShare, OprfSeed, Policy, Salt, UnlockTag, UserSecretShare},
     };
 
     #[test]
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             salt: Salt::from([0; 32]),
-            oprf_key: OprfKey::from([0; 32]),
+            oprf_seed: OprfSeed::from([0; 32]),
             tag: UnlockTag::from([0; 32]),
             masked_tgk_share: MaskedTgkShare::try_from(vec![0; 33]).unwrap(),
             secret_share: UserSecretShare::try_from(vec![0; 146]).unwrap(),
