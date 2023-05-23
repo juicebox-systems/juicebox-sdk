@@ -1,4 +1,7 @@
-use std::{collections::HashMap, ffi::CStr, sync::Mutex};
+use std::collections::HashMap;
+use std::ffi::CStr;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
@@ -20,7 +23,7 @@ pub type AuthTokenGetCallbackFn = unsafe extern "C" fn(
 pub struct AuthTokenManager {
     ffi_get: AuthTokenGetFn,
     await_get_map: Mutex<HashMap<u64, Sender<Option<sdk::AuthToken>>>>,
-    next_await_id: Mutex<u64>,
+    next_await_id: AtomicU64,
 }
 
 impl AuthTokenManager {
@@ -28,7 +31,7 @@ impl AuthTokenManager {
         AuthTokenManager {
             ffi_get,
             await_get_map: Mutex::new(HashMap::new()),
-            next_await_id: Mutex::new(0),
+            next_await_id: AtomicU64::new(0),
         }
     }
 
@@ -44,12 +47,7 @@ impl sdk::AuthTokenManager for AuthTokenManager {
     async fn get(&self, realm: &sdk::RealmId) -> Option<sdk::AuthToken> {
         let (tx, rx) = channel();
         {
-            let id = {
-                let mut next_await_id = self.next_await_id.lock().unwrap();
-                let id = *next_await_id;
-                *next_await_id += 1;
-                id
-            };
+            let id = self.next_await_id.fetch_add(1, Ordering::SeqCst);
 
             {
                 let mut await_get_map = self.await_get_map.lock().unwrap();

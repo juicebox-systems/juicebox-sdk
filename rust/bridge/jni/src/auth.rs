@@ -7,6 +7,7 @@ use jni::{
 };
 use loam_sdk as sdk;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Mutex;
 
 use crate::{
@@ -18,7 +19,7 @@ pub struct AuthTokenManager {
     get_function: GlobalRef,
     jvm: JavaVM,
     await_get_map: Mutex<HashMap<i64, Sender<Option<sdk::AuthToken>>>>,
-    next_await_id: Mutex<i64>,
+    next_await_id: AtomicI64,
 }
 
 impl AuthTokenManager {
@@ -27,7 +28,7 @@ impl AuthTokenManager {
             get_function,
             jvm,
             await_get_map: Mutex::new(HashMap::new()),
-            next_await_id: Mutex::new(0),
+            next_await_id: AtomicI64::new(0),
         }
     }
 
@@ -45,12 +46,7 @@ impl sdk::AuthTokenManager for AuthTokenManager {
         {
             let mut env = self.jvm.attach_current_thread().unwrap();
 
-            let id = {
-                let mut next_await_id = self.next_await_id.lock().unwrap();
-                let id = *next_await_id;
-                *next_await_id += 1;
-                id
-            };
+            let id = self.next_await_id.fetch_add(1, Ordering::SeqCst);
 
             {
                 let mut await_get_map = self.await_get_map.lock().unwrap();
