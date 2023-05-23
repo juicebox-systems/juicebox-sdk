@@ -154,7 +154,7 @@ pub enum SecretsResponse {
 }
 
 /// Response message for the first phase of registration.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Register1Response {
     Ok,
 }
@@ -171,13 +171,13 @@ pub struct Register2Request {
 }
 
 /// Response message for the second phase of registration.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Register2Response {
     Ok,
 }
 
 /// Response message for the first phase of recovery.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover1Response {
     Ok { salt: Salt },
     NotRegistered,
@@ -191,7 +191,7 @@ pub struct Recover2Request {
 }
 
 /// Response message for the second phase of recovery.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover2Response {
     Ok {
         blinded_oprf_result: OprfBlindedResult,
@@ -208,7 +208,7 @@ pub struct Recover3Request {
 }
 
 /// Response message for the third phase of recovery.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover3Response {
     Ok { secret_share: UserSecretShare },
     NotRegistered,
@@ -217,7 +217,7 @@ pub enum Recover3Response {
 }
 
 /// Response message to delete registered secrets.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DeleteResponse {
     Ok,
 }
