@@ -1,7 +1,7 @@
 [package]
-name = "loam-sdk-jni"
+name = "juicebox-sdk-jni"
 version = "0.1.0"
-authors = ["Nora Trapp <nora@loam.me>"]
+authors = ["Nora Trapp <nora@juicebox.me>"]
 edition = "2021"
 
 [lib]
@@ -11,8 +11,8 @@ crate-type = ["cdylib"]
 async-trait = { workspace = true }
 futures = { workspace = true }
 jni = { workspace = true }
-loam-sdk = { path = "../../sdk/client" }
-loam-sdk-bridge = { path = "../common", features = ["tokio"] }
+juicebox-sdk = { path = "../../sdk/client" }
+juicebox-sdk-bridge = { path = "../common", features = ["tokio"] }
 tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

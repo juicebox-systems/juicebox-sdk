@@ -52,7 +52,7 @@ jobs:
     - name: Install cbindgen
       run: cargo +stable install cbindgen --version 0.24.3
 
-    - name: Build loam-sdk-ffi
+    - name: Build juicebox-sdk-ffi
       run: swift/ffi.sh --debug --verbose --verify
 
     - name: Build and Test
@@ -161,7 +161,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           toolchain: nightly-2023-05-01
-          args: -p loam-sdk-core -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
+          args: -p juicebox-sdk-core -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
           command: build
 
   jni:

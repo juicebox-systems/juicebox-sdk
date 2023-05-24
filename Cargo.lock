@@ -755,6 +755,142 @@ dependencies = [
 ]
 
 [[package]]
+name = "juicebox-sdk"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "async-trait",
+ "blake2",
+ "chacha20poly1305",
+ "digest",
+ "futures",
+ "hmac",
+ "instant",
+ "juicebox-sdk-core",
+ "juicebox-sdk-networking",
+ "juicebox-sdk-noise",
+ "rand",
+ "secrecy",
+ "serde",
+ "serde_repr",
+ "sharks",
+ "tokio",
+ "tracing",
+ "url",
+ "voprf",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "juicebox-sdk-bridge"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "juicebox-sdk",
+ "tokio",
+ "url",
+ "uuid",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "juicebox-sdk-core"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "digest",
+ "juicebox-sdk-noise",
+ "rand_core",
+ "secrecy",
+ "serde",
+ "subtle",
+ "voprf",
+]
+
+[[package]]
+name = "juicebox-sdk-ffi"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cbindgen",
+ "futures",
+ "juicebox-sdk",
+ "juicebox-sdk-bridge",
+ "libc",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "juicebox-sdk-jni"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cbindgen",
+ "futures",
+ "jni",
+ "juicebox-sdk",
+ "juicebox-sdk-bridge",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "juicebox-sdk-networking"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "http",
+ "juicebox-sdk-core",
+ "opentelemetry",
+ "serde",
+ "thiserror",
+ "tracing",
+ "tracing-opentelemetry",
+ "url",
+]
+
+[[package]]
+name = "juicebox-sdk-noise"
+version = "0.1.0"
+dependencies = [
+ "blake2",
+ "chacha20poly1305",
+ "digest",
+ "hex",
+ "hkdf",
+ "hmac",
+ "rand_core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "juicebox-sdk-wasm"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "console_error_panic_hook",
+ "futures-channel",
+ "getrandom",
+ "instant",
+ "js-sys",
+ "juicebox-sdk",
+ "juicebox-sdk-bridge",
+ "serde",
+ "serde-wasm-bindgen",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "web-sys",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -777,142 +913,6 @@ name = "linux-raw-sys"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f051f77a7c8e6957c0696eac88f26b0117e54f52d3fc682ab19397a8812846a4"
-
-[[package]]
-name = "loam-sdk"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "async-trait",
- "blake2",
- "chacha20poly1305",
- "digest",
- "futures",
- "hmac",
- "instant",
- "loam-sdk-core",
- "loam-sdk-networking",
- "loam-sdk-noise",
- "rand",
- "secrecy",
- "serde",
- "serde_repr",
- "sharks",
- "tokio",
- "tracing",
- "url",
- "voprf",
- "x25519-dalek",
-]
-
-[[package]]
-name = "loam-sdk-bridge"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "loam-sdk",
- "tokio",
- "url",
- "uuid",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "loam-sdk-core"
-version = "0.1.0"
-dependencies = [
- "ciborium",
- "digest",
- "loam-sdk-noise",
- "rand_core",
- "secrecy",
- "serde",
- "subtle",
- "voprf",
-]
-
-[[package]]
-name = "loam-sdk-ffi"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cbindgen",
- "futures",
- "libc",
- "loam-sdk",
- "loam-sdk-bridge",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "loam-sdk-jni"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cbindgen",
- "futures",
- "jni",
- "loam-sdk",
- "loam-sdk-bridge",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "loam-sdk-networking"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "http",
- "loam-sdk-core",
- "opentelemetry",
- "serde",
- "thiserror",
- "tracing",
- "tracing-opentelemetry",
- "url",
-]
-
-[[package]]
-name = "loam-sdk-noise"
-version = "0.1.0"
-dependencies = [
- "blake2",
- "chacha20poly1305",
- "digest",
- "hex",
- "hkdf",
- "hmac",
- "rand_core",
- "serde",
- "serde_json",
- "tracing",
- "x25519-dalek",
-]
-
-[[package]]
-name = "loam-sdk-wasm"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "console_error_panic_hook",
- "futures-channel",
- "getrandom",
- "instant",
- "js-sys",
- "loam-sdk",
- "loam-sdk-bridge",
- "serde",
- "serde-wasm-bindgen",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "web-sys",
-]
 
 [[package]]
 name = "lock_api"
@@ -1204,7 +1204,7 @@ dependencies = [
 [[package]]
 name = "secrecy"
 version = "0.8.0"
-source = "git+ssh://git@github.com/Loam-Security/secrecy.git?branch=loam-main#b50e54817d6c4b919a8062e024bebe34aa3165c5"
+source = "git+ssh://git@github.com/juicebox-systems/secrecy.git?branch=loam-main#b50e54817d6c4b919a8062e024bebe34aa3165c5"
 dependencies = [
  "serde",
  "zeroize",

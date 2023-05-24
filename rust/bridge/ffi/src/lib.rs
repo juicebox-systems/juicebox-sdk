@@ -3,9 +3,9 @@ pub mod auth;
 pub mod http;
 
 use auth::{AuthTokenGetFn, AuthTokenManager};
+use juicebox_sdk as sdk;
+use juicebox_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use libc::{c_char, c_void};
-use loam_sdk as sdk;
-use loam_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -64,19 +64,19 @@ impl From<&Realm> for sdk::Realm {
     }
 }
 
-/// Constructs a new opaque `LoamClient`.
+/// Constructs a new opaque `JuiceboxClient`.
 ///
 /// # Arguments
 ///
 /// * `configuration` – Represents the current configuration. The configuration
-/// provided must include at least one `LoamRealm`.
+/// provided must include at least one `JuiceboxRealm`.
 /// * `previous_configurations` – Represents any other configurations you have
 /// previously registered with that you may not yet have migrated the data from.
-/// During `loam_client_recover`, they will be tried if the current user has not yet
+/// During `juicebox_client_recover`, they will be tried if the current user has not yet
 /// registered on the current configuration. These should be ordered from most recently
 /// to least recently used.
 /// * `auth_token` – Represents the authority to act as a particular user
-/// and should be valid for the lifetime of the `LoamClient`.
+/// and should be valid for the lifetime of the `JuiceboxClient`.
 /// * `http_send` – A function pointer `http_send` that will be called when the client
 /// wishes to make a network request. The appropriate request should be executed by you,
 /// and the the response provided to the response function pointer. This send
@@ -88,7 +88,7 @@ impl From<&Realm> for sdk::Realm {
 /// function.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_create(
+pub unsafe extern "C" fn juicebox_client_create(
     configuration: Configuration,
     previous_configurations: UnmanagedArray<Configuration>,
     auth_token_get: AuthTokenGetFn,
@@ -111,7 +111,9 @@ pub unsafe extern "C" fn loam_client_create(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient, AuthTokenManager>) {
+pub unsafe extern "C" fn juicebox_client_destroy(
+    client: *mut Client<HttpClient, AuthTokenManager>,
+) {
     assert!(!client.is_null());
     drop(Box::from_raw(client))
 }
@@ -123,7 +125,7 @@ pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient, Aut
 /// The provided secret must have a maximum length of 128-bytes.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_register(
+pub unsafe extern "C" fn juicebox_client_register(
     client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
@@ -157,7 +159,7 @@ pub unsafe extern "C" fn loam_client_register(
 /// registered.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_recover(
+pub unsafe extern "C" fn juicebox_client_recover(
     client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
@@ -192,7 +194,7 @@ pub unsafe extern "C" fn loam_client_recover(
 /// Deletes the registered secret for this user, if any.
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_delete(
+pub unsafe extern "C" fn juicebox_client_delete(
     client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     response: extern "C" fn(context: &c_void, error: *const DeleteError),

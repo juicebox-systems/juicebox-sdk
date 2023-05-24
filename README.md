@@ -1,4 +1,4 @@
-## Loam-SDK
+## Juicebox-SDK
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 

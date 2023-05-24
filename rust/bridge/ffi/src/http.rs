@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
+use juicebox_sdk as sdk;
 use libc::c_char;
-use loam_sdk as sdk;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::mem::take;

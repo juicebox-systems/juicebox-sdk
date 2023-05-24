@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import LoamSdkFfi
+import JuiceboxSdkFfi
 
 /// Error thrown from `Client.delete`
 public enum DeleteError: Error {
@@ -20,11 +20,11 @@ public enum DeleteError: Error {
     /// This request may succeed by trying again with the same parameters.
     case transient
 
-    init(_ error: LoamDeleteError) {
+    init(_ error: JuiceboxDeleteError) {
         switch error {
-        case LoamDeleteErrorInvalidAuth: self = .invalidAuth
-        case LoamDeleteErrorAssertion: self = .assertion
-        case LoamDeleteErrorTransient: self = .transient
+        case JuiceboxDeleteErrorInvalidAuth: self = .invalidAuth
+        case JuiceboxDeleteErrorAssertion: self = .assertion
+        case JuiceboxDeleteErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -49,14 +49,14 @@ public enum RecoverError: Error {
     /// This request may succeed by trying again with the same parameters.
     case transient
 
-    init(_ error: LoamRecoverError) {
+    init(_ error: JuiceboxRecoverError) {
         switch error.reason {
-        case LoamRecoverErrorReasonInvalidPin: self =
+        case JuiceboxRecoverErrorReasonInvalidPin: self =
                 .invalidPin(guessesRemaining: error.guesses_remaining.pointee)
-        case LoamRecoverErrorReasonNotRegistered: self = .notRegistered
-        case LoamRecoverErrorReasonInvalidAuth: self = .invalidAuth
-        case LoamRecoverErrorReasonAssertion: self = .assertion
-        case LoamRecoverErrorReasonTransient: self = .transient
+        case JuiceboxRecoverErrorReasonNotRegistered: self = .notRegistered
+        case JuiceboxRecoverErrorReasonInvalidAuth: self = .invalidAuth
+        case JuiceboxRecoverErrorReasonAssertion: self = .assertion
+        case JuiceboxRecoverErrorReasonTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
         }
     }
@@ -74,11 +74,11 @@ public enum RegisterError: Error {
     /// This request may succeed by trying again with the same parameters.
     case transient
 
-    init(_ error: LoamRegisterError) {
+    init(_ error: JuiceboxRegisterError) {
         switch error {
-        case LoamRegisterErrorInvalidAuth: self = .invalidAuth
-        case LoamRegisterErrorAssertion: self = .assertion
-        case LoamRegisterErrorTransient: self = .transient
+        case JuiceboxRegisterErrorInvalidAuth: self = .invalidAuth
+        case JuiceboxRegisterErrorAssertion: self = .assertion
+        case JuiceboxRegisterErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
         }
     }

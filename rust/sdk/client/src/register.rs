@@ -3,7 +3,7 @@ use sharks::Sharks;
 use std::iter::zip;
 use tracing::instrument;
 
-use loam_sdk_core::{
+use juicebox_sdk_core::{
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },

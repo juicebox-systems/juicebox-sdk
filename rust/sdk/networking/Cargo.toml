@@ -1,17 +1,17 @@
 [package]
-name = "loam-sdk-networking"
+name = "juicebox-sdk-networking"
 version = "0.1.0"
 authors = [
-    "Simon Fell <simon@loam.me>",
-    "Diego Ongaro <diego@loam.me>",
-    "Nora Trapp <nora@loam.me>",
+    "Simon Fell <simon@juicebox.me>",
+    "Diego Ongaro <diego@juicebox.me>",
+    "Nora Trapp <nora@juicebox.me>",
 ]
 edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
 http = { workspace = true }
-loam-sdk-core = { path = "../../sdk/core" }
+juicebox-sdk-core = { path = "../../sdk/core" }
 opentelemetry = { workspace = true, optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

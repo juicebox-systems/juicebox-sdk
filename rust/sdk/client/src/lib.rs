@@ -17,8 +17,8 @@ use types::{CheckedConfiguration, Session};
 
 pub use auth::AuthTokenManager;
 pub use delete::DeleteError;
-pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
-pub use loam_sdk_networking::http;
+pub use juicebox_sdk_core::types::{AuthToken, Policy, RealmId};
+pub use juicebox_sdk_networking::http;
 pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;

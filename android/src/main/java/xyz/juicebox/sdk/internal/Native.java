@@ -1,15 +1,15 @@
-package me.loam.sdk.internal;
+package xyz.juicebox.sdk.internal;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
-import me.loam.sdk.*;
+import xyz.juicebox.sdk.*;
 
 public final class Native {
 
     static {
-        System.loadLibrary("loam_sdk_jni");
+        System.loadLibrary("juicebox_sdk_jni");
     }
 
     public static native long clientCreate(

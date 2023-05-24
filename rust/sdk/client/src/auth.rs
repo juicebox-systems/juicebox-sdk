@@ -2,7 +2,7 @@
 //! the authority to act as a particular user on a particular realm.
 
 use async_trait::async_trait;
-use loam_sdk_core::types::{AuthToken, RealmId};
+use juicebox_sdk_core::types::{AuthToken, RealmId};
 use std::collections::HashMap;
 
 #[async_trait]

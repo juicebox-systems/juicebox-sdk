@@ -1,7 +1,7 @@
 [package]
-name = "loam-sdk-wasm"
+name = "juicebox-sdk-wasm"
 version = "0.1.0"
-authors = ["Nora Trapp <nora@loam.me>"]
+authors = ["Nora Trapp <nora@juicebox.me>"]
 edition = "2021"
 
 [lib]
@@ -14,8 +14,8 @@ futures-channel = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 instant = { workspace = true, features = ["wasm-bindgen"] }
 js-sys = { workspace = true }
-loam-sdk = { path = "../../sdk/client" }
-loam-sdk-bridge = { path = "../common", features = ["wasm"] }
+juicebox-sdk = { path = "../../sdk/client" }
+juicebox-sdk-bridge = { path = "../common", features = ["wasm"] }
 serde = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 url = { workspace = true }

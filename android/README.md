@@ -2,7 +2,7 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](http://34.160.204.87/android/loam-sdk/me.loam.sdk/)
+[Documentation](https://docs.juicebox.xyz/android/juicebox-sdk/xyz.juicebox.sdk/)
 
 ### Install
 
@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'com.github.loam-security.loam-sdk:loam-sdk:0.0.1'
+  implementation 'com.github.juicebox-systems.juicebox-sdk:juicebox-sdk:0.0.1'
 }
 ```
 
@@ -23,8 +23,8 @@ dependencies {
 
 ```
 <dependency>
-  <groupId>com.github.loam-security.loam-sdk</groupId>
-  <artifactId>loam-sdk</artifactId>
+  <groupId>com.github.juicebox-systems.juicebox-sdk</groupId>
+  <artifactId>juicebox-sdk</artifactId>
   <version>0.0.1</version>
 </dependency>
 ```
@@ -38,7 +38,7 @@ The auth tokens should be acquired out-of-band from a server you run and specifi
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
 ```kotlin
-import me.loam.sdk.*
+import xyz.juicebox.sdk.*
 import java.util.Base64
 
 val decoder = Base64.getDecoder()

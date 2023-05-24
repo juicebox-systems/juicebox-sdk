@@ -14,10 +14,10 @@ use std::iter::zip;
 use std::ops::Deref;
 use url::Url;
 
-use loam_sdk_core::types::{
+use juicebox_sdk_core::types::{
     MaskedTgkShare, OprfResult, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockTag,
 };
-use loam_sdk_noise::client as noise;
+use juicebox_sdk_noise::client as noise;
 
 use crate::PinHashingMode;
 

@@ -78,10 +78,10 @@ if [[ -n "${CARGO_BUILD_TARGET:-}" ]] && ! (rustup target list --installed | gre
   exit 1
 fi
 
-echo cargo build -p loam-sdk-ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
-cargo build -p loam-sdk-ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
+echo cargo build -p juicebox-sdk-ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
+cargo build -p juicebox-sdk-ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
 
-FFI_HEADER_PATH=swift/Sources/LoamSdkFfi/loam-sdk-ffi.h
+FFI_HEADER_PATH=swift/Sources/JuiceboxSdkFfi/juicebox-sdk-ffi.h
 
 if [[ -n "${RUN_CBINDGEN}" ]]; then
 
@@ -97,7 +97,7 @@ if [[ -n "${RUN_CBINDGEN}" ]]; then
     echo diff -u "${FFI_HEADER_PATH}" "<(cbindgen -q ${RELEASE:+--profile release} rust/bridge/ffi)"
     if ! diff -u "${FFI_HEADER_PATH}"  <(cbindgen -q ${RELEASE:+--profile release} rust/bridge/ffi); then
       echo
-      echo 'error: loam-sdk-ffi.h not up to date; run' "$0" '--generate`' >&2
+      echo 'error: juicebox-sdk-ffi.h not up to date; run' "$0" '--generate`' >&2
       exit 1
     fi
   else

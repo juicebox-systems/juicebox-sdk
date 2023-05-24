@@ -29,7 +29,7 @@ jobs:
       - name: Generate Documentation
         run: |
           swift package --allow-writing-to-directory docs \
-          generate-documentation --target LoamSdk --disable-indexing \
+          generate-documentation --target JuiceboxSdk --disable-indexing \
           --output-path docs \
           --transform-for-static-hosting \
           --hosting-base-path swift
@@ -90,7 +90,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: '-p loam-sdk --no-deps --features tokio'
+          args: '-p juicebox-sdk --no-deps --features tokio'
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1

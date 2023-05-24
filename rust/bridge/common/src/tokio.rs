@@ -1,6 +1,6 @@
 use tokio::runtime::Runtime;
 
-use loam_sdk as sdk;
+use juicebox_sdk as sdk;
 
 pub struct Client<HttpClient: sdk::http::Client, Atm: sdk::AuthTokenManager> {
     pub sdk: sdk::Client<sdk::TokioSleeper, HttpClient, Atm>,

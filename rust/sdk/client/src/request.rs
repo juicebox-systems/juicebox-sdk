@@ -8,7 +8,7 @@ use x25519_dalek as x25519;
 
 use crate::auth;
 use crate::{http, types::Session, Client, Realm, Sleeper};
-use loam_sdk_core::{
+use juicebox_sdk_core::{
     marshalling,
     requests::{
         ClientRequest, ClientRequestKind, ClientResponse, NoiseRequest, NoiseResponse,
@@ -16,8 +16,8 @@ use loam_sdk_core::{
     },
     types::SessionId,
 };
-use loam_sdk_networking::rpc::{self, RpcError};
-use loam_sdk_noise::client as noise;
+use juicebox_sdk_networking::rpc::{self, RpcError};
+use juicebox_sdk_noise::client as noise;
 
 #[derive(Debug)]
 pub(crate) enum RequestError {

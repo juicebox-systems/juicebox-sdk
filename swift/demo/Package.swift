@@ -16,7 +16,7 @@ let package = Package(
             name: "demo",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "LoamSdk", package: "swift")
+                .product(name: "JuiceboxSdk", package: "swift")
             ],
             linkerSettings: [.unsafeFlags(["-L../../target/debug/"])])
     ]

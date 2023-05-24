@@ -4,11 +4,11 @@ import assert from 'assert';
 import { Command } from 'commander';
 import fs from 'fs';
 import https from 'https';
-import { Client, Configuration, Realm, RecoverError, RecoverErrorReason } from 'loam-sdk';
+import { Client, Configuration, Realm, RecoverError, RecoverErrorReason } from 'juicebox-sdk';
 import { Headers, Request, Response } from 'node-fetch';
 import fetch from 'node-fetch';
 
-// polyfill fetch, loam-sdk expects to be run in a browser
+// polyfill fetch, juicebox-sdk expects to be run in a browser
 
 // @ts-ignore
 globalThis.Request = Request;
@@ -53,7 +53,7 @@ async function main() {
     const authTokens = JSON.parse(program.opts().authTokens);
 
     // @ts-ignore
-    globalThis.LoamGetAuthToken = async (realmId) => {
+    globalThis.JuiceboxGetAuthToken = async (realmId) => {
         return authTokens[Buffer.from(realmId).toString('hex')];
     };
 

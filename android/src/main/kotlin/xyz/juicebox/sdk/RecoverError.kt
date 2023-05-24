@@ -1,4 +1,4 @@
-package me.loam.sdk
+package xyz.juicebox.sdk
 
 /**
  * An error returned from [Client.recover]

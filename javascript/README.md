@@ -5,7 +5,7 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 ### Install
 
 ```
-npm install -s loam-sdk
+npm install -s juicebox-sdk
 ```
 
 ### Usage
@@ -17,7 +17,7 @@ The auth tokens should be acquired out-of-band from a server you run and specifi
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
 ```typescript
-import { Client, Configuration, Realm, PinHashingMode } from 'loam-sdk';
+import { Client, Configuration, Realm, PinHashingMode } from 'juicebox-sdk';
 
 const client = new Client(
     new Configuration(
@@ -43,7 +43,7 @@ const client = new Client(
 );
 
 // fetch or read the correct token for the `realmId`
-window.LoamGetAuthToken = async (realmId) => authTokens[realmId];
+window.JuiceboxGetAuthToken = async (realmId) => authTokens[realmId];
 ```
 
 Once you've created a client, you can register a secret for the `authToken`'s user by calling:

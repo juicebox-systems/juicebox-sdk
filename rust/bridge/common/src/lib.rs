@@ -1,4 +1,4 @@
-use loam_sdk as sdk;
+use juicebox_sdk as sdk;
 
 #[cfg(feature = "tokio")]
 mod tokio;

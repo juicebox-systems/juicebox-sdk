@@ -3,28 +3,28 @@
 import PackageDescription
 
 let package = Package(
-    name: "LoamSdk",
+    name: "JuiceboxSdk",
     platforms: [
        .macOS(.v10_15), .iOS(.v13)
     ],
     products: [
         .library(
-            name: "LoamSdk",
-            targets: ["LoamSdk"]
+            name: "JuiceboxSdk",
+            targets: ["JuiceboxSdk"]
         )
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
     ],
     targets: [
-        .systemLibrary(name: "LoamSdkFfi"),
+        .systemLibrary(name: "JuiceboxSdkFfi"),
         .target(
-            name: "LoamSdk",
-            dependencies: ["LoamSdkFfi"]
+            name: "JuiceboxSdk",
+            dependencies: ["JuiceboxSdkFfi"]
         ),
         .testTarget(
-            name: "LoamSdkTests",
-            dependencies: ["LoamSdk"],
+            name: "JuiceboxSdkTests",
+            dependencies: ["JuiceboxSdk"],
             linkerSettings: [.unsafeFlags(["-L../target/debug/"])]
         )
     ]

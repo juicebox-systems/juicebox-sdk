@@ -1,7 +1,7 @@
 [package]
-name = "loam-sdk-ffi"
+name = "juicebox-sdk-ffi"
 version = "0.1.0"
-authors = ["Nora Trapp <nora@loam.me>", "Diego Ongaro <diego@loam.me>"]
+authors = ["Nora Trapp <nora@juicebox.me>", "Diego Ongaro <diego@juicebox.me>"]
 edition = "2021"
 build = "build.rs"
 
@@ -12,8 +12,8 @@ crate-type = ["staticlib"]
 async-trait = { workspace = true }
 futures = { workspace = true }
 libc = { workspace = true }
-loam-sdk = { path = "../../sdk/client" }
-loam-sdk-bridge = { path = "../common", features = ["tokio"] }
+juicebox-sdk = { path = "../../sdk/client" }
+juicebox-sdk-bridge = { path = "../common", features = ["tokio"] }
 tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

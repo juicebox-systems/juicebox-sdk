@@ -1,4 +1,4 @@
-package me.loam.sdk
+package xyz.juicebox.sdk
 
 /**
  * The parameters used to configure a [Client].

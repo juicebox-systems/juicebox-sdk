@@ -1,10 +1,10 @@
 [package]
-name = "loam-sdk"
+name = "juicebox-sdk"
 version = "0.1.0"
 authors = [
-    "Simon Fell <simon@loam.me>",
-    "Diego Ongaro <diego@loam.me>",
-    "Nora Trapp <nora@loam.me>",
+    "Simon Fell <simon@juicebox.me>",
+    "Diego Ongaro <diego@juicebox.me>",
+    "Nora Trapp <nora@juicebox.me>",
 ]
 edition = "2021"
 
@@ -20,9 +20,9 @@ digest = { workspace = true }
 futures = { workspace = true }
 hmac = { workspace = true }
 instant = { workspace = true }
-loam-sdk-core = { path = "../../sdk/core" }
-loam-sdk-networking = { path = "../../sdk/networking" }
-loam-sdk-noise = { path = "../../sdk/noise" }
+juicebox-sdk-core = { path = "../../sdk/core" }
+juicebox-sdk-networking = { path = "../../sdk/networking" }
+juicebox-sdk-noise = { path = "../../sdk/noise" }
 rand = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }

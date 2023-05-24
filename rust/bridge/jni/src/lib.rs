@@ -10,8 +10,8 @@ use jni::{
     sys::{jlong, jshort},
     JNIEnv,
 };
-use loam_sdk as sdk;
-use loam_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError};
+use juicebox_sdk as sdk;
+use juicebox_sdk_bridge::{Client, DeleteError, RecoverError, RegisterError};
 use std::collections::HashMap;
 use std::str::FromStr;
 use url::Url;
@@ -19,12 +19,13 @@ use url::Url;
 use crate::http::HttpClient;
 use crate::types::{
     JNI_BYTE_TYPE, JNI_INTEGER_TYPE, JNI_SHORT_OBJECT_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE,
-    JNI_VOID_TYPE, LOAM_JNI_HTTP_HEADER_TYPE, LOAM_JNI_PIN_HASHING_MODE_TYPE, LOAM_JNI_REALM_TYPE,
+    JNI_VOID_TYPE, JUICEBOX_JNI_HTTP_HEADER_TYPE, JUICEBOX_JNI_PIN_HASHING_MODE_TYPE,
+    JUICEBOX_JNI_REALM_TYPE,
 };
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
+pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientCreate(
     mut env: JNIEnv,
     _class: JClass,
     configuration: JObject,
@@ -64,7 +65,7 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDestroy(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientDestroy(
     _env: JNIEnv,
     _class: JClass,
     client: jlong,
@@ -76,7 +77,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDestroy(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRegister(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientRegister(
     mut env: JNIEnv,
     _class: JClass,
     client: jlong,
@@ -101,7 +102,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRegister(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientRecover<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass,
     client: jlong,
@@ -117,7 +118,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
         Ok(secret) => env.byte_array_from_slice(secret.expose_secret()).unwrap() as JByteArray,
         Err(err) => {
             let error = RecoverError::from(err);
-            let java_error_type = "me/loam/sdk/RecoverError";
+            let java_error_type = "xyz/juicebox/sdk/RecoverError";
             let java_error_class = env.find_class(java_error_type).unwrap();
             let java_error_values: JObjectArray = env
                 .call_static_method(
@@ -133,7 +134,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
             let java_error = env
                 .get_object_array_element(&java_error_values, error.reason as i32)
                 .unwrap();
-            let java_exception_class = env.find_class("me/loam/sdk/RecoverException").unwrap();
+            let java_exception_class = env.find_class("xyz/juicebox/sdk/RecoverException").unwrap();
 
             let guesses_remaining: JObject = if error.guesses_remaining.is_null() {
                 JObject::null()
@@ -165,7 +166,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDelete(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientDelete(
     mut env: JNIEnv,
     _class: JClass,
     client: jlong,
@@ -180,7 +181,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDelete(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestComplete(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_httpClientRequestComplete(
     mut env: JNIEnv,
     _class: JClass,
     http_client: jlong,
@@ -196,7 +197,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestCompl
         .get_field(
             &response,
             "headers",
-            jni_array!(jni_object!(LOAM_JNI_HTTP_HEADER_TYPE)),
+            jni_array!(jni_object!(JUICEBOX_JNI_HTTP_HEADER_TYPE)),
         )
         .unwrap()
         .l()
@@ -227,7 +228,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestCompl
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_authTokenGetComplete(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGetComplete(
     mut env: JNIEnv,
     _class: JClass,
     context: jlong,
@@ -295,7 +296,7 @@ fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
         .get_field(
             obj,
             "pinHashingMode",
-            jni_object!(LOAM_JNI_PIN_HASHING_MODE_TYPE),
+            jni_object!(JUICEBOX_JNI_PIN_HASHING_MODE_TYPE),
         )
         .unwrap()
         .l()
@@ -314,7 +315,11 @@ fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
         .unwrap();
 
     let jrealms: JObjectArray = env
-        .get_field(obj, "realms", jni_array!(jni_object!(LOAM_JNI_REALM_TYPE)))
+        .get_field(
+            obj,
+            "realms",
+            jni_array!(jni_object!(JUICEBOX_JNI_REALM_TYPE)),
+        )
         .unwrap()
         .l()
         .unwrap()
@@ -346,7 +351,7 @@ fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
 }
 
 fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {
-    let java_error_type = format!("me/loam/sdk/{}Error", name);
+    let java_error_type = format!("xyz/juicebox/sdk/{}Error", name);
     let java_error_class = env.find_class(&java_error_type).unwrap();
     let java_error_values: JObjectArray = env
         .call_static_method(
@@ -363,7 +368,7 @@ fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {
         .get_object_array_element(&java_error_values, error_code)
         .unwrap();
     let java_exception_class = env
-        .find_class(format!("me/loam/sdk/{}Exception", name))
+        .find_class(format!("xyz/juicebox/sdk/{}Exception", name))
         .unwrap();
     let java_exception: JThrowable = env
         .new_object(

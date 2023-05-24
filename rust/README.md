@@ -2,26 +2,26 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](http://34.160.204.87/rust/loam_sdk/)
+[Documentation](https://docs.juicebox.xyz/rust/juicebox_sdk/)
 
 ### Install
 
 Run the following Cargo command in your project directory:
 
 ```
-cargo add loam_sdk
+cargo add juicebox-sdk
 ```
 
 Or add the following line to your Cargo.toml:
 
 ```
-loam_sdk = "0.0.1"
+juicebox-sdk = "0.0.1"
 ```
 
 Additionally, you may wish to enable the `tokio` or `reqwest` [features](#features) to simplify usage:
 
 ```
-loam_sdk = { version = "0.0.1", features = ["tokio", "reqwest"] }
+juicebox-sdk = { version = "0.0.1", features = ["tokio", "reqwest"] }
 ```
 
 ### Usage
@@ -33,7 +33,7 @@ The auth tokens should be acquired out-of-band from a server you run and specifi
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
 ```rust
-use loam_sdk:{Client, Configuration, Realm, PinHashingMode};
+use juicebox_sdk:{Client, Configuration, Realm, PinHashingMode};
 use hex_literal::hex;
 use url::Url;
 

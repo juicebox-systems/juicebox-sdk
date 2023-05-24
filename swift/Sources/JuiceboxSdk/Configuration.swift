@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import LoamSdkFfi
+import JuiceboxSdkFfi
 
 /// The parameters used to configure a `Client`.
 public struct Configuration {
@@ -74,7 +74,7 @@ protocol FfiConvertible {
 }
 
 extension Configuration: FfiConvertible {
-    typealias FfiType = LoamConfiguration
+    typealias FfiType = JuiceboxConfiguration
 
     func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result {
         try realms.withUnsafeFfiPointer { realmsBuffer in
@@ -82,19 +82,19 @@ extension Configuration: FfiConvertible {
                 realms: .init(data: realmsBuffer, length: realms.count),
                 register_threshold: registerThreshold,
                 recover_threshold: recoverThreshold,
-                pin_hashing_mode: LoamPinHashingMode(rawValue: pinHashingMode.rawValue)
+                pin_hashing_mode: JuiceboxPinHashingMode(rawValue: pinHashingMode.rawValue)
             ))
         }
     }
 }
 
 extension Configuration.Realm: FfiConvertible {
-    typealias FfiType = LoamRealm
+    typealias FfiType = JuiceboxRealm
 
     func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result {
         try address.absoluteString.withCString { addressCStr in
             if let publicKey = publicKey {
-                return try publicKey.withLoamUnmanagedDataArray { publicKeyArray in
+                return try publicKey.withJuiceboxUnmanagedDataArray { publicKeyArray in
                     try withUnsafePointer(to: publicKeyArray) { publicKeyArrayPointer in
                         try body(.init(
                             id: id.uuid,

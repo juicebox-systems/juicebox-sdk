@@ -27,7 +27,7 @@ pub fn from_slice<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, Deserializatio
 /// # Example
 ///
 /// ```
-/// use loam_sdk_core::marshalling::{from_slice, serialize_secret, to_vec};
+/// use juicebox_sdk_core::marshalling::{from_slice, serialize_secret, to_vec};
 /// use secrecy::{ExposeSecret, SecretString};
 /// use serde::{Deserialize, Serialize};
 ///

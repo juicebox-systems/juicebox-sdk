@@ -1,5 +1,5 @@
-package me.loam.sdk
-import me.loam.sdk.internal.Native
+package xyz.juicebox.sdk
+import xyz.juicebox.sdk.internal.Native
 import java.net.URL
 import java.nio.ByteBuffer
 import java.security.KeyStore

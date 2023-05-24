@@ -1,9 +1,9 @@
-package me.loam.sdk
+package xyz.juicebox.sdk
 
 /**
- * An error returned from [Client.delete]
+ * An error returned from [Client.register]
  */
-public enum class DeleteError {
+public enum class RegisterError {
     /**
      * A realm rejected the [Client]'s auth token.
      */
@@ -24,8 +24,8 @@ public enum class DeleteError {
 }
 
 /**
- * An exception thrown from [Client.deleteAll]
+ * An exception thrown from [Client.register]
  *
  * @property error The underlying error that triggered this exception.
  */
-public class DeleteException(val error: DeleteError) : Exception(error.name)
+public class RegisterException(val error: RegisterError) : Exception(error.name)

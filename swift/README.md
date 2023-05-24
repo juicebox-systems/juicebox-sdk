@@ -2,7 +2,7 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](http://34.160.204.87/swift/documentation/loamsdk/)
+[Documentation](https://docs.juicebox.xyz/swift/documentation/juiceboxsdk/)
 
 ### Install
 
@@ -11,7 +11,7 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 Run the following command in your project directory:
 
 ```
-pod install LoamSdk
+pod install JuiceboxSdk
 ```
 
 #### Swift Package
@@ -31,7 +31,7 @@ The auth tokens should be acquired out-of-band from a server you run and specifi
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
 ```swift
-import LoamSdk
+import JuiceboxSdk
 
 let client = Client(
     configuration: .init(

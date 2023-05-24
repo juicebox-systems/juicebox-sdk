@@ -1,4 +1,0 @@
-module LoamSdkFfi {
-    header "loam-sdk-ffi.h"
-    link "loam_sdk_ffi"
-}

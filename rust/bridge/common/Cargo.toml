@@ -1,17 +1,17 @@
 [package]
-name = "loam-sdk-bridge"
+name = "juicebox-sdk-bridge"
 version = "0.1.0"
-authors = ["Nora Trapp <nora@loam.me>"]
+authors = ["Nora Trapp <nora@juicebox.me>"]
 edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-loam-sdk = { path = "../../sdk/client" }
+juicebox-sdk = { path = "../../sdk/client" }
 tokio = { workspace = true, optional = true }
 url = { workspace = true }
 uuid = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 [features]
-"tokio" = ["tokio/rt-multi-thread", "loam-sdk/tokio"]
+"tokio" = ["tokio/rt-multi-thread", "juicebox-sdk/tokio"]
 "wasm" = ["wasm-bindgen"]

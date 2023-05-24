@@ -1,11 +1,11 @@
 {
-  "name": "loam-sdk-demo",
+  "name": "juicebox-sdk-demo",
   "version": "0.1.0",
-  "author": "Nora Trapp <nora@loam.me>",
+  "author": "Nora Trapp <nora@juicebox.me>",
   "dependencies": {
     "assert": "^2.0.0",
     "commander": "^10.0.0",
-    "loam-sdk": "file:../loam-sdk",
+    "juicebox-sdk": "file:../juicebox-sdk",
     "node-fetch": "^2.6.9"
   },
   "devDependencies": {

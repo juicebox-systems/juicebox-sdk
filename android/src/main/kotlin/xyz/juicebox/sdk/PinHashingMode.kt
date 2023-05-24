@@ -1,4 +1,4 @@
-package me.loam.sdk
+package xyz.juicebox.sdk
 
 /**
  * A strategy for hashing the user provided pin.

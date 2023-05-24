@@ -1,4 +1,4 @@
-package me.loam.sdk
+package xyz.juicebox.sdk
 
 /**
  * A remote service that the client interacts with directly.

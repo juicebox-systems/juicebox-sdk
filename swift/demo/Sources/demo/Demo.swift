@@ -1,5 +1,5 @@
 import ArgumentParser
-import LoamSdk
+import JuiceboxSdk
 import Foundation
 
 @main

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use futures_channel::oneshot;
 use js_sys::{try_iter, Array, Object, Promise, Uint8Array};
-use loam_sdk as sdk;
-use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
+use juicebox_sdk as sdk;
+use juicebox_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
 use sdk::Sleeper;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
@@ -308,7 +308,7 @@ impl Sleeper for WasmSleeper {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_name = "LoamGetAuthToken", catch)]
+    #[wasm_bindgen(js_name = "JuiceboxGetAuthToken", catch)]
     async fn get_auth_token(realm_id: Uint8Array) -> Result<JsValue, JsValue>;
 }
 
@@ -343,8 +343,8 @@ mod tests {
     use crate::{Client, Configuration, Realm, RealmArray, RecoverError, WasmSleeper};
     use instant::Instant;
     use js_sys::{Function, Reflect};
-    use loam_sdk as sdk;
-    use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
+    use juicebox_sdk as sdk;
+    use juicebox_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
     use sdk::Sleeper;
     use serde_wasm_bindgen::to_value;
     use wasm_bindgen::JsValue;
@@ -411,10 +411,10 @@ mod tests {
 
         Reflect::set(
             &web_sys::window().unwrap(),
-            &JsValue::from("LoamGetAuthToken"),
+            &JsValue::from("JuiceboxGetAuthToken"),
             &mock_get_auth_function,
         )
-        .expect("setting LoamGetAuthToken function failed");
+        .expect("setting JuiceboxGetAuthToken function failed");
 
         Client::new(
             Configuration {

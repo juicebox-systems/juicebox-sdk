@@ -10,7 +10,7 @@ use crate::types::{
     AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
     Salt, SessionId, UnlockTag, UserSecretShare,
 };
-use loam_sdk_noise as noise;
+use juicebox_sdk_noise as noise;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ClientRequest {

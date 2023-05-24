@@ -1,28 +1,28 @@
 Pod::Spec.new do |s|
-  s.name             = 'LoamSdk'
+  s.name             = 'JuiceboxSdk'
   s.license          = 'proprietary'
-  s.author           = { 'Nora Trapp' => 'nora@loam.me' }
+  s.author           = { 'Nora Trapp' => 'nora@juicebox.me' }
   s.version          = '0.0.1'
-  s.summary          = 'A Swift wrapper library for interfacing with the Loam service.'
+  s.summary          = 'A Swift wrapper library for interfacing with the Juicebox service.'
 
-  s.homepage         = 'https://github.com/loam-security/loam-sdk'
-  s.source           = { :git => 'https://github.com/loam-security/loam-sdk.git', :tag => "v#{s.version}" }
+  s.homepage         = 'https://github.com/juicebox-systems/juicebox-sdk'
+  s.source           = { :git => 'https://github.com/juicebox-systems/juicebox-sdk.git', :tag => "v#{s.version}" }
 
   s.swift_version    = '5'
   s.platform         = :ios, '13'
 
   s.source_files = ['swift/Sources/**/*.swift']
   s.preserve_paths = [
-    'target/*/release/libloam_sdk_ffi.a',
+    'target/*/release/libjuicebox_sdk_ffi.a',
     'target/*/release/include',
-    'swift/Sources/LoamSdkFfi'
+    'swift/Sources/JuiceboxSdkFfi'
   ]
 
   s.pod_target_xcconfig = {
-      'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/swift/Sources/LoamSdkFfi $(PODS_TARGET_SRCROOT)/target/${CARGO_BUILD_TARGET}/release/include',
+      'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/swift/Sources/JuiceboxSdkFfi $(PODS_TARGET_SRCROOT)/target/${CARGO_BUILD_TARGET}/release/include',
       'SWIFT_INCLUDE_PATHS' => '$(HEADER_SEARCH_PATHS)',
 
-      'OTHER_LDFLAGS' => '$(PODS_TARGET_SRCROOT)/target/$(CARGO_BUILD_TARGET)/release/libloam_sdk_ffi.a',
+      'OTHER_LDFLAGS' => '$(PODS_TARGET_SRCROOT)/target/$(CARGO_BUILD_TARGET)/release/libjuicebox_sdk_ffi.a',
 
       'CARGO_BUILD_TARGET[sdk=iphonesimulator*][arch=arm64]' => 'aarch64-apple-ios-sim',
       'CARGO_BUILD_TARGET[sdk=iphonesimulator*][arch=*]' => 'x86_64-apple-ios',

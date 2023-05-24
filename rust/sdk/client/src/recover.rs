@@ -3,7 +3,7 @@ use sharks::Sharks;
 use std::collections::HashMap;
 use tracing::instrument;
 
-use loam_sdk_core::{
+use juicebox_sdk_core::{
     requests::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,

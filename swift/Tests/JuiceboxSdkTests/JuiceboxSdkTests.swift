@@ -1,8 +1,8 @@
 import XCTest
-@testable import LoamSdk
-import LoamSdkFfi
+@testable import JuiceboxSdk
+import JuiceboxSdkFfi
 
-final class LoamSdkTests: XCTestCase {
+final class JuiceboxSdkTests: XCTestCase {
     func testRegisterRequestError() async throws {
         let client = client(url: "https://httpbin.org/anything/")
         do {

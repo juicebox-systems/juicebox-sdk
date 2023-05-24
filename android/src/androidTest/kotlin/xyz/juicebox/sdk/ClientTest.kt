@@ -2,7 +2,7 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
-import me.loam.sdk.*
+import xyz.juicebox.sdk.*
 import kotlinx.coroutines.*
 import org.junit.Ignore
 import org.junit.Test

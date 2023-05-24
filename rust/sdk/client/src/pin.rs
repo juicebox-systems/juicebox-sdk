@@ -1,6 +1,6 @@
 use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
-use loam_sdk_core::types::{Salt, SecretBytesVec};
+use juicebox_sdk_core::types::{Salt, SecretBytesVec};
 use secrecy::{ExposeSecret, Zeroize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -94,7 +94,7 @@ impl Pin {
 #[cfg(test)]
 mod tests {
     use crate::pin::{Pin, PinHashingMode};
-    use loam_sdk_core::types::Salt;
+    use juicebox_sdk_core::types::Salt;
 
     #[test]
     fn test_pin_hashing() {

@@ -9,7 +9,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import LoamSdkFfi
+import JuiceboxSdkFfi
 
 /// Register and recover PIN-protected secrets on behalf of a particular user.
 public class Client {
@@ -59,17 +59,17 @@ public class Client {
         self.previousConfigurations = previousConfigurations
 
         self.opaque = configuration.withUnsafeFfi({ ffiConfig in
-                previousConfigurations.withUnsafeFfiPointer { previousConfigurationsBuffer in
-                    loam_client_create(
-                        ffiConfig,
-                        .init(
-                            data: previousConfigurationsBuffer,
-                            length: previousConfigurations.count
-                        ),
-                        authTokenGet,
-                        httpSend
-                    )
-                }
+            previousConfigurations.withUnsafeFfiPointer { previousConfigurationsBuffer in
+                juicebox_client_create(
+                    ffiConfig,
+                    .init(
+                        data: previousConfigurationsBuffer,
+                        length: previousConfigurations.count
+                    ),
+                    authTokenGet,
+                    httpSend
+                )
+            }
         })
 
         if let authTokens = authTokens {
@@ -80,7 +80,7 @@ public class Client {
     }
 
     deinit {
-        loam_client_destroy(opaque)
+        juicebox_client_destroy(opaque)
     }
 
     /**
@@ -97,9 +97,9 @@ public class Client {
      */
     public func register(pin: Data, secret: Data, guesses: UInt16) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            pin.withLoamUnmanagedDataArray { pinArray in
-                secret.withLoamUnmanagedDataArray { secretArray in
-                    loam_client_register(
+            pin.withJuiceboxUnmanagedDataArray { pinArray in
+                secret.withJuiceboxUnmanagedDataArray { secretArray in
+                    juicebox_client_register(
                         opaque,
                         Unmanaged.passRetained(Box(continuation)).toOpaque(),
                         pinArray,
@@ -134,8 +134,8 @@ public class Client {
      */
     public func recover(pin: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
-            pin.withLoamUnmanagedDataArray { pinArray in
-                loam_client_recover(
+            pin.withJuiceboxUnmanagedDataArray { pinArray in
+                juicebox_client_recover(
                     opaque,
                     Unmanaged.passRetained(Box(continuation)).toOpaque(),
                     pinArray
@@ -161,7 +161,7 @@ public class Client {
      */
     public func delete() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            loam_client_delete(
+            juicebox_client_delete(
                 opaque,
                 Unmanaged.passRetained(Box(continuation)).toOpaque()
             ) { context, error in
@@ -183,7 +183,7 @@ private let httpSession = URLSession(
     delegateQueue: .main
 )
 
-let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
+let httpSend: JuiceboxHttpSendFn = { context, requestPointer, responseCallback in
     guard let responseCallback = responseCallback else { return }
     guard let requestPointer = requestPointer else {
         responseCallback(context, nil)
@@ -193,7 +193,7 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
     let requestId = requestPointer.pointee.id
 
     httpSession.dataTask(
-        with: URLRequest(loam: requestPointer.pointee)
+        with: URLRequest(juicebox: requestPointer.pointee)
     ) { responseData, response, _ in
         guard let response = response as? HTTPURLResponse, let responseData = responseData else {
             responseCallback(context, nil)
@@ -205,28 +205,28 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
 
         func withHeadersRecursively(
             iterator: Dictionary<String, String>.Iterator? = nil,
-            body: (inout [LoamHttpHeader]) -> Void
+            body: (inout [JuiceboxHttpHeader]) -> Void
         ) {
             var iterator = iterator ?? responseHeaderFields.makeIterator()
             if let (name, value) = iterator.next() {
                 name.withCString { nameCString in
                     value.withCString { valueCString in
                         withHeadersRecursively(iterator: iterator, body: { headers in
-                            headers.append(LoamHttpHeader(name: nameCString, value: valueCString))
+                            headers.append(JuiceboxHttpHeader(name: nameCString, value: valueCString))
                             body(&headers)
                         })
                     }
                 }
             } else {
-                var emptyHeaders = [LoamHttpHeader]()
+                var emptyHeaders = [JuiceboxHttpHeader]()
                 body(&emptyHeaders)
             }
         }
 
         withHeadersRecursively { headers in
             headers.withUnsafeBufferPointer { headersBuffer in
-                responseData.withLoamUnmanagedDataArray { bodyArray in
-                    let response = LoamHttpResponse(
+                responseData.withJuiceboxUnmanagedDataArray { bodyArray in
+                    let response = JuiceboxHttpResponse(
                         id: requestId,
                         status_code: UInt16(response.statusCode),
                         headers: .init(data: headersBuffer.baseAddress, length: headersBuffer.count),
@@ -241,7 +241,7 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
     }.resume()
 }
 
-let authTokenGet: LoamAuthTokenGetFn = { context, contextId, realmId, callback -> Void in
+let authTokenGet: JuiceboxAuthTokenGetFn = { context, contextId, realmId, callback -> Void in
     guard let callback = callback, let realmId = realmId else { return }
 
     guard let fetchFn = Client.fetchAuthTokenCallback else {
@@ -264,7 +264,7 @@ private class TLSSessionPinningDelegate: NSObject, URLSessionDelegate {
         _ session: URLSession,
         didReceive challenge: URLAuthenticationChallenge,
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?
-    ) -> Void) {
+        ) -> Void) {
         var disposition: URLSession.AuthChallengeDisposition = .performDefaultHandling
         var credential: URLCredential?
 
