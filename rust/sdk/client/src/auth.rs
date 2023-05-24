@@ -15,19 +15,9 @@ pub trait AuthTokenManager {
     async fn get(&self, realm: &RealmId) -> Option<AuthToken>;
 }
 
-pub struct MapTokenManager {
-    tokens: HashMap<RealmId, AuthToken>,
-}
-
-impl MapTokenManager {
-    pub fn new(tokens: HashMap<RealmId, AuthToken>) -> Self {
-        Self { tokens }
-    }
-}
-
 #[async_trait]
-impl AuthTokenManager for MapTokenManager {
+impl AuthTokenManager for HashMap<RealmId, AuthToken> {
     async fn get(&self, realm: &RealmId) -> Option<AuthToken> {
-        self.tokens.get(realm).cloned()
+        self.get(realm).cloned()
     }
 }

@@ -33,7 +33,7 @@ The auth tokens should be acquired out-of-band from a server you run and specifi
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
 ```rust
-use loam_sdk:{Client, Configuration, Realm, PinHashingMode, MapTokenManager};
+use loam_sdk:{Client, Configuration, Realm, PinHashingMode};
 use hex_literal::hex;
 use url::Url;
 
@@ -58,10 +58,10 @@ let client = Client::with_tokio(
         pin_hashing_mode: PinHashingMode::Standard2019
     },
     vec![],
-    MapTokenManager(vec![
+    vec![
         (hex!("0102030405060708090a0b0c0d0e0f10"), authToken1),
         (hex!("2102030405060708090a0b0c0d0e0f10"), authToken2)
-    ].iter().collect())
+    ].iter().collect()
 )
 ```
 

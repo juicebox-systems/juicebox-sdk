@@ -100,7 +100,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             &realm.address,
             ClientRequest {
                 realm: realm.id,
-                auth_token: auth_token.clone(),
+                auth_token,
                 session_id,
                 kind: if request.is_empty() {
                     ClientRequestKind::HandshakeOnly
@@ -161,7 +161,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             &realm.address,
             ClientRequest {
                 realm: realm.id,
-                auth_token: auth_token.clone(),
+                auth_token,
                 session_id: session.session_id,
                 kind: ClientRequestKind::SecretsRequest,
                 encrypted: NoiseRequest::Transport {

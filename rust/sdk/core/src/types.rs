@@ -187,22 +187,6 @@ impl Debug for RealmId {
 }
 
 /// Represents the authority to act as a particular user.
-///
-/// Tokens use the base64-encoded JWT format with the HS256 hash-based
-/// validation algorithm. The keys used to generate and verify tokens are
-/// specific to each tenant. To be acceptable, a token must include the
-/// following claims:
-///
-/// - an issuer (`iss`) set to the tenant's ID,
-/// - a subject (`sub`) set to the user's ID,
-/// - an audience (`aud`) set to the target realm's ID,
-/// - an expiration time (`exp`) in the future,
-/// - a not-valid before time (`nbf`) in the past, and
-/// - a lifetime (difference between `nbf` and `exp`) of less than 1 day.
-///
-/// Additionally, the token must include the key ID (`kid`) in the JWT header.
-/// This uses the format `{issuer}:{version}`, like "acme:32" and should be
-/// provided to the issuer alongside the key.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
 

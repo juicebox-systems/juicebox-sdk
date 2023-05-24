@@ -15,7 +15,7 @@ mod types;
 
 use types::{CheckedConfiguration, Session};
 
-pub use auth::{AuthTokenManager, MapTokenManager};
+pub use auth::AuthTokenManager;
 pub use delete::DeleteError;
 pub use loam_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use loam_sdk_networking::http;
@@ -56,29 +56,6 @@ impl<Http: http::Client, Atm: auth::AuthTokenManager> Client<TokioSleeper, Http,
             auth_token_manager,
             http,
             TokioSleeper,
-        )
-    }
-}
-
-impl<S: Sleeper, Http: http::Client> Client<S, Http, MapTokenManager> {
-    /// Constructs a new `Client` with a map of tokens that represent
-    /// the authority to act as a particular user on a particular realm
-    /// for the lifetime of the `Client.
-    ///
-    /// see also [`Client::new`]
-    pub fn with_auth_tokens(
-        configuration: Configuration,
-        previous_configurations: Vec<Configuration>,
-        auth_tokens: HashMap<RealmId, AuthToken>,
-        http: Http,
-        sleeper: S,
-    ) -> Self {
-        Self::new(
-            configuration,
-            previous_configurations,
-            MapTokenManager::new(auth_tokens),
-            http,
-            sleeper,
         )
     }
 }
