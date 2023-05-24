@@ -11,7 +11,7 @@ use loam_sdk_core::{
 };
 
 use crate::{
-    http,
+    auth, http,
     request::{join_at_least_threshold, RequestError},
     types::{TagGeneratingKey, TgkShare},
     Client, Pin, Policy, Realm, Sleeper, UserSecret,
@@ -33,7 +33,7 @@ pub enum RegisterError {
     Transient,
 }
 
-impl<S: Sleeper, Http: http::Client> Client<S, Http> {
+impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     pub(crate) async fn perform_register(
         &self,
         pin: &Pin,

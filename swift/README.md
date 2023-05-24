@@ -26,7 +26,7 @@ linker settings appropriately.
 
 Instantiate a `Client` with the appropriate `Realm`s you wish to communicate with.
 
-The auth token should be acquired out-of-band from a server you run. All of the realms must be set up to accept this server's tokens.
+The auth tokens should be acquired out-of-band from a server you run and specific to each realm id. All of the realms must be set up to accept this server's tokens. You can either provide a map of tokens that are valid for the lifetime of the client or implement the `Client.fetchAuthTokenCallback` to dynamically fetch tokens as necessary.
 
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
@@ -53,7 +53,10 @@ let client = Client(
         recoverThreshold: 2,
         pinHashingMode: .standard2019
     ),
-    authToken: authToken
+    authTokens: [
+        UUID(uuidString: "01020304-0506-0708-090A-0B0C0D0E0F10")!: authToken1,
+        UUID(uuidString: "10010203-0405-0607-0809-0A0B0C0D0E0F")!: authToken2
+    ]
 )
 ```
 

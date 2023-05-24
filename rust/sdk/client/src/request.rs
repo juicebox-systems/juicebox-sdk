@@ -6,6 +6,7 @@ use std::{collections::HashMap, time::Duration};
 use tracing::instrument;
 use x25519_dalek as x25519;
 
+use crate::auth;
 use crate::{http, types::Session, Client, Realm, Sleeper};
 use loam_sdk_core::{
     marshalling,
@@ -64,7 +65,7 @@ impl From<RequestError> for RequestErrorOrMissingSession {
 #[derive(Clone, Copy, Debug)]
 struct NeedsForwardSecrecy(bool);
 
-impl<S: Sleeper, Http: http::Client> Client<S, Http> {
+impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     #[instrument(
         level = "trace",
         skip(self, public_key, request),
@@ -88,12 +89,18 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
             .map_err(|_| RequestError::Assertion)?;
         let session_id = SessionId(OsRng.next_u32());
 
+        let auth_token = self
+            .auth_token_manager
+            .get(&realm.id)
+            .await
+            .ok_or(RequestError::InvalidAuth)?;
+
         match rpc::send(
             &self.http,
             &realm.address,
             ClientRequest {
                 realm: realm.id,
-                auth_token: self.auth_token.clone(),
+                auth_token,
                 session_id,
                 kind: if request.is_empty() {
                     ClientRequestKind::HandshakeOnly
@@ -143,12 +150,18 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         session: &mut Session,
         request: &[u8],
     ) -> Result<Vec<u8>, RequestErrorOrMissingSession> {
+        let auth_token = self
+            .auth_token_manager
+            .get(&realm.id)
+            .await
+            .ok_or(RequestError::InvalidAuth)?;
+
         match rpc::send(
             &self.http,
             &realm.address,
             ClientRequest {
                 realm: realm.id,
-                auth_token: self.auth_token.clone(),
+                auth_token,
                 session_id: session.session_id,
                 kind: ClientRequestKind::SecretsRequest,
                 encrypted: NoiseRequest::Transport {
@@ -239,10 +252,16 @@ impl<S: Sleeper, Http: http::Client> Client<S, Http> {
         realm: &Realm,
         request: SecretsRequest,
     ) -> Result<SecretsResponse, RequestError> {
+        let auth_token = self
+            .auth_token_manager
+            .get(&realm.id)
+            .await
+            .ok_or(RequestError::InvalidAuth)?;
+
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),
-            format!("Bearer {}", self.auth_token.expose_secret()),
+            format!("Bearer {}", auth_token.expose_secret()),
         );
 
         for _attempt in 0..2 {

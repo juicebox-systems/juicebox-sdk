@@ -15,7 +15,12 @@ import LoamSdkFfi
 public class Client {
     public let configuration: Configuration
     public let previousConfigurations: [Configuration]
-    public let authToken: String
+
+    /// Called when any client requires an auth token for a given realm. In general,
+    /// it's recommended you maintain some form of cache for tokens and do not fetch
+    /// a fresh token for every request. Said cache should be invalidated if any operation
+    /// returns an `InvalidAuth` error.
+    public static var fetchAuthTokenCallback: ((_ realmId: UUID) -> String?)?
 
     #if !os(Linux)
     /// The file path of any certificate files you wish to pin realm connections against.
@@ -40,20 +45,20 @@ public class Client {
             During `recover`, they will be tried if the current user has not yet registered
             on the current configuration. These should be ordered from most recently to least
             recently used.
-        - authToken: Represents the authority to act as a particular user
-            and should be valid for the lifetime of the `Client`.
+        - authTokens: Represents the authority to act as a particular user on a particular
+            realm and should be valid for the lifetime of the `Client`. Alternatively, you
+            may omit this argument and implement `Client.fetchAuthTokenCallback`
+            to fetch and refresh tokens as needed.
      */
     public init(
         configuration: Configuration,
-        previousConfigurations: [Configuration] = [],
-        authToken: String
+        authTokens: [UUID: String]? = nil,
+        previousConfigurations: [Configuration] = []
     ) {
         self.configuration = configuration
         self.previousConfigurations = previousConfigurations
-        self.authToken = authToken
 
         self.opaque = configuration.withUnsafeFfi({ ffiConfig in
-            authToken.withCString { authTokenCString in
                 previousConfigurations.withUnsafeFfiPointer { previousConfigurationsBuffer in
                     loam_client_create(
                         ffiConfig,
@@ -61,12 +66,17 @@ public class Client {
                             data: previousConfigurationsBuffer,
                             length: previousConfigurations.count
                         ),
-                        authTokenCString,
+                        authTokenGet,
                         httpSend
                     )
                 }
-            }
         })
+
+        if let authTokens = authTokens {
+            Self.fetchAuthTokenCallback = { authTokens[$0] }
+        } else {
+            assert(Self.fetchAuthTokenCallback != nil)
+        }
     }
 
     deinit {
@@ -229,6 +239,23 @@ let httpSend: LoamHttpSendFn = { context, requestPointer, responseCallback in
             }
         }
     }.resume()
+}
+
+let authTokenGet: LoamAuthTokenGetFn = { context, contextId, realmId, callback -> Void in
+    guard let callback = callback, let realmId = realmId else { return }
+
+    guard let fetchFn = Client.fetchAuthTokenCallback else {
+        callback(context, contextId, nil)
+        return
+    }
+
+    if let authToken = fetchFn(UUID(uuid: realmId.pointee)) {
+        authToken.withCString { authTokenCString in
+            callback(context, contextId, authTokenCString)
+        }
+    } else {
+        callback(context, contextId, nil)
+    }
 }
 
 private class TLSSessionPinningDelegate: NSObject, URLSessionDelegate {

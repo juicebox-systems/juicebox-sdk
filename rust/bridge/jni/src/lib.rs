@@ -1,8 +1,10 @@
+pub mod auth;
 pub mod http;
 
 #[macro_use]
 mod types;
 
+use auth::AuthTokenManager;
 use jni::{
     objects::{JByteArray, JClass, JObject, JObjectArray, JString, JThrowable, JValue},
     sys::{jlong, jshort},
@@ -27,7 +29,7 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
     _class: JClass,
     configuration: JObject,
     previous_configurations: JObjectArray,
-    auth_token: JString,
+    auth_token_get: JObject,
     http_send: JObject,
 ) -> jlong {
     let configuration = get_configuration(&mut env, &configuration);
@@ -44,12 +46,13 @@ pub extern "C" fn Java_me_loam_sdk_internal_Native_clientCreate(
         previous_configurations.push(get_configuration(&mut env, &java_configuration));
     }
 
-    let auth_token: String = env.get_string(&auth_token).unwrap().into();
-
     let sdk = sdk::Client::with_tokio(
         configuration,
         previous_configurations,
-        sdk::AuthToken::from(auth_token),
+        AuthTokenManager::new(
+            env.new_global_ref(auth_token_get).unwrap(),
+            env.get_java_vm().unwrap(),
+        ),
         HttpClient::new(
             env.new_global_ref(http_send).unwrap(),
             env.get_java_vm().unwrap(),
@@ -66,7 +69,9 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDestroy(
     _class: JClass,
     client: jlong,
 ) {
-    drop(Box::from_raw(client as *mut Client<HttpClient>));
+    drop(Box::from_raw(
+        client as *mut Client<HttpClient, AuthTokenManager>,
+    ));
 }
 
 #[no_mangle]
@@ -79,7 +84,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRegister(
     secret: JByteArray,
     num_guesses: jshort,
 ) {
-    let client = &*(client as *const Client<HttpClient>);
+    let client = &*(client as *const Client<HttpClient, AuthTokenManager>);
     let pin = env.convert_byte_array(pin).unwrap();
     let secret = env.convert_byte_array(secret).unwrap();
     let num_guesses = num_guesses.try_into().unwrap();
@@ -102,7 +107,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientRecover<'local>(
     client: jlong,
     pin: JByteArray<'local>,
 ) -> JByteArray<'local> {
-    let client = &*(client as *const Client<HttpClient>);
+    let client = &*(client as *const Client<HttpClient, AuthTokenManager>);
     let pin = env.convert_byte_array(pin).unwrap();
 
     match client
@@ -165,7 +170,7 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_clientDelete(
     _class: JClass,
     client: jlong,
 ) {
-    let client = &*(client as *const Client<HttpClient>);
+    let client = &*(client as *const Client<HttpClient, AuthTokenManager>);
 
     if let Err(err) = client.runtime.block_on(client.sdk.delete()) {
         let error = DeleteError::from(err);
@@ -218,6 +223,27 @@ pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_httpClientRequestCompl
     };
 
     (*http_client).receive(id.try_into().unwrap(), Some(response));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_me_loam_sdk_internal_Native_authTokenGetComplete(
+    mut env: JNIEnv,
+    _class: JClass,
+    context: jlong,
+    context_id: jlong,
+    auth_token: JString,
+) {
+    let auth_token_manager = context as *const AuthTokenManager;
+
+    let auth_token = if auth_token.is_null() {
+        None
+    } else {
+        let string: String = env.get_string(&auth_token).unwrap().into();
+        Some(sdk::AuthToken::from(string))
+    };
+
+    (*auth_token_manager).get_callback(context_id, auth_token);
 }
 
 fn get_string(env: &mut JNIEnv, obj: &JObject, name: &str) -> String {

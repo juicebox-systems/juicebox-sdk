@@ -12,7 +12,7 @@ npm install -s loam-sdk
 
 Instantiate a `Client` with the appropriate `Realm`s you wish to communicate with.
 
-The auth token should be acquired out-of-band from a server you run. All of the realms must be set up to accept this server's tokens.
+The auth tokens should be acquired out-of-band from a server you run and specific to each realm id. All of the realms must be set up to accept this server's tokens.
 
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
@@ -39,9 +39,11 @@ const client = new Client(
         2,
         PinHashingMode.Standard2019
     ),
-    [],
-    authToken
+    []
 );
+
+// fetch or read the correct token for the `realmId`
+window.LoamGetAuthToken = async (realmId) => authTokens[realmId];
 ```
 
 Once you've created a client, you can register a secret for the `authToken`'s user by calling:

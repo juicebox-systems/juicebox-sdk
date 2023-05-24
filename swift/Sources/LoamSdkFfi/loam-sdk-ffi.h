@@ -46,6 +46,8 @@ typedef enum {
   LoamRegisterErrorTransient = 2,
 } LoamRegisterError;
 
+typedef struct LoamAuthTokenManager LoamAuthTokenManager;
+
 typedef struct LoamClient LoamClient;
 
 typedef struct LoamHttpClient LoamHttpClient;
@@ -77,6 +79,10 @@ typedef struct {
   const LoamConfiguration *data;
   size_t length;
 } LoamUnmanagedConfigurationArray;
+
+typedef void (*LoamAuthTokenGetCallbackFn)(LoamAuthTokenManager *context, uint64_t context_id, const char *auth_token);
+
+typedef void (*LoamAuthTokenGetFn)(const LoamAuthTokenManager *context, uint64_t context_id, const uint8_t (*realm_id)[16], LoamAuthTokenGetCallbackFn callback);
 
 typedef struct {
   const char *name;
@@ -141,7 +147,7 @@ typedef struct {
  */
 LoamClient *loam_client_create(LoamConfiguration configuration,
                                LoamUnmanagedConfigurationArray previous_configurations,
-                               const char *auth_token,
+                               LoamAuthTokenGetFn auth_token_get,
                                LoamHttpSendFn http_send);
 
 void loam_client_destroy(LoamClient *client);

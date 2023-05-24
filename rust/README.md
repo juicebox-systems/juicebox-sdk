@@ -28,7 +28,7 @@ loam_sdk = { version = "0.0.1", features = ["tokio", "reqwest"] }
 
 Instantiate a `Client` with the appropriate `Realm`s you wish to communicate with.
 
-The auth token should be acquired out-of-band from a server you run. All of the realms must be set up to accept this server's tokens.
+The auth tokens should be acquired out-of-band from a server you run and specific to each realm id. All of the realms must be set up to accept this server's tokens. You can either provide a map of tokens that are valid for the lifetime of the client or implement the `AuthTokenManager` trait to dynamically fetch tokens as necessary.
 
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
@@ -49,8 +49,8 @@ let client = Client::with_tokio(
             },
             Realm {
                 address: Url::from_str("https://some/realm/address2").unwrap(),
-                public_key: hex!("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"),
-                id: hex!("0102030405060708090a0b0c0d0e0f10"),
+                public_key: hex!("2102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"),
+                id: hex!("2102030405060708090a0b0c0d0e0f10"),
             }
         ],
         register_threshold: 2,
@@ -58,7 +58,10 @@ let client = Client::with_tokio(
         pin_hashing_mode: PinHashingMode::Standard2019
     },
     vec![],
-    auth_token
+    vec![
+        (hex!("0102030405060708090a0b0c0d0e0f10"), authToken1),
+        (hex!("2102030405060708090a0b0c0d0e0f10"), authToken2)
+    ].iter().collect()
 )
 ```
 

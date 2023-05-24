@@ -21,7 +21,7 @@ async function main() {
     const program = new Command();
     program
         .requiredOption('-c, --configuration <value>', 'The configuration for the client SDK, in JSON format')
-        .requiredOption('-a, --auth-token <value>', 'The auth token for the client SDK, as a base64-encoded JWT')
+        .requiredOption('-a, --auth-tokens <value>', 'The auth token for the client SDK, as a JSON string mapping realm ID to base64-encoded JWT')
         .option('-t, --tls-certificate <value>', 'The path to the TLS certificate used by the realms in DER format')
         .parse(process.argv);
 
@@ -48,7 +48,14 @@ async function main() {
         globalThis.fetch = fetch;
     }
 
-    const client = new Client(configuration, [], options.authToken);
+    const client = new Client(configuration, []);
+
+    const authTokens = JSON.parse(program.opts().authTokens);
+
+    // @ts-ignore
+    globalThis.LoamGetAuthToken = async (realmId) => {
+        return authTokens[Buffer.from(realmId).toString('hex')];
+    };
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();

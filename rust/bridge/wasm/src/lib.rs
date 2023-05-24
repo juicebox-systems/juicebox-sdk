@@ -11,7 +11,7 @@ use std::time::Duration;
 use std::{str::FromStr, sync::Mutex};
 use url::Url;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::JsFuture;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{Blob, Request, RequestInit, RequestMode, Response};
 
 #[wasm_bindgen]
@@ -138,7 +138,7 @@ impl From<Configuration> for sdk::Configuration {
 }
 
 #[wasm_bindgen]
-pub struct Client(sdk::Client<WasmSleeper, HttpClient>);
+pub struct Client(sdk::Client<WasmSleeper, HttpClient, WasmAuthTokenManager>);
 
 #[wasm_bindgen]
 impl Client {
@@ -156,11 +156,7 @@ impl Client {
     /// * `auth_token` – Represents the authority to act as a particular user
     /// and should be valid for the lifetime of the `Client`.
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        configuration: Configuration,
-        previous_configurations: ConfigurationArray,
-        auth_token: String,
-    ) -> Self {
+    pub fn new(configuration: Configuration, previous_configurations: ConfigurationArray) -> Self {
         console_error_panic_hook::set_once();
         let sdk = sdk::Client::new(
             sdk::Configuration::from(configuration),
@@ -168,7 +164,7 @@ impl Client {
                 .iter()
                 .map(|value| from_value::<sdk::Configuration>(value).unwrap())
                 .collect(),
-            sdk::AuthToken::from(auth_token),
+            WasmAuthTokenManager,
             HttpClient(),
             WasmSleeper,
         );
@@ -310,14 +306,48 @@ impl Sleeper for WasmSleeper {
     }
 }
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = "LoamGetAuthToken", catch)]
+    async fn get_auth_token(realm_id: Uint8Array) -> Result<JsValue, JsValue>;
+}
+
+struct WasmAuthTokenManager;
+
+#[async_trait]
+impl sdk::AuthTokenManager for WasmAuthTokenManager {
+    async fn get(&self, realm: &sdk::RealmId) -> Option<sdk::AuthToken> {
+        let (tx, rx) = oneshot::channel();
+
+        {
+            let future = get_auth_token(Uint8Array::from(realm.0.as_ref()));
+
+            spawn_local(async move {
+                match future.await {
+                    Ok(value) => {
+                        _ = tx.send(value.as_string().map(sdk::AuthToken::from));
+                    }
+                    Err(_) => {
+                        _ = tx.send(None);
+                    }
+                }
+            });
+        }
+
+        rx.await.unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{Client, Configuration, Realm, RealmArray, RecoverError, WasmSleeper};
     use instant::Instant;
+    use js_sys::{Function, Reflect};
     use loam_sdk as sdk;
     use loam_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
     use sdk::Sleeper;
     use serde_wasm_bindgen::to_value;
+    use wasm_bindgen::JsValue;
     use wasm_bindgen_test::*;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -374,6 +404,18 @@ mod tests {
     }
 
     fn client(url: &str) -> Client {
+        let mock_get_auth_function = Function::new_with_args(
+            "realmId",
+            "return new Promise(function(resolve, reject) { resolve('abc.123'); });",
+        );
+
+        Reflect::set(
+            &web_sys::window().unwrap(),
+            &JsValue::from("LoamGetAuthToken"),
+            &mock_get_auth_function,
+        )
+        .expect("setting LoamGetAuthToken function failed");
+
         Client::new(
             Configuration {
                 realms: RealmArray {
@@ -390,7 +432,6 @@ mod tests {
                 pin_hashing_mode: PinHashingMode::FastInsecure,
             },
             to_value::<Vec<sdk::Configuration>>(&vec![]).unwrap().into(),
-            "token".to_string(),
         )
     }
 }

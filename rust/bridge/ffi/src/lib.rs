@@ -1,6 +1,8 @@
 pub mod array;
+pub mod auth;
 pub mod http;
 
+use auth::{AuthTokenGetFn, AuthTokenManager};
 use libc::{c_char, c_void};
 use loam_sdk as sdk;
 use loam_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
@@ -89,25 +91,19 @@ impl From<&Realm> for sdk::Realm {
 pub unsafe extern "C" fn loam_client_create(
     configuration: Configuration,
     previous_configurations: UnmanagedArray<Configuration>,
-    auth_token: *const c_char,
+    auth_token_get: AuthTokenGetFn,
     http_send: HttpSendFn,
-) -> *mut Client<HttpClient> {
+) -> *mut Client<HttpClient, AuthTokenManager> {
     let configuration = sdk::Configuration::from(&configuration);
     let previous_configurations = previous_configurations
         .as_slice()
         .iter()
         .map(sdk::Configuration::from)
         .collect();
-    let auth_token = sdk::AuthToken::from(
-        unsafe { CStr::from_ptr(auth_token) }
-            .to_str()
-            .expect("invalid string for auth token")
-            .to_owned(),
-    );
     let sdk = sdk::Client::with_tokio(
         configuration,
         previous_configurations,
-        auth_token,
+        AuthTokenManager::new(auth_token_get),
         HttpClient::new(http_send),
     );
     Box::into_raw(Box::new(Client::new(sdk)))
@@ -115,7 +111,7 @@ pub unsafe extern "C" fn loam_client_create(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient>) {
+pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient, AuthTokenManager>) {
     assert!(!client.is_null());
     drop(Box::from_raw(client))
 }
@@ -128,7 +124,7 @@ pub unsafe extern "C" fn loam_client_destroy(client: *mut Client<HttpClient>) {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_register(
-    client: *mut Client<HttpClient>,
+    client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
     secret: UnmanagedArray<u8>,
@@ -162,7 +158,7 @@ pub unsafe extern "C" fn loam_client_register(
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_recover(
-    client: *mut Client<HttpClient>,
+    client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
     response: extern "C" fn(
@@ -197,7 +193,7 @@ pub unsafe extern "C" fn loam_client_recover(
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn loam_client_delete(
-    client: *mut Client<HttpClient>,
+    client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     response: extern "C" fn(context: &c_void, error: *const DeleteError),
 ) {

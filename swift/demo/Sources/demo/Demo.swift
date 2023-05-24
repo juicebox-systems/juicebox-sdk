@@ -7,8 +7,11 @@ struct Demo: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "The configuration for the client SDK, in JSON format")
     var configuration: Configuration
 
-    @Option(name: .shortAndLong, help: "The auth token for the client SDK, as a base64-encoded JWT")
-    var authToken: String
+    @Option(
+        name: .shortAndLong,
+        help: "The auth tokens for the client SDK, as a JSON string mapping realm ID to base64-encoded JWT"
+    )
+    var authTokens: [UUID: String]
 
     @Option(
         name: .shortAndLong,
@@ -20,7 +23,7 @@ struct Demo: AsyncParsableCommand {
     // swiftlint:disable cyclomatic_complexity
     // swiftlint:disable:next function_body_length
     mutating func run() async throws {
-        let client = Client(configuration: configuration, authToken: authToken)
+        let client = Client(configuration: configuration, authTokens: authTokens)
         if let tlsCertificate = tlsCertificate {
             #if os(Linux)
             print("[Swift] WARNING: pinned TLS certificates unsupported on Linux")
@@ -144,6 +147,40 @@ let jsonDecoder: JSONDecoder = {
     return decoder
 }()
 
+extension Dictionary: ExpressibleByArgument where Key == UUID, Value == String {
+    enum ArgumentError: Error {
+        case invalidRealmId
+    }
+
+    public init?(argument: String) {
+        guard let dictionary = try? jsonDecoder.decode([String: String].self, from: argument.data(using: .utf8)!) else {
+            return nil
+        }
+        guard let keysWithValues = try? dictionary.map({ key, value in
+            guard let rawId = Data(hexString: key) else { throw ArgumentError.invalidRealmId }
+            return (rawId.withUnsafeBytes { NSUUID(uuidBytes: $0.baseAddress!) as UUID }, value)
+        }) else { return nil }
+        self = Dictionary(uniqueKeysWithValues: keysWithValues)
+    }
+}
+
+extension Data {
+    init?(hexString: String) {
+        guard hexString.count.isMultiple(of: 2) else {
+            return nil
+        }
+
+        let characters = hexString.map { $0 }
+        let bytes = stride(from: 0, to: characters.count, by: 2)
+            .map { String(characters[$0]) + String(characters[$0 + 1]) }
+            .compactMap { UInt8($0, radix: 16) }
+
+        guard hexString.count / bytes.count == 2 else { return nil }
+
+        self.init(bytes)
+    }
+}
+
 extension Configuration: ExpressibleByArgument, Decodable {
     public init?(argument: String) {
         guard let configuration = try? jsonDecoder.decode(Self.self, from: argument.data(using: .utf8)!) else {
@@ -183,7 +220,7 @@ extension Configuration.Realm: Decodable {
         self.init(
             id: rawId.withUnsafeBufferPointer { NSUUID(uuidBytes: $0.baseAddress!) as UUID },
             address: try container.decode(URL.self, forKey: .address),
-            publicKey: try container.decode(Data.self, forKey: .publicKey)
+            publicKey: try container.decodeIfPresent(Data.self, forKey: .publicKey)
         )
     }
 }
