@@ -8,7 +8,9 @@ use juicebox_sdk_core::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
     },
-    types::{OprfClient, OprfResult, Salt, UnlockTag, UserSecretShare},
+    types::{
+        OprfClient, OprfResult, RegistrationVersion, Salt, SaltShare, UnlockTag, UserSecretShare,
+    },
 };
 
 use crate::{
@@ -82,30 +84,55 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .iter()
             .map(|realm| self.recover1_on_realm(realm));
 
-        let mut realms_per_salt: HashMap<Salt, Vec<Realm>> = HashMap::new();
-        for (salt, realm) in
+        let mut salt_share_and_realm_per_version: HashMap<
+            RegistrationVersion,
+            Vec<(SaltShare, Realm)>,
+        > = HashMap::new();
+        for (version, salt_share, realm) in
             join_at_least_threshold(recover1_requests, configuration.recover_threshold).await?
         {
-            realms_per_salt.entry(salt).or_default().push(realm);
+            salt_share_and_realm_per_version
+                .entry(version)
+                .or_default()
+                .push((salt_share, realm));
         }
 
-        realms_per_salt.retain(|_, realms| realms.len() >= configuration.recover_threshold.into());
+        salt_share_and_realm_per_version
+            .retain(|_, values| values.len() >= configuration.recover_threshold.into());
 
         // We enforce a strict majority for the `recover_threshold`, so there should always
-        // be one or none realms with consensus on a salt available to recover from.
-        assert!(realms_per_salt.len() <= 1);
+        // be one or none realms with consensus on a version available to recover from.
+        assert!(salt_share_and_realm_per_version.len() <= 1);
 
-        let Some((salt, realms)) = realms_per_salt.iter().next() else {
+        let Some((version, salt_shares_and_realms)) = salt_share_and_realm_per_version.into_iter().next() else {
             return Err(RecoverError::NotRegistered);
         };
 
+        let (salt_shares, realms): (Vec<SaltShare>, Vec<Realm>) =
+            salt_shares_and_realms.into_iter().unzip();
+
+        let salt_shark_shares: Vec<sharks::Share> = salt_shares
+            .iter()
+            .map(|share| {
+                sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
+            })
+            .collect::<Result<_, _>>()?;
+
+        let salt: Salt =
+            match Sharks(configuration.recover_threshold).recover(salt_shark_shares.iter()) {
+                Ok(salt) => Salt::try_from(salt).map_err(|_| RecoverError::Assertion)?,
+                Err(_) => {
+                    return Err(RecoverError::Assertion);
+                }
+            };
+
         let (access_key, encryption_key) = pin
-            .hash(configuration.pin_hashing_mode, salt)
+            .hash(configuration.pin_hashing_mode, &salt)
             .expect("pin hashing failed");
 
         let recover2_requests = realms
             .iter()
-            .map(|realm| self.recover2_on_realm(realm, &access_key));
+            .map(|realm| self.recover2_on_realm(realm, &version, &access_key));
 
         let tgk_shares: Vec<TgkShare> =
             join_until_threshold(recover2_requests, configuration.recover_threshold).await?;
@@ -120,7 +147,9 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         };
 
         let recover3_requests = realms.iter().map(|realm| async {
-            let share: UserSecretShare = self.recover3_on_realm(realm, tgk.tag(&realm.id)).await?;
+            let share: UserSecretShare = self
+                .recover3_on_realm(realm, &version, tgk.tag(&realm.id))
+                .await?;
             sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
         });
 
@@ -137,13 +166,19 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
     /// Performs phase 1 of recovery on a particular realm.
     #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
-    async fn recover1_on_realm(&self, realm: &Realm) -> Result<(Salt, Realm), RecoverError> {
+    async fn recover1_on_realm(
+        &self,
+        realm: &Realm,
+    ) -> Result<(RegistrationVersion, SaltShare, Realm), RecoverError> {
         match self.make_request(realm, SecretsRequest::Recover1).await {
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::Transient) => Err(RecoverError::Transient),
             Ok(SecretsResponse::Recover1(response)) => match response {
-                Recover1Response::Ok { salt } => Ok((salt, realm.to_owned())),
+                Recover1Response::Ok {
+                    version,
+                    salt_share,
+                } => Ok((version, salt_share, realm.to_owned())),
                 Recover1Response::NotRegistered => Err(RecoverError::NotRegistered),
                 Recover1Response::NoGuesses => Err(RecoverError::InvalidPin {
                     guesses_remaining: 0,
@@ -158,6 +193,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     async fn recover2_on_realm(
         &self,
         realm: &Realm,
+        version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
     ) -> Result<TgkShare, RecoverError> {
         let blinded_oprf_input = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
@@ -166,6 +202,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         let recover2_request = self.make_request(
             realm,
             SecretsRequest::Recover2(Recover2Request {
+                version: version.to_owned(),
                 blinded_oprf_input: blinded_oprf_input.message.into(),
             }),
         );
@@ -180,6 +217,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                     blinded_oprf_result,
                     masked_tgk_share,
                 } => (blinded_oprf_result, masked_tgk_share),
+
+                Recover2Response::VersionMismatch => {
+                    return Err(RecoverError::Assertion);
+                }
 
                 Recover2Response::NotRegistered => {
                     return Err(RecoverError::NotRegistered);
@@ -215,10 +256,16 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     async fn recover3_on_realm(
         &self,
         realm: &Realm,
+        version: &RegistrationVersion,
         tag: UnlockTag,
     ) -> Result<UserSecretShare, RecoverError> {
-        let recover3_request =
-            self.make_request(realm, SecretsRequest::Recover3(Recover3Request { tag }));
+        let recover3_request = self.make_request(
+            realm,
+            SecretsRequest::Recover3(Recover3Request {
+                version: version.to_owned(),
+                tag,
+            }),
+        );
 
         match recover3_request.await {
             Err(RequestError::Transient) => Err(RecoverError::Transient),
@@ -234,6 +281,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 Recover3Response::BadUnlockTag { guesses_remaining } => {
                     Err(RecoverError::InvalidPin { guesses_remaining })
                 }
+                Recover3Response::VersionMismatch => Err(RecoverError::Assertion),
             },
             Ok(_) => Err(RecoverError::Assertion),
         }

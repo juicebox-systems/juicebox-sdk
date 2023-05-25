@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::{
     AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
-    Salt, SessionId, UnlockTag, UserSecretShare,
+    RegistrationVersion, SaltShare, SessionId, UnlockTag, UserSecretShare,
 };
 use juicebox_sdk_noise as noise;
 
@@ -162,7 +162,8 @@ pub enum Register1Response {
 /// Request message for the second phase of registration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
-    pub salt: Salt,
+    pub version: RegistrationVersion,
+    pub salt_share: SaltShare,
     pub oprf_seed: OprfSeed,
     pub tag: UnlockTag,
     pub masked_tgk_share: MaskedTgkShare,
@@ -179,7 +180,10 @@ pub enum Register2Response {
 /// Response message for the first phase of recovery.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover1Response {
-    Ok { salt: Salt },
+    Ok {
+        version: RegistrationVersion,
+        salt_share: SaltShare,
+    },
     NotRegistered,
     NoGuesses,
 }
@@ -187,6 +191,7 @@ pub enum Recover1Response {
 /// Request message for the second phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
+    pub version: RegistrationVersion,
     pub blinded_oprf_input: OprfBlindedInput,
 }
 
@@ -197,6 +202,7 @@ pub enum Recover2Response {
         blinded_oprf_result: OprfBlindedResult,
         masked_tgk_share: MaskedTgkShare,
     },
+    VersionMismatch,
     NotRegistered,
     NoGuesses,
 }
@@ -204,6 +210,7 @@ pub enum Recover2Response {
 /// Request message for the third phase of recovery.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover3Request {
+    pub version: RegistrationVersion,
     pub tag: UnlockTag,
 }
 
@@ -211,6 +218,7 @@ pub struct Recover3Request {
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover3Response {
     Ok { secret_share: UserSecretShare },
+    VersionMismatch,
     NotRegistered,
     BadUnlockTag { guesses_remaining: u16 },
     NoGuesses,
@@ -230,13 +238,17 @@ mod tests {
     use crate::{
         marshalling,
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
-        types::{MaskedTgkShare, OprfSeed, Policy, Salt, UnlockTag, UserSecretShare},
+        types::{
+            MaskedTgkShare, OprfSeed, Policy, RegistrationVersion, SaltShare, UnlockTag,
+            UserSecretShare,
+        },
     };
 
     #[test]
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
-            salt: Salt::from([0; 32]),
+            version: RegistrationVersion::from([0; 16]),
+            salt_share: SaltShare::from([0; 17]),
             oprf_seed: OprfSeed::from([0; 32]),
             tag: UnlockTag::from([0; 32]),
             masked_tgk_share: MaskedTgkShare::try_from(vec![0; 33]).unwrap(),

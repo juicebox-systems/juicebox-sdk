@@ -215,14 +215,38 @@ impl From<String> for AuthToken {
     }
 }
 
+/// A unique version used to determine if different realms represent the
+/// same registration.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct RegistrationVersion(SecretBytesArray<16>);
+
+impl RegistrationVersion {
+    /// Generates a new version with random data.
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
+        let mut version = [0; 16];
+        rng.fill_bytes(&mut version);
+        Self::from(version)
+    }
+
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<[u8; 16]> for RegistrationVersion {
+    fn from(value: [u8; 16]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
+
 /// Used for hashing `Pin`s with Argon2.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct Salt(SecretBytesArray<32>);
+pub struct Salt(SecretBytesArray<16>);
 
 impl Salt {
     /// Generates a new salt with random data.
     pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
-        let mut salt = [0; 32];
+        let mut salt = [0; 16];
         rng.fill_bytes(&mut salt);
         Self::from(salt)
     }
@@ -232,9 +256,43 @@ impl Salt {
     }
 }
 
-impl From<[u8; 32]> for Salt {
-    fn from(value: [u8; 32]) -> Self {
+impl From<[u8; 16]> for Salt {
+    fn from(value: [u8; 16]) -> Self {
         Self(SecretBytesArray::from(value))
+    }
+}
+
+impl TryFrom<Vec<u8>> for Salt {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
+    }
+}
+
+/// A share of the [`Salt`].
+///
+/// The client needs a threshold number of such shares to recover the salt.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct SaltShare(SecretBytesArray<17>);
+
+impl SaltShare {
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<[u8; 17]> for SaltShare {
+    fn from(value: [u8; 17]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
+
+impl TryFrom<Vec<u8>> for SaltShare {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 

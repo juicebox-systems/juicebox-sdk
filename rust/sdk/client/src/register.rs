@@ -7,7 +7,10 @@ use juicebox_sdk_core::{
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
-    types::{MaskedTgkShare, OprfSeed, OprfServer, Salt, UserSecretShare, OPRF_KEY_INFO},
+    types::{
+        MaskedTgkShare, OprfSeed, OprfServer, RegistrationVersion, Salt, SaltShare,
+        UserSecretShare, OPRF_KEY_INFO,
+    },
 };
 
 use crate::{
@@ -47,10 +50,21 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .map(|realm| self.register1_on_realm(realm));
         join_at_least_threshold(register1_requests, self.configuration.register_threshold).await?;
 
+        let version = RegistrationVersion::new_random(&mut OsRng);
+
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
             .hash(self.configuration.pin_hashing_mode, &salt)
             .expect("pin hashing failed");
+
+        let salt_shares: Vec<SaltShare> = Sharks(self.configuration.recover_threshold)
+            .dealer_rng(salt.expose_secret(), &mut OsRng)
+            .take(self.configuration.realms.len())
+            .map(|share| {
+                SaltShare::try_from(Vec::<u8>::from(&share))
+                    .expect("unexpected secret share length")
+            })
+            .collect();
 
         let encrypted_user_secret = secret.encrypt(&encryption_key);
 
@@ -87,25 +101,29 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             })
             .collect();
 
-        let register2_requests = zip4(
+        let register2_requests = zip5(
             &self.configuration.realms,
             oprf_seeds,
+            salt_shares,
             masked_tgk_shares,
             secret_shares,
         )
-        .map(|(realm, oprf_seed, masked_tgk_share, secret_share)| {
-            self.register2_on_realm(
-                realm,
-                Register2Request {
-                    salt: salt.to_owned(),
-                    oprf_seed,
-                    tag: tgk.tag(&realm.id),
-                    masked_tgk_share,
-                    secret_share,
-                    policy: policy.to_owned(),
-                },
-            )
-        });
+        .map(
+            |(realm, oprf_seed, salt_share, masked_tgk_share, secret_share)| {
+                self.register2_on_realm(
+                    realm,
+                    Register2Request {
+                        version: version.to_owned(),
+                        salt_share,
+                        oprf_seed,
+                        tag: tgk.tag(&realm.id),
+                        masked_tgk_share,
+                        secret_share,
+                        policy: policy.to_owned(),
+                    },
+                )
+            },
+        );
 
         join_at_least_threshold(register2_requests, self.configuration.register_threshold).await?;
 
@@ -144,17 +162,20 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 }
 
-fn zip4<A, B, C, D>(
+fn zip5<A, B, C, D, E>(
     a: A,
     b: B,
     c: C,
     d: D,
-) -> impl Iterator<Item = (A::Item, B::Item, C::Item, D::Item)>
+    e: E,
+) -> impl Iterator<Item = (A::Item, B::Item, C::Item, D::Item, E::Item)>
 where
     A: IntoIterator,
     B: IntoIterator,
     C: IntoIterator,
     D: IntoIterator,
+    E: IntoIterator,
 {
-    zip(zip(a, b), zip(c, d)).map(|((a, b), (c, d))| (a, b, c, d))
+    let iter = a.into_iter().zip(b).zip(c).zip(d).zip(e);
+    iter.map(|((((a, b), c), d), e)| (a, b, c, d, e))
 }
