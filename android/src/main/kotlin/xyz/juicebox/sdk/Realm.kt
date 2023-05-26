@@ -10,7 +10,7 @@ package xyz.juicebox.sdk
  * do not require public keys.
  */
 public final data class Realm(
-    val id: ByteArray,
+    val id: RealmId,
     val address: String,
     val publicKey: ByteArray? = null
 ) {
@@ -20,7 +20,7 @@ public final data class Realm(
 
         other as Realm
 
-        if (!id.contentEquals(other.id)) return false
+        if (id != other.id) return false
         if (address != other.address) return false
         if (!publicKey.contentEquals(other.publicKey)) return false
 
@@ -28,7 +28,7 @@ public final data class Realm(
     }
 
     override fun hashCode(): Int {
-        var result = id.contentHashCode()
+        var result = id.hashCode()
         result = 31 * result + address.hashCode()
         result = 31 * result + publicKey.contentHashCode()
         return result

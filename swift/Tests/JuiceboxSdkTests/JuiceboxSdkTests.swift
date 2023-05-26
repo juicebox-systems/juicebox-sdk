@@ -33,7 +33,7 @@ final class JuiceboxSdkTests: XCTestCase {
 
     @discardableResult
     func client(url: String) -> Client {
-        let realmId = UUID()
+        let realmId = RealmId(string: "000102030405060708090A0B0C0D0E0F")!
         return Client(
             configuration: .init(
                 realms: [

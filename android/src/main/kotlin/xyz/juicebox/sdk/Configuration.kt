@@ -1,5 +1,8 @@
 package xyz.juicebox.sdk
 
+import com.google.gson.*
+import java.lang.reflect.Type
+
 /**
  * The parameters used to configure a [Client].
  *
@@ -49,4 +52,58 @@ public final data class Configuration(
         result = 31 * result + pinHashingMode.hashCode()
         return result
     }
+
+    companion object {
+        fun fromJson(json: String): Configuration {
+            val gson = GsonBuilder().registerTypeAdapter(Configuration::class.java, ConfigurationDeserializer()).create()
+            return gson.fromJson(json, Configuration::class.java)
+        }
+    }
+}
+
+class ConfigurationDeserializer : JsonDeserializer<Configuration> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): Configuration {
+        val jsonObject = json?.asJsonObject
+
+        val realmsJsonArray = jsonObject?.getAsJsonArray("realms")
+        val realms = realmsJsonArray?.map { realmJsonElement ->
+            val realmJsonObject = realmJsonElement.asJsonObject
+            val id = realmJsonObject.get("id").asString?: throw java.lang.Exception("Missing realm id")
+            val address = realmJsonObject.get("address").asString?: throw java.lang.Exception("Missing realm address")
+            val publicKey = realmJsonObject.get("public_key")?.asString?.let { it.decodeHex() }
+
+            Realm(RealmId(string = id), address, publicKey)
+        }?: throw java.lang.Exception("Invalid realms")
+
+        val registerThreshold = jsonObject?.get("register_threshold")?.asByte
+            ?: throw java.lang.Exception("Missing register_threshold")
+
+        val recoverThreshold = jsonObject?.get("recover_threshold")?.asByte
+            ?: throw java.lang.Exception("Missing recover_threshold")
+
+        val pinHashingMode = when (jsonObject?.get("pin_hashing_mode")?.asString) {
+            "Standard2019" -> PinHashingMode.STANDARD_2019
+            "FastInsecure" -> PinHashingMode.FAST_INSECURE
+            else -> throw java.lang.Exception("Unexpected pin_hashing_mode")
+        }
+
+        return Configuration(
+            realms.toTypedArray(),
+            registerThreshold,
+            recoverThreshold,
+            pinHashingMode
+        )
+    }
+}
+
+fun String.decodeHex(): ByteArray {
+    check(length % 2 == 0) { "Must have an even length" }
+
+    return chunked(2)
+        .map { it.toInt(16).toByte() }
+        .toByteArray()
 }

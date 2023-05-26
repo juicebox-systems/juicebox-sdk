@@ -4,7 +4,7 @@ import assert from 'assert';
 import { Command } from 'commander';
 import fs from 'fs';
 import https from 'https';
-import { Client, Configuration, Realm, RecoverError, RecoverErrorReason } from 'juicebox-sdk';
+import { Client, Configuration, RecoverError, RecoverErrorReason } from 'juicebox-sdk';
 import { Headers, Request, Response } from 'node-fetch';
 import fetch from 'node-fetch';
 
@@ -27,13 +27,7 @@ async function main() {
 
     const options = program.opts();
 
-    const jsonConfiguration = JSON.parse(program.opts().configuration) as Configuration;
-    const configuration = new Configuration(
-        jsonConfiguration.realms,
-        jsonConfiguration.register_threshold,
-        jsonConfiguration.recover_threshold,
-        jsonConfiguration.pin_hashing_mode
-    );
+    const configuration = new Configuration(program.opts().configuration);
 
     if (options.tlsCertificate != null) {
         const ca = '-----BEGIN CERTIFICATE-----\n'

@@ -11,8 +11,8 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Mutex;
 
 use crate::{
-    jni_array, jni_signature,
-    types::{JNI_BYTE_TYPE, JNI_LONG_TYPE, JNI_VOID_TYPE},
+    jni_array, jni_object, jni_signature,
+    types::{JNI_BYTE_TYPE, JNI_LONG_TYPE, JNI_VOID_TYPE, JUICEBOX_JNI_REALM_ID_TYPE},
 };
 
 pub struct AuthTokenManager {
@@ -53,12 +53,22 @@ impl sdk::AuthTokenManager for AuthTokenManager {
                 await_get_map.insert(id, tx);
             }
 
-            let jrealm_id: JByteArray = env.byte_array_from_slice(&realm.0).unwrap();
+            let jrealm_id_array: JByteArray = env.byte_array_from_slice(&realm.0).unwrap();
+
+            let java_realm_id_class = env.find_class(JUICEBOX_JNI_REALM_ID_TYPE).unwrap();
+
+            let jrealm_id = env
+                .new_object(
+                    &java_realm_id_class,
+                    jni_signature!((jni_array!(JNI_BYTE_TYPE)) => JNI_VOID_TYPE),
+                    &[JValueGen::Object(&jrealm_id_array)],
+                )
+                .unwrap();
 
             env.call_method(
                 &self.get_function,
                 "get",
-                jni_signature!((JNI_LONG_TYPE, JNI_LONG_TYPE, jni_array!(JNI_BYTE_TYPE)) => JNI_VOID_TYPE),
+                jni_signature!((JNI_LONG_TYPE, JNI_LONG_TYPE, jni_object!(JUICEBOX_JNI_REALM_ID_TYPE)) => JNI_VOID_TYPE),
                 &[
                     (self as *const AuthTokenManager as jlong).into(),
                     id.into(),

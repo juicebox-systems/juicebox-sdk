@@ -83,6 +83,6 @@ public final class Native {
     }
 
     public interface GetAuthTokenFn {
-        void get(long context, long contextId, @NotNull byte[] realmId);
+        void get(long context, long contextId, @NotNull RealmId realmId);
     }
 }

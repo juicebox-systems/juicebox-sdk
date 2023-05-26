@@ -14,11 +14,11 @@ use juicebox_sdk_core::{
 };
 
 use crate::{
-    auth, http,
+    auth,
+    configuration::CheckedConfiguration,
+    http,
     request::{join_at_least_threshold, join_until_threshold, RequestError},
-    types::{
-        CheckedConfiguration, EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey,
-    },
+    types::{EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey},
     Client, Pin, Realm, Sleeper, UserSecret,
 };
 

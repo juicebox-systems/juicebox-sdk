@@ -7,11 +7,10 @@ use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use secrecy::ExposeSecret;
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+
 use std::fmt::{self, Debug};
 use std::iter::zip;
-use std::ops::Deref;
+
 use url::Url;
 
 use juicebox_sdk_core::types::{
@@ -19,10 +18,8 @@ use juicebox_sdk_core::types::{
 };
 use juicebox_sdk_noise::client as noise;
 
-use crate::PinHashingMode;
-
 /// A remote service that the client interacts with directly.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone)]
 pub struct Realm {
     /// A unique identifier specified by the realm.
     pub id: RealmId,
@@ -40,104 +37,6 @@ impl Debug for Realm {
             .field("id", &self.id)
             .field("address", &self.address.as_str())
             .finish_non_exhaustive()
-    }
-}
-
-/// The parameters used to configure a [`Client`](crate::Client).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Configuration {
-    /// The remote services that the client interacts with.
-    ///
-    /// There must be between `register_threshold` and 255 realms, inclusive.
-    pub realms: Vec<Realm>,
-
-    /// A registration will be considered successful if it's successful on at
-    /// least this many realms.
-    ///
-    /// Must be between `recover_threshold` and `realms.len()`, inclusive.
-    pub register_threshold: u8,
-
-    /// A recovery (or an adversary) will need the cooperation of this many
-    /// realms to retrieve the secret.
-    ///
-    /// Must be between `(realms.len() / 2).ceil()` and `realms.len()`, inclusive.
-    pub recover_threshold: u8,
-
-    /// Defines how the provided PIN will be hashed before register and recover
-    /// operations. Changing modes will make previous secrets stored on the realms
-    /// inaccessible with the same PIN and should not be done without re-registering
-    /// secrets.
-    pub pin_hashing_mode: PinHashingMode,
-}
-
-#[derive(Debug)]
-pub(crate) struct CheckedConfiguration(Configuration);
-
-impl CheckedConfiguration {
-    pub fn from(c: Configuration) -> Self {
-        assert!(
-            !c.realms.is_empty(),
-            "Client needs at least one realm in Configuration"
-        );
-
-        assert_eq!(
-            c.realms
-                .iter()
-                .map(|realm| realm.id)
-                .collect::<HashSet<_>>()
-                .len(),
-            c.realms.len(),
-            "realm IDs must be unique in Configuration"
-        );
-
-        // The secret sharing implementation (`sharks`) doesn't support more
-        // than 255 shares.
-        assert!(
-            u8::try_from(c.realms.len()).is_ok(),
-            "too many realms in Client configuration"
-        );
-
-        for realm in &c.realms {
-            if let Some(public_key) = realm.public_key.as_ref() {
-                assert_eq!(
-                    public_key.len(),
-                    32,
-                    "realm public keys must be 32 bytes" // (x25519 for now)
-                );
-            }
-        }
-
-        assert!(
-            1 <= c.recover_threshold,
-            "Configuration recover_threshold must be at least 1"
-        );
-        assert!(
-            usize::from(c.recover_threshold) <= c.realms.len(),
-            "Configuration recover_threshold cannot exceed number of realms"
-        );
-        assert!(
-            usize::from(c.recover_threshold) > c.realms.len() / 2,
-            "Configuration recover_threshold must contain a majority of realms"
-        );
-
-        assert!(
-            c.recover_threshold <= c.register_threshold,
-            "Configuration register_threshold must be at least recover_threshold"
-        );
-        assert!(
-            usize::from(c.register_threshold) <= c.realms.len(),
-            "Configuration register_threshold cannot exceed number of realms"
-        );
-
-        Self(c)
-    }
-}
-
-impl Deref for CheckedConfiguration {
-    type Target = Configuration;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

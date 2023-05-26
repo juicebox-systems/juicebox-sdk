@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
 use juicebox_sdk_core::types::{Salt, SecretBytesVec};
@@ -20,6 +22,27 @@ impl From<u8> for PinHashingMode {
             0 => Self::Standard2019,
             1 => Self::FastInsecure,
             _ => panic!("unexected value {:?}", value),
+        }
+    }
+}
+
+impl FromStr for PinHashingMode {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Standard2019" => Ok(Self::Standard2019),
+            "FastInsecure" => Ok(Self::FastInsecure),
+            _ => Err("unexpected value"),
+        }
+    }
+}
+
+impl ToString for PinHashingMode {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Standard2019 => "Standard2019".to_owned(),
+            Self::FastInsecure => "FastInsecure".to_owned(),
         }
     }
 }

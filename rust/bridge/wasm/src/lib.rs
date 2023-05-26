@@ -2,24 +2,18 @@ use async_trait::async_trait;
 use futures_channel::oneshot;
 use js_sys::{try_iter, Array, Object, Promise, Uint8Array};
 use juicebox_sdk as sdk;
-use juicebox_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
+use juicebox_sdk_bridge::{DeleteError, RecoverErrorReason, RegisterError};
 use sdk::Sleeper;
-use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::from_value;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
-use std::{str::FromStr, sync::Mutex};
-use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{Blob, Request, RequestInit, RequestMode, Response};
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(extends = Object, typescript_type = "Realm[]")]
-    #[derive(Clone, Debug, Eq, PartialEq)]
-    pub type RealmArray;
-
     #[wasm_bindgen(extends = Object, typescript_type = "Configuration[]")]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub type ConfigurationArray;
@@ -28,44 +22,8 @@ extern "C" {
     pub fn fetch_with_request(input: &Request) -> Promise;
 }
 
-#[wasm_bindgen(getter_with_clone)]
-#[derive(Serialize, Deserialize)]
-pub struct Realm {
-    pub id: Vec<u8>,
-    pub address: String,
-    pub public_key: Option<Vec<u8>>,
-}
-
 #[wasm_bindgen]
-impl Realm {
-    #[wasm_bindgen(constructor)]
-    pub fn new(address: String, public_key: Option<Vec<u8>>, id: Vec<u8>) -> Self {
-        console_error_panic_hook::set_once();
-        Self {
-            id,
-            address,
-            public_key,
-        }
-    }
-}
-
-impl From<Realm> for sdk::Realm {
-    fn from(value: Realm) -> Self {
-        sdk::Realm {
-            address: Url::from_str(&value.address).unwrap(),
-            public_key: value.public_key,
-            id: sdk::RealmId(value.id.try_into().unwrap()),
-        }
-    }
-}
-
-#[wasm_bindgen(getter_with_clone)]
-pub struct Configuration {
-    pub realms: RealmArray,
-    pub register_threshold: u8,
-    pub recover_threshold: u8,
-    pub pin_hashing_mode: PinHashingMode,
-}
+pub struct Configuration(sdk::Configuration);
 
 #[derive(Debug)]
 #[repr(C)]
@@ -107,33 +65,24 @@ impl From<sdk::RecoverError> for RecoverError {
 #[wasm_bindgen]
 impl Configuration {
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        realms: RealmArray,
-        register_threshold: u8,
-        recover_threshold: u8,
-        pin_hashing_mode: PinHashingMode,
-    ) -> Self {
+    pub fn new(value: JsValue) -> Self {
         console_error_panic_hook::set_once();
-        Self {
-            realms,
-            register_threshold,
-            recover_threshold,
-            pin_hashing_mode,
-        }
+
+        let json_string = match value.as_string() {
+            Some(s) => s,
+            None => js_sys::JSON::stringify(&value)
+                .unwrap()
+                .as_string()
+                .unwrap(),
+        };
+
+        Self(json_string.parse().expect("invalid configuration json"))
     }
 }
 
 impl From<Configuration> for sdk::Configuration {
     fn from(value: Configuration) -> Self {
-        sdk::Configuration {
-            realms: Array::from(&value.realms)
-                .iter()
-                .map(|value| sdk::Realm::from(from_value::<Realm>(value).unwrap()))
-                .collect(),
-            register_threshold: value.register_threshold,
-            recover_threshold: value.recover_threshold,
-            pin_hashing_mode: sdk::PinHashingMode::from(value.pin_hashing_mode as u8),
-        }
+        value.0
     }
 }
 
@@ -340,11 +289,11 @@ impl sdk::AuthTokenManager for WasmAuthTokenManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Client, Configuration, Realm, RealmArray, RecoverError, WasmSleeper};
+    use crate::{Client, Configuration, RecoverError, WasmSleeper};
     use instant::Instant;
     use js_sys::{Function, Reflect};
     use juicebox_sdk as sdk;
-    use juicebox_sdk_bridge::{DeleteError, PinHashingMode, RecoverErrorReason, RegisterError};
+    use juicebox_sdk_bridge::{DeleteError, RecoverErrorReason, RegisterError};
     use sdk::Sleeper;
     use serde_wasm_bindgen::to_value;
     use wasm_bindgen::JsValue;
@@ -417,20 +366,16 @@ mod tests {
         .expect("setting JuiceboxGetAuthToken function failed");
 
         Client::new(
-            Configuration {
-                realms: RealmArray {
-                    obj: to_value(&vec![Realm {
-                        id: vec![0; 16],
-                        address: url.to_string(),
-                        public_key: None,
-                    }])
-                    .unwrap()
-                    .into(),
-                },
+            Configuration(sdk::Configuration {
+                realms: vec![sdk::Realm {
+                    id: sdk::RealmId([0; 16]),
+                    address: url.parse().unwrap(),
+                    public_key: None,
+                }],
                 register_threshold: 1,
                 recover_threshold: 1,
-                pin_hashing_mode: PinHashingMode::FastInsecure,
-            },
+                pin_hashing_mode: sdk::PinHashingMode::FastInsecure,
+            }),
             to_value::<Vec<sdk::Configuration>>(&vec![]).unwrap().into(),
         )
     }

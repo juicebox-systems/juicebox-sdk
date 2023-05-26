@@ -18,6 +18,7 @@ blake2 = { workspace = true }
 chacha20poly1305 = { workspace = true }
 digest = { workspace = true }
 futures = { workspace = true }
+hex = { workspace = true }
 hmac = { workspace = true }
 instant = { workspace = true }
 juicebox-sdk-core = { path = "../../sdk/core" }
@@ -26,6 +27,7 @@ juicebox-sdk-noise = { path = "../../sdk/noise" }
 rand = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 serde_repr = { workspace = true }
 sharks = { workspace = true }
 tokio = { workspace = true }

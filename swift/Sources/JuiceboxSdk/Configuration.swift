@@ -13,7 +13,7 @@ public struct Configuration {
     /// A remote service that the client interacts with directly.
     public struct Realm {
         /// A unique identifier specified by the realm.
-        public let id: UUID
+        public let id: RealmId
         /// The network address to connect to the service.
         public let address: URL
         /// A long-lived public key for which a hardware backed service
@@ -21,7 +21,7 @@ public struct Configuration {
         /// require public keys.
         public let publicKey: Data?
 
-        public init(id: UUID, address: URL, publicKey: Data? = nil) {
+        public init(id: RealmId, address: URL, publicKey: Data? = nil) {
             self.id = id
             self.address = address
             self.publicKey = publicKey
@@ -51,6 +51,14 @@ public struct Configuration {
         case standard2019 = 0
         /// A fast hash used for testing. Do not use in production.
         case fastInsecure = 1
+
+        public init?(stringValue: String) {
+            switch stringValue {
+            case "Standard2019": self = .standard2019
+            case "FastInsecure": self = .fastInsecure
+            default: return nil
+            }
+        }
     }
 
     /// Defines how the provided PIN will be hashed before register and recover
@@ -64,6 +72,27 @@ public struct Configuration {
         self.registerThreshold = registerThreshold
         self.recoverThreshold = recoverThreshold
         self.pinHashingMode = pinHashingMode
+    }
+
+    public init?(json: String) {
+        guard let jsonData = json.data(using: .utf8) else { return nil }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dataDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            guard let data = Data(hexString: string) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid data string")
+            }
+            return data
+        }
+
+        guard let configuration = try? decoder.decode(Self.self, from: jsonData) else {
+            return nil
+        }
+
+        self = configuration
     }
 }
 
@@ -97,7 +126,7 @@ extension Configuration.Realm: FfiConvertible {
                 return try publicKey.withJuiceboxUnmanagedDataArray { publicKeyArray in
                     try withUnsafePointer(to: publicKeyArray) { publicKeyArrayPointer in
                         try body(.init(
-                            id: id.uuid,
+                            id: id.raw,
                             address: addressCStr,
                             public_key: publicKeyArrayPointer
                         ))
@@ -105,7 +134,7 @@ extension Configuration.Realm: FfiConvertible {
                 }
             } else {
                 return try body(.init(
-                    id: id.uuid,
+                    id: id.raw,
                     address: addressCStr,
                     public_key: nil
                 ))
@@ -140,5 +169,41 @@ extension Array where Element: FfiConvertible {
                 try body($0.baseAddress!)
             }
         }
+    }
+}
+
+extension Configuration: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case realms
+        case registerThreshold
+        case recoverThreshold
+        case pinHashingMode
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            realms: try container.decode([Configuration.Realm].self, forKey: .realms),
+            registerThreshold: try container.decode(UInt8.self, forKey: .registerThreshold),
+            recoverThreshold: try container.decode(UInt8.self, forKey: .recoverThreshold),
+            pinHashingMode: PinHashingMode(stringValue: try container.decode(String.self, forKey: .pinHashingMode))!
+        )
+    }
+}
+
+extension Configuration.Realm: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case id
+        case address
+        case publicKey
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(RealmId.self, forKey: .id),
+            address: try container.decode(URL.self, forKey: .address),
+            publicKey: try container.decodeIfPresent(Data.self, forKey: .publicKey)
+        )
     }
 }

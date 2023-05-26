@@ -1,7 +1,6 @@
 package xyz.juicebox.sdk
 import xyz.juicebox.sdk.internal.Native
 import java.net.URL
-import java.nio.ByteBuffer
 import java.security.KeyStore
 import java.security.cert.Certificate
 import javax.net.ssl.HttpsURLConnection
@@ -15,7 +14,7 @@ import kotlin.concurrent.thread
 public final class Client private constructor (
     val configuration: Configuration,
     val previousConfigurations: Array<Configuration>,
-    val authTokens: Map<ByteBuffer, String>?,
+    val authTokens: Map<RealmId, String>?,
     private val native: Long
 ) {
     /**
@@ -36,7 +35,7 @@ public final class Client private constructor (
     public constructor(
         configuration: Configuration,
         previousConfigurations: Array<Configuration> = emptyArray(),
-        authTokens: Map<ByteBuffer, String>? = null
+        authTokens: Map<RealmId, String>? = null
     ) : this(
         configuration,
         previousConfigurations,
@@ -107,9 +106,9 @@ public final class Client private constructor (
          * a fresh token for every request. Said cache should be invalidated if any operation
          * returns an `InvalidAuth` error.
          */
-        public var fetchAuthTokenCallback: ((ByteArray) -> String?)? = null
+        public var fetchAuthTokenCallback: ((RealmId) -> String?)? = null
 
-        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<ByteBuffer, String>?): Long {
+        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<RealmId, String>?): Long {
             val httpSend = Native.HttpSendFn { httpClient, request ->
                 thread {
                     val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
@@ -163,7 +162,7 @@ public final class Client private constructor (
             val getAuthToken = Native.GetAuthTokenFn { context, contextId, realmId ->
                 thread {
                     authTokens?.let {
-                        Native.authTokenGetComplete(context, contextId, it[ByteBuffer.wrap(realmId)])
+                        Native.authTokenGetComplete(context, contextId, it[realmId])
                     } ?: run {
                         Client.fetchAuthTokenCallback?.let { callback ->
                             Native.authTokenGetComplete(context, contextId, callback(realmId))

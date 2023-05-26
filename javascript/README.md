@@ -20,25 +20,28 @@ For maximum security, we recommend utilizing multiple realms with a register and
 import { Client, Configuration, Realm, PinHashingMode } from 'juicebox-sdk';
 
 const client = new Client(
-    new Configuration(
-        // You should receive the realm parameters from your realm provider,
-        // or configure them yourself for your self-hosted realm.
-        [
-            new Realm(
-                "https://some/realm/address1",
-                Uint8Array.from('AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=', c => c.charCodeAt(0)),
-                Uint8Array.from('AQIDBAUGBwgJCgsMDQ4PEA==', c => c.charCodeAt(0)),
-            ),
-            new Realm(
-                "https://some/realm/address2",
-                Uint8Array.from('IB8eHRwbGhkYFxYVFBMSERAPDg0MCwoJCAcGBQQDAgE=', c => c.charCodeAt(0)),
-                Uint8Array.from('EA8ODQwLCgkIBwYFBAMCAQ==', c => c.charCodeAt(0)),
-            ),
+    // You should receive the realm parameters from your realm provider,
+    // or configure them yourself for your self-hosted realm.
+    new Configuration({
+        realms: [
+            {
+                "address": "https://juicebox.hsm.realm.address",
+                "id": "0102030405060708090a0b0c0d0e0f10",
+                "public_key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+            },
+            {
+                "address": "https://your.software.realm.address",
+                "id": "2102030405060708090a0b0c0d0e0f10"
+            },
+            {
+                "address": "https://juicebox.software.realm.address",
+                "id": "3102030405060708090a0b0c0d0e0f10"
+            }
         ],
-        2,
-        2,
-        PinHashingMode.Standard2019
-    ),
+        register_threshold: 3,
+        recover_threshold: 3,
+        pin_hashing_mode: "Standard2019"
+    }),
     []
 );
 

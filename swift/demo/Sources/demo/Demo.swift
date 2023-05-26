@@ -11,7 +11,7 @@ struct Demo: AsyncParsableCommand {
         name: .shortAndLong,
         help: "The auth tokens for the client SDK, as a JSON string mapping realm ID to base64-encoded JWT"
     )
-    var authTokens: [UUID: String]
+    var authTokens: [RealmId: String]
 
     @Option(
         name: .shortAndLong,
@@ -136,92 +136,27 @@ struct Demo: AsyncParsableCommand {
     // swiftlint:enable cyclomatic_complexity
 }
 
-let jsonDecoder: JSONDecoder = {
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
-    decoder.dataDecodingStrategy = .custom { decoder in
-        let container = try decoder.singleValueContainer()
-        let array = try container.decode([UInt8].self)
-        return .init(array)
-    }
-    return decoder
-}()
-
-extension Dictionary: ExpressibleByArgument where Key == UUID, Value == String {
+extension Dictionary: ExpressibleByArgument where Key == RealmId, Value == String {
     enum ArgumentError: Error {
         case invalidRealmId
     }
 
     public init?(argument: String) {
-        guard let dictionary = try? jsonDecoder.decode([String: String].self, from: argument.data(using: .utf8)!) else {
+        let decoder = JSONDecoder()
+        guard let dictionary = try? decoder.decode([String: String].self, from: argument.data(using: .utf8)!) else {
             return nil
         }
         guard let keysWithValues = try? dictionary.map({ key, value in
-            guard let rawId = Data(hexString: key) else { throw ArgumentError.invalidRealmId }
-            return (rawId.withUnsafeBytes { NSUUID(uuidBytes: $0.baseAddress!) as UUID }, value)
+            guard let realmId = RealmId(string: key) else { throw ArgumentError.invalidRealmId }
+            return (realmId, value)
         }) else { return nil }
         self = Dictionary(uniqueKeysWithValues: keysWithValues)
     }
 }
 
-extension Data {
-    init?(hexString: String) {
-        guard hexString.count.isMultiple(of: 2) else {
-            return nil
-        }
-
-        let characters = hexString.map { $0 }
-        let bytes = stride(from: 0, to: characters.count, by: 2)
-            .map { String(characters[$0]) + String(characters[$0 + 1]) }
-            .compactMap { UInt8($0, radix: 16) }
-
-        guard hexString.count / bytes.count == 2 else { return nil }
-
-        self.init(bytes)
-    }
-}
-
-extension Configuration: ExpressibleByArgument, Decodable {
+extension Configuration: ExpressibleByArgument {
     public init?(argument: String) {
-        guard let configuration = try? jsonDecoder.decode(Self.self, from: argument.data(using: .utf8)!) else {
-            return nil
-        }
-        self = configuration
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case realms
-        case registerThreshold
-        case recoverThreshold
-        case pinHashingMode
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            realms: try container.decode([Configuration.Realm].self, forKey: .realms),
-            registerThreshold: try container.decode(UInt8.self, forKey: .registerThreshold),
-            recoverThreshold: try container.decode(UInt8.self, forKey: .recoverThreshold),
-            pinHashingMode: PinHashingMode(rawValue: try container.decode(UInt32.self, forKey: .pinHashingMode))!
-        )
-    }
-}
-
-extension Configuration.Realm: Decodable {
-    enum CodingKeys: String, CodingKey {
-        case id
-        case address
-        case publicKey
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let rawId = try container.decode([UInt8].self, forKey: .id)
-        self.init(
-            id: rawId.withUnsafeBufferPointer { NSUUID(uuidBytes: $0.baseAddress!) as UUID },
-            address: try container.decode(URL.self, forKey: .address),
-            publicKey: try container.decodeIfPresent(Data.self, forKey: .publicKey)
-        )
+        self.init(json: argument)
     }
 }
 
