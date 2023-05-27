@@ -39,31 +39,38 @@ For maximum security, we recommend utilizing multiple realms with a register and
 
 ```kotlin
 import xyz.juicebox.sdk.*
-import java.util.Base64
-
-val decoder = Base64.getDecoder()
 
 val client = Client(
-                Configuration(
+                Configuration.fromJson(
                     // You should receive the realm parameters from your realm provider,
                     // or configure them yourself for your self-hosted realm.
-                    realms = arrayOf(Realm(
-                        id = decoder.decode("AQIDBAUGBwgJCgsMDQ4PEA=="),
-                        address = "https://some/realm/address1",
-                        publicKey = decoder.decode("AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=")
-                    ),
-                    Realm(
-                        id = deocder.decode("EA8ODQwLCgkIBwYFBAMCAQ=="),
-                        address = "https://some/realm/address2",
-                        publicKey = decoder.decode("IB8eHRwbGhkYFxYVFBMSERAPDg0MCwoJCAcGBQQDAgE=")
-                    )),
-                    registerThreshold = 2,
-                    recoverThreshold = 2,
-                    pinHashingMode = PinHashingMode.STANDARD_2019
+                    """
+                      {
+                        "realms": [
+                          {
+                            "address": "https://juicebox.hsm.realm.address",
+                            "id": "0102030405060708090a0b0c0d0e0f10",
+                            "public_key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+                          },
+                          {
+                            "address": "https://your.software.realm.address",
+                            "id": "2102030405060708090a0b0c0d0e0f10"
+                          },
+                          {
+                            "address": "https://juicebox.software.realm.address",
+                            "id": "3102030405060708090a0b0c0d0e0f10"
+                          }
+                        ],
+                        "register_threshold": 3,
+                        "recover_threshold": 3,
+                        "pin_hashing_mode": "Standard2019"
+                      }
+                    """
                 ),
                 authTokens = mapOf(
-                  decoder.decode("AQIDBAUGBwgJCgsMDQ4PEA==") to authToken1,
-                  deocder.decode("EA8ODQwLCgkIBwYFBAMCAQ==") to authToken2
+                  RealmId(string = "0102030405060708090a0b0c0d0e0f10") to authToken1,
+                  RealmId(string = "2102030405060708090a0b0c0d0e0f10") to authToken2,
+                  RealmId(string = "3102030405060708090a0b0c0d0e0f10") to authToken3
                 )
             )
 ```

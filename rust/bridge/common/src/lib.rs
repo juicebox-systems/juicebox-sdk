@@ -123,18 +123,10 @@ impl From<DeleteError> for JsValue {
 }
 
 #[repr(C)]
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 #[derive(Copy, Clone, Debug)]
 pub enum PinHashingMode {
     /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
     Standard2019 = 0,
     /// A fast hash used for testing. Do not use in production.
     FastInsecure = 1,
-}
-
-#[cfg(feature = "wasm")]
-impl From<PinHashingMode> for JsValue {
-    fn from(value: PinHashingMode) -> Self {
-        JsValue::from(value as u8)
-    }
 }

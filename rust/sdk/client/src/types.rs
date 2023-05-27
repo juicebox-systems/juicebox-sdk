@@ -8,10 +8,10 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+
 use std::fmt::{self, Debug};
 use std::iter::zip;
-use std::ops::Deref;
+
 use url::Url;
 
 use juicebox_sdk_core::types::{
@@ -19,18 +19,22 @@ use juicebox_sdk_core::types::{
 };
 use juicebox_sdk_noise::client as noise;
 
-use crate::PinHashingMode;
-
 /// A remote service that the client interacts with directly.
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Realm {
     /// A unique identifier specified by the realm.
+    #[serde(with = "hex_realm_id")]
     pub id: RealmId,
     /// The network address to connect to the service.
     pub address: Url,
     /// A long-lived public key for which a hardware backed service
     /// maintains a matching private key. Software realms do not
     /// require public keys.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "hex_public_key"
+    )]
     pub public_key: Option<Vec<u8>>,
 }
 
@@ -43,101 +47,59 @@ impl Debug for Realm {
     }
 }
 
-/// The parameters used to configure a [`Client`](crate::Client).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Configuration {
-    /// The remote services that the client interacts with.
-    ///
-    /// There must be between `register_threshold` and 255 realms, inclusive.
-    pub realms: Vec<Realm>,
+mod hex_realm_id {
+    use serde::de::Deserializer;
+    use serde::ser::Serializer;
+    use serde::Deserialize;
+    use std::str::FromStr;
 
-    /// A registration will be considered successful if it's successful on at
-    /// least this many realms.
-    ///
-    /// Must be between `recover_threshold` and `realms.len()`, inclusive.
-    pub register_threshold: u8,
+    use super::RealmId;
 
-    /// A recovery (or an adversary) will need the cooperation of this many
-    /// realms to retrieve the secret.
-    ///
-    /// Must be between `(realms.len() / 2).ceil()` and `realms.len()`, inclusive.
-    pub recover_threshold: u8,
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<RealmId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        RealmId::from_str(&s).map_err(serde::de::Error::custom)
+    }
 
-    /// Defines how the provided PIN will be hashed before register and recover
-    /// operations. Changing modes will make previous secrets stored on the realms
-    /// inaccessible with the same PIN and should not be done without re-registering
-    /// secrets.
-    pub pin_hashing_mode: PinHashingMode,
-}
-
-#[derive(Debug)]
-pub(crate) struct CheckedConfiguration(Configuration);
-
-impl CheckedConfiguration {
-    pub fn from(c: Configuration) -> Self {
-        assert!(
-            !c.realms.is_empty(),
-            "Client needs at least one realm in Configuration"
-        );
-
-        assert_eq!(
-            c.realms
-                .iter()
-                .map(|realm| realm.id)
-                .collect::<HashSet<_>>()
-                .len(),
-            c.realms.len(),
-            "realm IDs must be unique in Configuration"
-        );
-
-        // The secret sharing implementation (`sharks`) doesn't support more
-        // than 255 shares.
-        assert!(
-            u8::try_from(c.realms.len()).is_ok(),
-            "too many realms in Client configuration"
-        );
-
-        for realm in &c.realms {
-            if let Some(public_key) = realm.public_key.as_ref() {
-                assert_eq!(
-                    public_key.len(),
-                    32,
-                    "realm public keys must be 32 bytes" // (x25519 for now)
-                );
-            }
-        }
-
-        assert!(
-            1 <= c.recover_threshold,
-            "Configuration recover_threshold must be at least 1"
-        );
-        assert!(
-            usize::from(c.recover_threshold) <= c.realms.len(),
-            "Configuration recover_threshold cannot exceed number of realms"
-        );
-        assert!(
-            usize::from(c.recover_threshold) > c.realms.len() / 2,
-            "Configuration recover_threshold must contain a majority of realms"
-        );
-
-        assert!(
-            c.recover_threshold <= c.register_threshold,
-            "Configuration register_threshold must be at least recover_threshold"
-        );
-        assert!(
-            usize::from(c.register_threshold) <= c.realms.len(),
-            "Configuration register_threshold cannot exceed number of realms"
-        );
-
-        Self(c)
+    pub fn serialize<S>(id: &RealmId, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&format!("{id:?}"))
     }
 }
 
-impl Deref for CheckedConfiguration {
-    type Target = Configuration;
+mod hex_public_key {
+    use serde::de::Deserializer;
+    use serde::ser::Serializer;
+    use serde::Deserialize;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(s) => {
+                let key = hex::decode(s).map_err(serde::de::Error::custom)?;
+                Ok(Some(key))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub fn serialize<S>(public_key: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match public_key {
+            None => serializer.serialize_none(),
+            Some(key) => {
+                let s = hex::encode(key);
+                serializer.serialize_str(&s)
+            }
+        }
     }
 }
 

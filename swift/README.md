@@ -35,27 +35,35 @@ import JuiceboxSdk
 
 let client = Client(
     configuration: .init(
-        realms: [
-            // You should receive the realm parameters from your realm provider,
-            // or configure them yourself for your self-hosted realm.
-            .init(
-                id: UUID(uuidString: "01020304-0506-0708-090A-0B0C0D0E0F10")!,
-                address: URL(string: "https://some/realm/address1")!,
-                publicKey: Data(base64Encoded: "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=".data(using: .utf8)!)!
-            ),
-            .init(
-                id: UUID(uuidString: "10010203-0405-0607-0809-0A0B0C0D0E0F")!,
-                address: URL(string: "https://some/realm/address2")!,
-                publicKey: Data(base64Encoded: "IB8eHRwbGhkYFxYVFBMSERAPDg0MCwoJCAcGBQQDAgE=".data(using: .utf8)!)!
-            )
-        ],
-        registerThreshold: 2,
-        recoverThreshold: 2,
-        pinHashingMode: .standard2019
-    ),
+        // You should receive the realm parameters from your realm provider,
+        // or configure them yourself for your self-hosted realm.
+        json: """
+            {
+                "realms": [
+                    {
+                        "address": "https://juicebox.hsm.realm.address",
+                        "id": "0102030405060708090a0b0c0d0e0f10",
+                        "public_key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+                    },
+                    {
+                        "address": "https://your.software.realm.address",
+                        "id": "2102030405060708090a0b0c0d0e0f10"
+                    },
+                    {
+                        "address": "https://juicebox.software.realm.address",
+                        "id": "3102030405060708090a0b0c0d0e0f10"
+                    }
+                ],
+                "register_threshold": 3,
+                "recover_threshold": 3,
+                "pin_hashing_mode": "Standard2019"
+            }
+        """
+    )!,
     authTokens: [
-        UUID(uuidString: "01020304-0506-0708-090A-0B0C0D0E0F10")!: authToken1,
-        UUID(uuidString: "10010203-0405-0607-0809-0A0B0C0D0E0F")!: authToken2
+        RealmId(string: "0102030405060708090a0b0c0d0e0f10")!: authToken1,
+        RealmId(string: "2102030405060708090a0b0c0d0e0f10")!: authToken2,
+        RealmId(string: "3102030405060708090a0b0c0d0e0f10")!: authToken3
     ]
 )
 ```

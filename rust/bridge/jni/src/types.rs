@@ -2,6 +2,7 @@ pub const JUICEBOX_JNI_HTTP_HEADER_TYPE: &str = "xyz/juicebox/sdk/internal/Nativ
 pub const JUICEBOX_JNI_HTTP_REQUEST_TYPE: &str = "xyz/juicebox/sdk/internal/Native$HttpRequest";
 pub const JUICEBOX_JNI_REALM_TYPE: &str = "xyz/juicebox/sdk/Realm";
 pub const JUICEBOX_JNI_PIN_HASHING_MODE_TYPE: &str = "xyz/juicebox/sdk/PinHashingMode";
+pub const JUICEBOX_JNI_REALM_ID_TYPE: &str = "xyz/juicebox/sdk/RealmId";
 
 pub const JNI_STRING_TYPE: &str = "java/lang/String";
 pub const JNI_SHORT_OBJECT_TYPE: &str = "java/lang/Short";

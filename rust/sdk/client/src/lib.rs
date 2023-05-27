@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 mod auth;
+mod configuration;
 mod delete;
 mod pin;
 mod recover;
@@ -13,9 +14,11 @@ mod request;
 mod sleeper;
 mod types;
 
-use types::{CheckedConfiguration, Session};
+use configuration::CheckedConfiguration;
+use types::Session;
 
 pub use auth::AuthTokenManager;
+pub use configuration::Configuration;
 pub use delete::DeleteError;
 pub use juicebox_sdk_core::types::{AuthToken, Policy, RealmId};
 pub use juicebox_sdk_networking::http;
@@ -23,7 +26,7 @@ pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use sleeper::Sleeper;
-pub use types::{Configuration, Realm, UserSecret};
+pub use types::{Realm, UserSecret};
 
 #[cfg(feature = "tokio")]
 pub use sleeper::TokioSleeper;

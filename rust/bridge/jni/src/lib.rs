@@ -20,7 +20,7 @@ use crate::http::HttpClient;
 use crate::types::{
     JNI_BYTE_TYPE, JNI_INTEGER_TYPE, JNI_SHORT_OBJECT_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE,
     JNI_VOID_TYPE, JUICEBOX_JNI_HTTP_HEADER_TYPE, JUICEBOX_JNI_PIN_HASHING_MODE_TYPE,
-    JUICEBOX_JNI_REALM_TYPE,
+    JUICEBOX_JNI_REALM_ID_TYPE, JUICEBOX_JNI_REALM_TYPE,
 };
 
 #[no_mangle]
@@ -330,7 +330,13 @@ fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
     for index in 0..jrealms_length {
         let jrealm = env.get_object_array_element(&jrealms, index).unwrap();
 
-        let id = get_byte_array(env, &jrealm, "id").expect("id should not be null");
+        let java_id = env
+            .get_field(&jrealm, "id", jni_object!(JUICEBOX_JNI_REALM_ID_TYPE))
+            .unwrap()
+            .l()
+            .unwrap();
+        let id = get_byte_array(env, &java_id, "bytes").unwrap();
+
         let address_string = get_string(env, &jrealm, "address");
         let address = Url::from_str(&address_string).unwrap();
         let public_key = get_byte_array(env, &jrealm, "publicKey");

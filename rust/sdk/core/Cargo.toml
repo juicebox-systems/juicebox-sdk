@@ -11,6 +11,7 @@ edition = "2021"
 [dependencies]
 ciborium = { workspace = true }
 digest = { workspace = true }
+hex = { workspace = true }
 juicebox-sdk-noise = { path = "../../sdk/noise" }
 rand_core = { workspace = true }
 secrecy = { workspace = true }

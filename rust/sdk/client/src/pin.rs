@@ -2,11 +2,10 @@ use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
 use juicebox_sdk_core::types::{Salt, SecretBytesVec};
 use secrecy::{ExposeSecret, Zeroize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
+use serde::{Deserialize, Serialize};
 
 /// A strategy for hashing the user provided [`Pin`]
-#[derive(Copy, Clone, Debug, Deserialize_repr, Eq, PartialEq, Serialize_repr)]
-#[repr(u8)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PinHashingMode {
     /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
     Standard2019,

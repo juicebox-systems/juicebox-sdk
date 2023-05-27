@@ -3,7 +3,10 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use core::fmt::{self, Debug};
+use core::{
+    fmt::{self, Debug},
+    str::FromStr,
+};
 use rand_core::{CryptoRng, RngCore};
 use secrecy::{ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
@@ -190,6 +193,15 @@ impl Debug for RealmId {
             write!(f, "{byte:02x}")?;
         }
         Ok(())
+    }
+}
+
+impl FromStr for RealmId {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let vec = hex::decode(s.replace('-', "")).map_err(|_| "failed to decode hex id")?;
+        Ok(Self(vec.try_into().map_err(|_| "invalid id length")?))
     }
 }
 

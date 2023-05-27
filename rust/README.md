@@ -37,30 +37,38 @@ use juicebox_sdk:{Client, Configuration, Realm, PinHashingMode};
 use hex_literal::hex;
 use url::Url;
 
-let client = Client::with_tokio(
-    Configuration {
-        realms: vec![
-            // You should receive the realm parameters from your realm provider,
-            // or configure them yourself for your self-hosted realm.
-            Realm {
-                address: Url::from_str("https://some/realm/address1").unwrap(),
-                public_key: hex!("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"),
-                id: hex!("0102030405060708090a0b0c0d0e0f10"),
-            },
-            Realm {
-                address: Url::from_str("https://some/realm/address2").unwrap(),
-                public_key: hex!("2102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"),
-                id: hex!("2102030405060708090a0b0c0d0e0f10"),
-            }
-        ],
-        register_threshold: 2,
-        recover_threshold: 2,
-        pin_hashing_mode: PinHashingMode::Standard2019
+// You should receive the realm parameters from your realm provider,
+// or configure them yourself for your self-hosted realm.
+let configuration = Configuration::from_json(r#"
+{
+  "realms": [
+    {
+      "address": "https://juicebox.hsm.realm.address",
+      "id": "0102030405060708090a0b0c0d0e0f10",
+      "public_key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
     },
+    {
+      "address": "https://your.software.realm.address",
+      "id": "2102030405060708090a0b0c0d0e0f10"
+    },
+    {
+      "address": "https://juicebox.software.realm.address",
+      "id": "3102030405060708090a0b0c0d0e0f10"
+    }
+  ],
+  "register_threshold": 3,
+  "recover_threshold": 3,
+  "pin_hashing_mode": "Standard2019"
+}
+"#).expect("failed to parse configuration json");
+
+let client = Client::with_tokio(
+    configuration,
     vec![],
     vec![
-        (hex!("0102030405060708090a0b0c0d0e0f10"), authToken1),
-        (hex!("2102030405060708090a0b0c0d0e0f10"), authToken2)
+        ("0102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken1),
+        ("2102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken2),
+        ("3102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken3)
     ].iter().collect()
 )
 ```
