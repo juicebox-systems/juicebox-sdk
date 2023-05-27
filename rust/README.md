@@ -39,7 +39,7 @@ use url::Url;
 
 // You should receive the realm parameters from your realm provider,
 // or configure them yourself for your self-hosted realm.
-let configuration: Configuration = r#"
+let configuration = Configuration::from_json(r#"
 {
   "realms": [
     {
@@ -60,7 +60,7 @@ let configuration: Configuration = r#"
   "recover_threshold": 3,
   "pin_hashing_mode": "Standard2019"
 }
-"#.parse().expect("failed to parse configuration json");
+"#).expect("failed to parse configuration json");
 
 let client = Client::with_tokio(
     configuration,

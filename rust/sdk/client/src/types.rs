@@ -7,6 +7,7 @@ use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use secrecy::ExposeSecret;
+use serde::{Deserialize, Serialize};
 
 use std::fmt::{self, Debug};
 use std::iter::zip;
@@ -19,15 +20,21 @@ use juicebox_sdk_core::types::{
 use juicebox_sdk_noise::client as noise;
 
 /// A remote service that the client interacts with directly.
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Realm {
     /// A unique identifier specified by the realm.
+    #[serde(with = "hex_realm_id")]
     pub id: RealmId,
     /// The network address to connect to the service.
     pub address: Url,
     /// A long-lived public key for which a hardware backed service
     /// maintains a matching private key. Software realms do not
     /// require public keys.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "hex_public_key"
+    )]
     pub public_key: Option<Vec<u8>>,
 }
 
@@ -37,6 +44,62 @@ impl Debug for Realm {
             .field("id", &self.id)
             .field("address", &self.address.as_str())
             .finish_non_exhaustive()
+    }
+}
+
+mod hex_realm_id {
+    use serde::de::Deserializer;
+    use serde::ser::Serializer;
+    use serde::Deserialize;
+    use std::str::FromStr;
+
+    use super::RealmId;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<RealmId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        RealmId::from_str(&s).map_err(serde::de::Error::custom)
+    }
+
+    pub fn serialize<S>(id: &RealmId, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&format!("{id:?}"))
+    }
+}
+
+mod hex_public_key {
+    use serde::de::Deserializer;
+    use serde::ser::Serializer;
+    use serde::Deserialize;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(s) => {
+                let key = hex::decode(s).map_err(serde::de::Error::custom)?;
+                Ok(Some(key))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub fn serialize<S>(public_key: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match public_key {
+            None => serializer.serialize_none(),
+            Some(key) => {
+                let s = hex::encode(key);
+                serializer.serialize_str(&s)
+            }
+        }
     }
 }
 

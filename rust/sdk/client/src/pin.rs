@@ -1,14 +1,11 @@
-use std::str::FromStr;
-
 use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
 use juicebox_sdk_core::types::{Salt, SecretBytesVec};
 use secrecy::{ExposeSecret, Zeroize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
+use serde::{Deserialize, Serialize};
 
 /// A strategy for hashing the user provided [`Pin`]
-#[derive(Copy, Clone, Debug, Deserialize_repr, Eq, PartialEq, Serialize_repr)]
-#[repr(u8)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PinHashingMode {
     /// A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
     Standard2019,
@@ -22,27 +19,6 @@ impl From<u8> for PinHashingMode {
             0 => Self::Standard2019,
             1 => Self::FastInsecure,
             _ => panic!("unexected value {:?}", value),
-        }
-    }
-}
-
-impl FromStr for PinHashingMode {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Standard2019" => Ok(Self::Standard2019),
-            "FastInsecure" => Ok(Self::FastInsecure),
-            _ => Err("unexpected value"),
-        }
-    }
-}
-
-impl ToString for PinHashingMode {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Standard2019 => "Standard2019".to_owned(),
-            Self::FastInsecure => "FastInsecure".to_owned(),
         }
     }
 }

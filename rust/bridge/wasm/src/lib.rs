@@ -76,7 +76,7 @@ impl Configuration {
                 .unwrap(),
         };
 
-        Self(json_string.parse().expect("invalid configuration json"))
+        Self(sdk::Configuration::from_json(&json_string).expect("invalid configuration json"))
     }
 }
 
