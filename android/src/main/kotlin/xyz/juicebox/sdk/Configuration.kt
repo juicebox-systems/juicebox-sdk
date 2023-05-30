@@ -45,4 +45,9 @@ public final class Configuration private constructor(val native: Long) {
     protected fun finalize() {
         Native.configurationDestroy(native)
     }
+
+    override fun equals(other: Any?): Boolean {
+        other as Configuration
+        return Native.configurationsAreEqual(native, other.native)
+    }
 }

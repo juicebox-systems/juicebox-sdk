@@ -42,7 +42,7 @@ impl From<&Realm> for sdk::Realm {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Configuration(sdk::Configuration);
 
 /// Constructs a new opaque `JuiceboxClient`.
@@ -137,6 +137,21 @@ pub unsafe extern "C" fn juicebox_configuration_create_from_json(
 pub unsafe extern "C" fn juicebox_configuration_destroy(configuration: *mut Configuration) {
     assert!(!configuration.is_null());
     drop(Box::from_raw(configuration));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_configurations_are_equal(
+    configuration1: *mut Configuration,
+    configuration2: *mut Configuration,
+) -> bool {
+    if configuration1.is_null() && configuration2.is_null() {
+        return true;
+    }
+    if configuration1.is_null() || configuration2.is_null() {
+        return false;
+    }
+    *configuration1 == *configuration2
 }
 
 /// Stores a new PIN-protected secret on the configured realms.

@@ -156,6 +156,9 @@ JuiceboxConfiguration *juicebox_configuration_create_from_json(const char *json)
 
 void juicebox_configuration_destroy(JuiceboxConfiguration *configuration);
 
+bool juicebox_configurations_are_equal(JuiceboxConfiguration *configuration1,
+                                       JuiceboxConfiguration *configuration2);
+
 /**
  * Stores a new PIN-protected secret on the configured realms.
  *

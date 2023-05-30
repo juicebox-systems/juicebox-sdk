@@ -20,7 +20,7 @@ use juicebox_sdk_core::types::{
 use juicebox_sdk_noise::client as noise;
 
 /// A remote service that the client interacts with directly.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Realm {
     /// A unique identifier specified by the realm.
     #[serde(with = "hex_realm_id")]

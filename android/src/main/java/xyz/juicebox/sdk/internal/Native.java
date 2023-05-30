@@ -26,6 +26,8 @@ public final class Native {
             byte recoverThreshold,
             @NotNull PinHashingMode pinHashingMode);
 
+    public static native boolean configurationsAreEqual(long configuration1, long configuration2);
+
     public static native long configurationCreateFromJson(String json);
 
     public static native void configurationDestroy(long configuration);

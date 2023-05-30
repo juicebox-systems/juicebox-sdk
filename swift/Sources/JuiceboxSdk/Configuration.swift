@@ -26,7 +26,9 @@ public final class Configuration {
             many realms to retrieve the secret.
 
             Must be between `ceil(realms.count / 2)` and `realms.count`, inclusive.
-        - pinHashingMode: Defines how the provided PIN will be hashed before register and recover operations. Changing modes will make previous secrets stored on the realms inaccessible with the same PIN and should not be done without re-registering secrets.
+        - pinHashingMode: Defines how the provided PIN will be hashed before register and
+            recover operations. Changing modes will make previous secrets stored on the realms
+            inaccessible with the same PIN and should not be done without re-registering secrets.
      */
     public init(
         realms: [Realm],
@@ -89,6 +91,12 @@ public final class Configuration {
     }
 }
 
+extension Configuration: Equatable {
+    public static func == (lhs: Configuration, rhs: Configuration) -> Bool {
+        juicebox_configurations_are_equal(lhs.opaque, rhs.opaque)
+    }
+}
+
 protocol FfiConvertible {
     associatedtype FfiType
 
@@ -137,7 +145,7 @@ extension Array where Element: FfiConvertible {
             iterator: IndexingIterator<[Element]>? = nil,
             body: (inout [Element.FfiType]) throws -> Result
         ) rethrows -> Result {
-            var iterator = iterator ?? makeIterator()
+            var iterator = iterator ?? reversed().makeIterator()
             if let element = iterator.next() {
                 return try element.withUnsafeFfi { ffiElement in
                     try withElementsRecursively(iterator: iterator, body: { ffiElements in

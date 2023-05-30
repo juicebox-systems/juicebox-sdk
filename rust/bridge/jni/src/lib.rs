@@ -7,7 +7,7 @@ mod types;
 use auth::AuthTokenManager;
 use jni::{
     objects::{JByteArray, JClass, JLongArray, JObject, JObjectArray, JString, JThrowable, JValue},
-    sys::{jbyte, jlong, jshort},
+    sys::{jboolean, jbyte, jlong, jshort},
     JNIEnv,
 };
 use juicebox_sdk as sdk;
@@ -151,6 +151,25 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationDest
     configuration: jlong,
 ) {
     drop(Box::from_raw(configuration as *mut sdk::Configuration));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationsAreEqual(
+    _env: JNIEnv,
+    _class: JClass,
+    configuration1: jlong,
+    configuration2: jlong,
+) -> jboolean {
+    let configuration1 = configuration1 as *mut sdk::Configuration;
+    let configuration2 = configuration2 as *mut sdk::Configuration;
+    if configuration1.is_null() && configuration2.is_null() {
+        return true as jboolean;
+    }
+    if configuration1.is_null() || configuration2.is_null() {
+        return false as jboolean;
+    }
+    (*configuration1 == *configuration2) as jboolean
 }
 
 #[no_mangle]
