@@ -3,7 +3,7 @@ package xyz.juicebox.sdk
 /**
  * An error returned from [Client.recover]
  */
-public enum class RecoverError {
+enum class RecoverError {
     /**
      * The secret could not be unlocked, but you can try again
      * with a different PIN if you have guesses remaining. If no
@@ -43,4 +43,4 @@ public enum class RecoverError {
  * @property guessesRemaining The guesses remaining, if the underlying
  * error is [RecoverError.INVALID_PIN].
  */
-public class RecoverException(val error: RecoverError, val guessesRemaining: Short?) : Exception(error.name)
+class RecoverException(val error: RecoverError, val guessesRemaining: Short?) : Exception(error.name)

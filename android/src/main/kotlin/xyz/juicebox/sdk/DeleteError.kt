@@ -3,7 +3,7 @@ package xyz.juicebox.sdk
 /**
  * An error returned from [Client.delete]
  */
-public enum class DeleteError {
+enum class DeleteError {
     /**
      * A realm rejected the [Client]'s auth token.
      */
@@ -24,8 +24,8 @@ public enum class DeleteError {
 }
 
 /**
- * An exception thrown from [Client.deleteAll]
+ * An exception thrown from [Client.delete]
  *
  * @property error The underlying error that triggered this exception.
  */
-public class DeleteException(val error: DeleteError) : Exception(error.name)
+class DeleteException(val error: DeleteError) : Exception(error.name)

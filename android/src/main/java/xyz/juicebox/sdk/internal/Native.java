@@ -3,8 +3,12 @@ package xyz.juicebox.sdk.internal;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.InputStream;
-import xyz.juicebox.sdk.*;
+import xyz.juicebox.sdk.DeleteException;
+import xyz.juicebox.sdk.PinHashingMode;
+import xyz.juicebox.sdk.Realm;
+import xyz.juicebox.sdk.RealmId;
+import xyz.juicebox.sdk.RecoverException;
+import xyz.juicebox.sdk.RegisterException;
 
 public final class Native {
 
@@ -82,7 +86,6 @@ public final class Native {
     public static class HttpResponse {
         @NotNull
         public byte[] id;
-        @NotNull
         public short statusCode;
         @NotNull
         public HttpHeader[] headers;

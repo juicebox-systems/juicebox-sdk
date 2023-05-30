@@ -51,6 +51,7 @@ tasks.named("dokkaHtml") {
 }
 
 dependencies {
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

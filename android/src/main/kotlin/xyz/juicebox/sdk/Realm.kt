@@ -9,7 +9,7 @@ package xyz.juicebox.sdk
  * backed service maintains a matching private key. Software realms
  * do not require public keys.
  */
-public final data class Realm(
+data class Realm(
     val id: RealmId,
     val address: String,
     val publicKey: ByteArray? = null

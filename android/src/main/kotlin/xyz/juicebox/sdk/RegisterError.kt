@@ -3,7 +3,7 @@ package xyz.juicebox.sdk
 /**
  * An error returned from [Client.register]
  */
-public enum class RegisterError {
+enum class RegisterError {
     /**
      * A realm rejected the [Client]'s auth token.
      */
@@ -28,4 +28,4 @@ public enum class RegisterError {
  *
  * @property error The underlying error that triggered this exception.
  */
-public class RegisterException(val error: RegisterError) : Exception(error.name)
+class RegisterException(val error: RegisterError) : Exception(error.name)

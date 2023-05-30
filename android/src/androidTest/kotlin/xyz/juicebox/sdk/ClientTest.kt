@@ -1,14 +1,12 @@
-import android.util.Log
+package xyz.juicebox.sdk
+
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.Assert.*
-import xyz.juicebox.sdk.*
 import kotlinx.coroutines.*
-import org.junit.Ignore
+import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.nio.ByteBuffer
-import java.security.cert.CertificateFactory
+import xyz.juicebox.sdk.*
+import xyz.juicebox.sdk.internal.Native
 
 @RunWith(AndroidJUnit4::class)
 class ClientTest {
@@ -36,7 +34,7 @@ class ClientTest {
             "pin_hashing_mode": "Standard2019"
           }
         """)
-        assertEquals(Configuration(
+        val expectedConfiguration = Configuration(
             realms = arrayOf(
                 Realm(
                     id = RealmId(string = "0102030405060708090a0b0c0d0e0f10"),
@@ -55,7 +53,8 @@ class ClientTest {
             registerThreshold = 3,
             recoverThreshold = 3,
             pinHashingMode = PinHashingMode.STANDARD_2019
-        ), configuration)
+        )
+        assertTrue(Native.configurationsAreEqual(expectedConfiguration.native, configuration.native))
     }
 
     @Test
@@ -91,7 +90,7 @@ class ClientTest {
         assertEquals(DeleteError.ASSERTION, exception.error)
     }
 
-    fun client(url: String): Client {
+    private fun client(url: String): Client {
         val realmId = RealmId(string = "000102030405060708090A0B0C0D0E0F")
         return Client(
             Configuration(
