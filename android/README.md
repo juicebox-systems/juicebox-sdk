@@ -41,7 +41,7 @@ For maximum security, we recommend utilizing multiple realms with a register and
 import xyz.juicebox.sdk.*
 
 val client = Client(
-                Configuration.fromJson(
+                Configuration(
                     // You should receive the realm parameters from your realm provider,
                     // or configure them yourself for your self-hosted realm.
                     """

@@ -13,12 +13,22 @@ public final class Native {
     }
 
     public static native long clientCreate(
-            @NotNull Configuration configuration,
-            @NotNull Configuration[] previousConfigurations,
+            long configuration,
+            @NotNull long[] previousConfigurations,
             @NotNull GetAuthTokenFn getAuthToken,
             @NotNull HttpSendFn httpSend);
 
     public static native void clientDestroy(long client);
+
+    public static native long configurationCreate(
+            @NotNull Realm[] realms,
+            byte registerThreshold,
+            byte recoverThreshold,
+            @NotNull PinHashingMode pinHashingMode);
+
+    public static native long configurationCreateFromJson(String json);
+
+    public static native void configurationDestroy(long configuration);
 
     public static native void clientRegister(
             long client,

@@ -6,8 +6,8 @@ mod types;
 
 use auth::AuthTokenManager;
 use jni::{
-    objects::{JByteArray, JClass, JObject, JObjectArray, JString, JThrowable, JValue},
-    sys::{jlong, jshort},
+    objects::{JByteArray, JClass, JLongArray, JObject, JObjectArray, JString, JThrowable, JValue},
+    sys::{jbyte, jlong, jshort},
     JNIEnv,
 };
 use juicebox_sdk as sdk;
@@ -19,36 +19,38 @@ use url::Url;
 use crate::http::HttpClient;
 use crate::types::{
     JNI_BYTE_TYPE, JNI_INTEGER_TYPE, JNI_SHORT_OBJECT_TYPE, JNI_SHORT_TYPE, JNI_STRING_TYPE,
-    JNI_VOID_TYPE, JUICEBOX_JNI_HTTP_HEADER_TYPE, JUICEBOX_JNI_PIN_HASHING_MODE_TYPE,
-    JUICEBOX_JNI_REALM_ID_TYPE, JUICEBOX_JNI_REALM_TYPE,
+    JNI_VOID_TYPE, JUICEBOX_JNI_HTTP_HEADER_TYPE, JUICEBOX_JNI_REALM_ID_TYPE,
 };
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientCreate(
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientCreate(
     mut env: JNIEnv,
     _class: JClass,
-    configuration: JObject,
-    previous_configurations: JObjectArray,
+    configuration: jlong,
+    previous_configurations: JLongArray,
     auth_token_get: JObject,
     http_send: JObject,
 ) -> jlong {
-    let configuration = get_configuration(&mut env, &configuration);
+    let configuration = configuration as *mut sdk::Configuration;
+    assert!(!configuration.is_null());
 
-    let java_previous_configurations = previous_configurations;
-    let java_previous_configurations_length =
-        env.get_array_length(&java_previous_configurations).unwrap();
-
-    let mut previous_configurations = vec![];
-    for index in 0..java_previous_configurations_length {
-        let java_configuration = env
-            .get_object_array_element(&java_previous_configurations, index)
-            .unwrap();
-        previous_configurations.push(get_configuration(&mut env, &java_configuration));
-    }
+    let previous_configurations = env
+        .get_array_elements(
+            &previous_configurations,
+            jni::objects::ReleaseMode::NoCopyBack,
+        )
+        .unwrap()
+        .iter()
+        .map(|configuration| {
+            let configuration = *configuration as *mut sdk::Configuration;
+            assert!(!configuration.is_null());
+            (*configuration).to_owned()
+        })
+        .collect();
 
     let sdk = sdk::Client::with_tokio(
-        configuration,
+        (*configuration).to_owned(),
         previous_configurations,
         AuthTokenManager::new(
             env.new_global_ref(auth_token_get).unwrap(),
@@ -73,6 +75,82 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientDestroy(
     drop(Box::from_raw(
         client as *mut Client<HttpClient, AuthTokenManager>,
     ));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationCreate(
+    mut env: JNIEnv,
+    _class: JClass,
+    jrealms: JObjectArray,
+    register_threshold: jbyte,
+    recover_threshold: jbyte,
+    pin_hashing_mode: JObject,
+) -> jlong {
+    let pin_hashing_mode: u8 = env
+        .call_method(
+            &pin_hashing_mode,
+            "ordinal",
+            jni_signature!(() => JNI_INTEGER_TYPE),
+            &[],
+        )
+        .unwrap()
+        .i()
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+    let jrealms_length = env.get_array_length(&jrealms).unwrap();
+
+    let mut realms = vec![];
+    for index in 0..jrealms_length {
+        let jrealm = env.get_object_array_element(&jrealms, index).unwrap();
+
+        let java_id = env
+            .get_field(&jrealm, "id", jni_object!(JUICEBOX_JNI_REALM_ID_TYPE))
+            .unwrap()
+            .l()
+            .unwrap();
+        let id = get_byte_array(&mut env, &java_id, "bytes").unwrap();
+
+        let address_string = get_string(&mut env, &jrealm, "address");
+        let address = Url::from_str(&address_string).unwrap();
+        let public_key = get_byte_array(&mut env, &jrealm, "publicKey");
+
+        realms.push(sdk::Realm {
+            id: sdk::RealmId(id.try_into().unwrap()),
+            address,
+            public_key,
+        });
+    }
+
+    Box::into_raw(Box::new(sdk::Configuration {
+        realms,
+        register_threshold: register_threshold.try_into().unwrap(),
+        recover_threshold: recover_threshold.try_into().unwrap(),
+        pin_hashing_mode: sdk::PinHashingMode::from(pin_hashing_mode),
+    })) as jlong
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationCreateFromJson(
+    mut env: JNIEnv,
+    _class: JClass,
+    json: JString,
+) -> jlong {
+    let json: String = env.get_string(&json).unwrap().into();
+    Box::into_raw(Box::new(sdk::Configuration::from_json(&json).unwrap())) as jlong
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationDestroy(
+    _env: JNIEnv,
+    _class: JClass,
+    configuration: jlong,
+) {
+    drop(Box::from_raw(configuration as *mut sdk::Configuration));
 }
 
 #[no_mangle]
@@ -270,15 +348,6 @@ fn get_byte_array(env: &mut JNIEnv, obj: &JObject, name: &str) -> Option<Vec<u8>
     Some(env.convert_byte_array(jbytearray).unwrap())
 }
 
-fn get_byte(env: &mut JNIEnv, obj: &JObject, name: &str) -> u8 {
-    env.get_field(obj, name, JNI_BYTE_TYPE)
-        .unwrap()
-        .b()
-        .unwrap()
-        .try_into()
-        .unwrap()
-}
-
 fn get_short(env: &mut JNIEnv, obj: &JObject, name: &str) -> u16 {
     env.get_field(obj, name, JNI_SHORT_TYPE)
         .unwrap()
@@ -286,74 +355,6 @@ fn get_short(env: &mut JNIEnv, obj: &JObject, name: &str) -> u16 {
         .unwrap()
         .try_into()
         .unwrap()
-}
-
-fn get_configuration(env: &mut JNIEnv, obj: &JObject) -> sdk::Configuration {
-    let register_threshold = get_byte(env, obj, "registerThreshold");
-    let recover_threshold = get_byte(env, obj, "recoverThreshold");
-
-    let java_pin_hashing_mode = env
-        .get_field(
-            obj,
-            "pinHashingMode",
-            jni_object!(JUICEBOX_JNI_PIN_HASHING_MODE_TYPE),
-        )
-        .unwrap()
-        .l()
-        .unwrap();
-    let pin_hashing_mode: u8 = env
-        .call_method(
-            &java_pin_hashing_mode,
-            "ordinal",
-            jni_signature!(() => JNI_INTEGER_TYPE),
-            &[],
-        )
-        .unwrap()
-        .i()
-        .unwrap()
-        .try_into()
-        .unwrap();
-
-    let jrealms: JObjectArray = env
-        .get_field(
-            obj,
-            "realms",
-            jni_array!(jni_object!(JUICEBOX_JNI_REALM_TYPE)),
-        )
-        .unwrap()
-        .l()
-        .unwrap()
-        .into();
-    let jrealms_length = env.get_array_length(&jrealms).unwrap();
-
-    let mut realms = vec![];
-    for index in 0..jrealms_length {
-        let jrealm = env.get_object_array_element(&jrealms, index).unwrap();
-
-        let java_id = env
-            .get_field(&jrealm, "id", jni_object!(JUICEBOX_JNI_REALM_ID_TYPE))
-            .unwrap()
-            .l()
-            .unwrap();
-        let id = get_byte_array(env, &java_id, "bytes").unwrap();
-
-        let address_string = get_string(env, &jrealm, "address");
-        let address = Url::from_str(&address_string).unwrap();
-        let public_key = get_byte_array(env, &jrealm, "publicKey");
-
-        realms.push(sdk::Realm {
-            id: sdk::RealmId(id.try_into().unwrap()),
-            address,
-            public_key,
-        });
-    }
-
-    sdk::Configuration {
-        realms,
-        register_threshold,
-        recover_threshold,
-        pin_hashing_mode: sdk::PinHashingMode::from(pin_hashing_mode),
-    }
 }
 
 fn throw(env: &mut JNIEnv, error_code: i32, name: &str) {

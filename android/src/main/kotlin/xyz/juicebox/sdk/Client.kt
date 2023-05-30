@@ -173,7 +173,12 @@ public final class Client private constructor (
                 }
             }
 
-            return Native.clientCreate(configuration, previousConfigurations, getAuthToken, httpSend)
+            return Native.clientCreate(
+                configuration.native,
+                previousConfigurations.map { it.native }.toLongArray(),
+                getAuthToken,
+                httpSend
+            )
         }
     }
 }
