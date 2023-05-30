@@ -14,28 +14,6 @@ use crate::http::{HttpClient, HttpSendFn};
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct Configuration {
-    pub realms: UnmanagedArray<Realm>,
-    pub register_threshold: u8,
-    pub recover_threshold: u8,
-    pub pin_hashing_mode: PinHashingMode,
-}
-
-impl From<&Configuration> for sdk::Configuration {
-    fn from(ffi: &Configuration) -> Self {
-        let realms = ffi.realms.as_slice().iter().map(sdk::Realm::from).collect();
-
-        sdk::Configuration {
-            realms,
-            register_threshold: ffi.register_threshold,
-            recover_threshold: ffi.recover_threshold,
-            pin_hashing_mode: sdk::PinHashingMode::from(ffi.pin_hashing_mode as u8),
-        }
-    }
-}
-
-#[derive(Debug)]
-#[repr(C)]
 pub struct Realm {
     pub id: [u8; 16],
     pub address: *const c_char,
@@ -64,6 +42,9 @@ impl From<&Realm> for sdk::Realm {
     }
 }
 
+#[derive(Debug)]
+pub struct Configuration(sdk::Configuration);
+
 /// Constructs a new opaque `JuiceboxClient`.
 ///
 /// # Arguments
@@ -89,19 +70,22 @@ impl From<&Realm> for sdk::Realm {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn juicebox_client_create(
-    configuration: Configuration,
-    previous_configurations: UnmanagedArray<Configuration>,
+    configuration: *mut Configuration,
+    previous_configurations: UnmanagedArray<*mut Configuration>,
     auth_token_get: AuthTokenGetFn,
     http_send: HttpSendFn,
 ) -> *mut Client<HttpClient, AuthTokenManager> {
-    let configuration = sdk::Configuration::from(&configuration);
+    assert!(!configuration.is_null());
     let previous_configurations = previous_configurations
         .as_slice()
         .iter()
-        .map(sdk::Configuration::from)
+        .map(|configuration| {
+            assert!(!configuration.is_null());
+            (*(*configuration)).0.to_owned()
+        })
         .collect();
     let sdk = sdk::Client::with_tokio(
-        configuration,
+        (*configuration).0.to_owned(),
         previous_configurations,
         AuthTokenManager::new(auth_token_get),
         HttpClient::new(http_send),
@@ -116,6 +100,43 @@ pub unsafe extern "C" fn juicebox_client_destroy(
 ) {
     assert!(!client.is_null());
     drop(Box::from_raw(client))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_configuration_create(
+    realms: UnmanagedArray<Realm>,
+    register_threshold: u8,
+    recover_threshold: u8,
+    pin_hashing_mode: PinHashingMode,
+) -> *mut Configuration {
+    Box::into_raw(Box::new(Configuration(sdk::Configuration {
+        realms: realms.as_slice().iter().map(sdk::Realm::from).collect(),
+        register_threshold,
+        recover_threshold,
+        pin_hashing_mode: sdk::PinHashingMode::from(pin_hashing_mode as u8),
+    })))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_configuration_create_from_json(
+    json: *const c_char,
+) -> *mut Configuration {
+    assert!(!json.is_null());
+    let json_str = unsafe { CStr::from_ptr(json) }
+        .to_str()
+        .expect("invalid string for address");
+    Box::into_raw(Box::new(Configuration(
+        sdk::Configuration::from_json(json_str).expect("invalid configuration json"),
+    )))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_configuration_destroy(configuration: *mut Configuration) {
+    assert!(!configuration.is_null());
+    drop(Box::from_raw(configuration));
 }
 
 /// Stores a new PIN-protected secret on the configured realms.

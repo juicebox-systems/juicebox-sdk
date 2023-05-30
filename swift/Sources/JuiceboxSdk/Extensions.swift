@@ -31,21 +31,6 @@ extension Data {
         guard let data = buffer.data else { return nil }
         self.init(bytes: data, count: buffer.length)
     }
-
-    public init?(hexString: String) {
-        guard hexString.count.isMultiple(of: 2) else {
-            return nil
-        }
-
-        let characters = hexString.map { $0 }
-        let bytes = stride(from: 0, to: characters.count, by: 2)
-            .map { String(characters[$0]) + String(characters[$0 + 1]) }
-            .compactMap { UInt8($0, radix: 16) }
-
-        guard hexString.count / bytes.count == 2 else { return nil }
-
-        self.init(bytes)
-    }
 }
 
 extension URLRequest {

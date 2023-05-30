@@ -59,7 +59,7 @@ let client = Client(
                 "pin_hashing_mode": "Standard2019"
             }
         """
-    )!,
+    ),
     authTokens: [
         RealmId(string: "0102030405060708090a0b0c0d0e0f10")!: authToken1,
         RealmId(string: "2102030405060708090a0b0c0d0e0f10")!: authToken2,

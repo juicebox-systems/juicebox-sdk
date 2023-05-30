@@ -34,7 +34,7 @@ For maximum security, we recommend utilizing multiple realms with a register and
 
 ```rust
 use juicebox_sdk:{Client, Configuration, Realm, PinHashingMode};
-use hex_literal::hex;
+use std::collections::HashMap;
 use url::Url;
 
 // You should receive the realm parameters from your realm provider,
@@ -65,11 +65,11 @@ let configuration = Configuration::from_json(r#"
 let client = Client::with_tokio(
     configuration,
     vec![],
-    vec![
+    HashMap::from([
         ("0102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken1),
         ("2102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken2),
         ("3102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken3)
-    ].iter().collect()
+    ])
 )
 ```
 

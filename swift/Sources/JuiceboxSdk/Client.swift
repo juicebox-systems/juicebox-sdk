@@ -12,7 +12,7 @@ import FoundationNetworking
 import JuiceboxSdkFfi
 
 /// Register and recover PIN-protected secrets on behalf of a particular user.
-public class Client {
+public final class Client {
     public let configuration: Configuration
     public let previousConfigurations: [Configuration]
 
