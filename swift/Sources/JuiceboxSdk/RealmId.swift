@@ -28,7 +28,7 @@ public struct RealmId {
         UInt8
     )
 
-    let raw: RawRealmId
+    private let raw: RawRealmId
 
     init(raw: RawRealmId) {
         self.raw = raw
@@ -113,15 +113,10 @@ extension RealmId: Equatable, Hashable {
     }
 }
 
-extension RealmId: Decodable {
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let string = try container.decode(String.self)
+extension RealmId: FfiConvertible {
+    typealias FfiType = RawRealmId
 
-        guard let realmId = RealmId(string: string) else {
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid RealmId string")
-        }
-
-        self = realmId
+    func withUnsafeFfi<Result>(_ body: (RawRealmId) throws -> Result) rethrows -> Result {
+        try body(raw)
     }
 }

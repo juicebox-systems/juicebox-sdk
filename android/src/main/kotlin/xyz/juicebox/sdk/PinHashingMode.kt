@@ -3,7 +3,7 @@ package xyz.juicebox.sdk
 /**
  * A strategy for hashing the user provided pin.
  */
-public enum class PinHashingMode {
+enum class PinHashingMode {
     /**
      * A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
      */

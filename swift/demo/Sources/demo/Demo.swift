@@ -155,7 +155,7 @@ extension Dictionary: ExpressibleByArgument where Key == RealmId, Value == Strin
 }
 
 extension Configuration: ExpressibleByArgument {
-    public init?(argument: String) {
+    public convenience init?(argument: String) {
         self.init(json: argument)
     }
 }

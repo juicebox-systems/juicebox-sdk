@@ -1,4 +1,6 @@
 package xyz.juicebox.sdk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import xyz.juicebox.sdk.internal.Native
 import java.net.URL
 import java.security.KeyStore
@@ -11,10 +13,7 @@ import kotlin.concurrent.thread
 /**
  * Register and recover PIN-protected secrets on behalf of a particular user.
  */
-public final class Client private constructor (
-    val configuration: Configuration,
-    val previousConfigurations: Array<Configuration>,
-    val authTokens: Map<RealmId, String>?,
+class Client private constructor (
     private val native: Long
 ) {
     /**
@@ -32,16 +31,13 @@ public final class Client private constructor (
      * may omit this argument and implement [Client.fetchAuthTokenCallback]
      * to fetch and refresh tokens as needed.
      */
-    public constructor(
+    constructor(
         configuration: Configuration,
         previousConfigurations: Array<Configuration> = emptyArray(),
         authTokens: Map<RealmId, String>? = null
     ) : this(
-        configuration,
-        previousConfigurations,
-        authTokens,
         createNative(configuration, previousConfigurations, authTokens)
-    ) {}
+    )
 
     /**
      * Stores a new PIN-protected secret on the configured realms.
@@ -55,8 +51,10 @@ public final class Client private constructor (
      * @throws [RegisterException] if registration could not be completed successfully.
      */
     @Throws(RegisterException::class)
-    public suspend fun register(pin: ByteArray, secret: ByteArray, numGuesses: Short) {
-        Native.clientRegister(native, pin, secret, numGuesses)
+    suspend fun register(pin: ByteArray, secret: ByteArray, numGuesses: Short) {
+        withContext(Dispatchers.IO) {
+            Native.clientRegister(native, pin, secret, numGuesses)
+        }
     }
 
     /**
@@ -71,8 +69,10 @@ public final class Client private constructor (
      * @throws [RecoverException] if recovery could not be completed successfully.
      */
     @Throws(RecoverException::class)
-    public suspend fun recover(pin: ByteArray): ByteArray {
-        return Native.clientRecover(native, pin)
+    suspend fun recover(pin: ByteArray): ByteArray {
+        return withContext(Dispatchers.IO) {
+            Native.clientRecover(native, pin)
+        }
     }
 
     /**
@@ -81,8 +81,10 @@ public final class Client private constructor (
      * @throws [DeleteException] if deletion could not be completed successfully.
      */
     @Throws(DeleteException::class)
-    public suspend fun delete() {
-        Native.clientDelete(native)
+    suspend fun delete() {
+        withContext(Dispatchers.IO) {
+            Native.clientDelete(native)
+        }
     }
 
     protected fun finalize() {
@@ -98,7 +100,7 @@ public final class Client private constructor (
          *
          * *Note:* Certificates should be provided in DER format.
          */
-        public var pinnedCertificates: Array<Certificate>? = null
+        var pinnedCertificates: Array<Certificate>? = null
 
         /**
          * Called when any client requires an auth token for a given realm. In general,
@@ -106,14 +108,14 @@ public final class Client private constructor (
          * a fresh token for every request. Said cache should be invalidated if any operation
          * returns an `InvalidAuth` error.
          */
-        public var fetchAuthTokenCallback: ((RealmId) -> String?)? = null
+        var fetchAuthTokenCallback: ((RealmId) -> String?)? = null
 
         private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<RealmId, String>?): Long {
             val httpSend = Native.HttpSendFn { httpClient, request ->
                 thread {
                     val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
 
-                    Client.pinnedCertificates?.let {
+                    pinnedCertificates?.let {
                         val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
                         keyStore.load(null, null)
                         it.forEachIndexed { index, certificate ->
@@ -164,7 +166,7 @@ public final class Client private constructor (
                     authTokens?.let {
                         Native.authTokenGetComplete(context, contextId, it[realmId])
                     } ?: run {
-                        Client.fetchAuthTokenCallback?.let { callback ->
+                        fetchAuthTokenCallback?.let { callback ->
                             Native.authTokenGetComplete(context, contextId, callback(realmId))
                         } ?: run {
                             Native.authTokenGetComplete(context, contextId, null)
@@ -173,7 +175,12 @@ public final class Client private constructor (
                 }
             }
 
-            return Native.clientCreate(configuration, previousConfigurations, getAuthToken, httpSend)
+            return Native.clientCreate(
+                configuration.native,
+                previousConfigurations.map { it.native }.toLongArray(),
+                getAuthToken,
+                httpSend
+            )
         }
     }
 }

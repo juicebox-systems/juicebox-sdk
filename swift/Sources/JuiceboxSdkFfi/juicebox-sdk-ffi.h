@@ -50,33 +50,12 @@ typedef struct JuiceboxAuthTokenManager JuiceboxAuthTokenManager;
 
 typedef struct JuiceboxClient JuiceboxClient;
 
+typedef struct JuiceboxConfiguration JuiceboxConfiguration;
+
 typedef struct JuiceboxHttpClient JuiceboxHttpClient;
 
 typedef struct {
-  const uint8_t *data;
-  size_t length;
-} JuiceboxUnmanagedDataArray;
-
-typedef struct {
-  uint8_t id[16];
-  const char *address;
-  const JuiceboxUnmanagedDataArray *public_key;
-} JuiceboxRealm;
-
-typedef struct {
-  const JuiceboxRealm *data;
-  size_t length;
-} JuiceboxUnmanagedRealmArray;
-
-typedef struct {
-  JuiceboxUnmanagedRealmArray realms;
-  uint8_t register_threshold;
-  uint8_t recover_threshold;
-  JuiceboxPinHashingMode pin_hashing_mode;
-} JuiceboxConfiguration;
-
-typedef struct {
-  const JuiceboxConfiguration *data;
+  JuiceboxConfiguration *const *data;
   size_t length;
 } JuiceboxUnmanagedConfigurationArray;
 
@@ -93,6 +72,11 @@ typedef struct {
   const JuiceboxHttpHeader *data;
   size_t length;
 } JuiceboxUnmanagedHttpHeaderArray;
+
+typedef struct {
+  const uint8_t *data;
+  size_t length;
+} JuiceboxUnmanagedDataArray;
 
 typedef struct {
   uint8_t id[16];
@@ -112,6 +96,17 @@ typedef struct {
 typedef void (*JuiceboxHttpResponseFn)(JuiceboxHttpClient *context, const JuiceboxHttpResponse *response);
 
 typedef void (*JuiceboxHttpSendFn)(const JuiceboxHttpClient *context, const JuiceboxHttpRequest *request, JuiceboxHttpResponseFn callback);
+
+typedef struct {
+  uint8_t id[16];
+  const char *address;
+  const JuiceboxUnmanagedDataArray *public_key;
+} JuiceboxRealm;
+
+typedef struct {
+  const JuiceboxRealm *data;
+  size_t length;
+} JuiceboxUnmanagedRealmArray;
 
 typedef struct {
   JuiceboxRecoverErrorReason reason;
@@ -145,12 +140,24 @@ typedef struct {
  * `http_send` function and should not be accessed after returning from the
  * function.
  */
-JuiceboxClient *juicebox_client_create(JuiceboxConfiguration configuration,
+JuiceboxClient *juicebox_client_create(JuiceboxConfiguration *configuration,
                                        JuiceboxUnmanagedConfigurationArray previous_configurations,
                                        JuiceboxAuthTokenGetFn auth_token_get,
                                        JuiceboxHttpSendFn http_send);
 
 void juicebox_client_destroy(JuiceboxClient *client);
+
+JuiceboxConfiguration *juicebox_configuration_create(JuiceboxUnmanagedRealmArray realms,
+                                                     uint8_t register_threshold,
+                                                     uint8_t recover_threshold,
+                                                     JuiceboxPinHashingMode pin_hashing_mode);
+
+JuiceboxConfiguration *juicebox_configuration_create_from_json(const char *json);
+
+void juicebox_configuration_destroy(JuiceboxConfiguration *configuration);
+
+bool juicebox_configurations_are_equal(JuiceboxConfiguration *configuration1,
+                                       JuiceboxConfiguration *configuration2);
 
 /**
  * Stores a new PIN-protected secret on the configured realms.

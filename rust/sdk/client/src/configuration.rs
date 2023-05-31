@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, ops::Deref};
 
 /// The parameters used to configure a [`Client`](crate::Client).
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Configuration {
     /// The remote services that the client interacts with.
     ///
