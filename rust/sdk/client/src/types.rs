@@ -20,6 +20,12 @@ use juicebox_sdk_core::types::{
 use juicebox_sdk_noise::client as noise;
 
 /// A remote service that the client interacts with directly.
+///
+/// This struct describes how clients communicate with a realm. A realm is a
+/// remote service that clients interact with to register and recover their
+/// PIN-protected secrets. Clients distribute their trust across multiple
+/// realms, which can run different software and hardware and can be operated
+/// independently.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Realm {
     /// A unique identifier specified by the realm.
