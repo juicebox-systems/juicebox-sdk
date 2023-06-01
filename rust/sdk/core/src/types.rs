@@ -183,7 +183,12 @@ impl From<[u8; 32]> for OprfSeed {
     }
 }
 
-/// A unique 16-byte identifier for a [`Realm`](struct.Realm.html).
+/// A unique identifier for a realm.
+///
+/// A realm is a remote service that clients interact with to register and
+/// recover their PIN-protected secrets. Clients distribute their trust across
+/// multiple realms, which can run different software and hardware and can be
+/// operated independently.
 #[derive(Copy, Clone, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RealmId(pub [u8; 16]);
 

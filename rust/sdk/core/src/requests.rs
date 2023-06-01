@@ -57,6 +57,7 @@ pub enum ClientResponse {
     PayloadTooLarge,
 }
 
+/// A Noise protocol handshake or transport message.
 #[derive(Clone, Deserialize, Serialize)]
 pub enum NoiseRequest {
     Handshake { handshake: noise::HandshakeRequest },
@@ -80,8 +81,8 @@ impl fmt::Debug for NoiseRequest {
 pub enum NoiseResponse {
     Handshake {
         handshake: noise::HandshakeResponse,
-        /// Once the session becomes inactive for this many milliseconds, the
-        /// client should discard the session.
+        /// Once the session becomes inactive for this long, the client should
+        /// discard the session.
         session_lifetime: Duration,
     },
     Transport {
