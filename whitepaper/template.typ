@@ -21,6 +21,10 @@
   // Configure equations
   show math.equation: set text(style: "italic")
 
+  set enum(indent: 1.5em)
+  set list(indent: 1.5em)
+  set terms(separator: [: ])
+
   v(8em)
 
   // Title row.
