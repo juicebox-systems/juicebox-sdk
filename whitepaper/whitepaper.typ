@@ -9,7 +9,7 @@
   ),
   date: "June 2, 2023",
   version: "Revision 1",
-  abstract: [Ensuring high adoption of privacy software requires simplicity. Unfortunately, existing secret management techniques often demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have implemented a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity in recalling a 4-digit PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudo Random Functions_ (OPRFs) and _Shamir's Secret Sharing_ (SSS) to minimize the trust placed in any singular server. Additionally, our approach allows for servers to be controlled by any number of organizations eliminating the need to trust a singular service operator.],
+  abstract: [Ensuring high adoption of privacy software requires simplicity. Unfortunately, existing secret management techniques often demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have implemented a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a 4-digit PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudo Random Functions_ (OPRFs) and _Shamir's Secret Sharing_ (SSS) to minimize the trust placed in any singular server. Additionally, our approach allows for servers to be controlled by any number of organizations eliminating the need to trust a singular service operator.],
   bibliography-file: "references.bib",
 )
 
@@ -140,8 +140,8 @@ corresponding to the registration:
 / attemptedGuesses#sub[i]: starts at 0 and increases on recovery attempts, then reset to 0 on successful recoveries
 / saltShares#sub[i]: a share of the salt the client generated during registration and used to hash their _PIN_
 / oprfSeeds#sub[i]: a random OPRF seed the client generated during registration, unique to this realm and this registration
-/ maskedTgkShares#sub[i]: a masked share of the tag-generating key
-/ unlockTags#sub[i]: the key the client provides to demonstrate knowledge of the PIN and release _encryptedSecretShares#sub[i]_
+/ maskedUnlockKeyShares#sub[i]: a masked share of the unlock key
+/ unlockTags#sub[i]: the tag the client provides to demonstrate knowledge of the PIN and release _encryptedSecretShares#sub[i]_
 / encryptedSecretShares#sub[i]: a share of the user's encrypted secret
 
 == Registration
@@ -184,23 +184,23 @@ The client should perform the following actions:
   - $"encryptedSecretShares" = "CreateShares"("threshold", "encryptedSecret")$
 + Generate a random 32-byte _oprfSeeds#sub[i]_ for each _Realm#sub[i]_ #footnote[We acknowledge that it is unconventional for _OPRF_ key material to be generated on the client. However, in this instance, the benefits of doing so outweigh the downsides. Specifically, this behavior change allows it to be possible to register a secret on a realm without the additional round trip to compute the _OprfResult_. When distributed across 3 or more realms, the performance impacts of this change start to become significant. Since this protocol generally expects clients to have access to a secure random number generator capable of generating a good _oprfSeed_, the primary cause for concern becomes one of implementation and verifying that the key material is not leaked from the client before or after being provided to the _Realm_.]
   - $"oprfSeeds"_i = "Random"(32)$
-+ Generate a random 32-byte tag generating key _tgk_ #footnote[The tag generating key is later used — in combination with the user's _accessKey_ — to validate ownership of a secret by deriving an _unlockTag_ for each _Realm#sub[i]_.]
-  - $"tgk" = "Random"(32)$
-+ Create shares of _tgk_
-  - $"tgkShares" = "CreateShares"("threshold", "tgk")$
-+ Derive the _oprfResults_ for _accessKey_ with each _oprfSeeds#sub[i]_ #footnote[Since we have the _OPRF_ key material and the _accessKey_ we can directly derive the result and skip the blinding process.]
++ Generate a random 32-byte _unlockKey_ #footnote[The _unlockKey_ is later used — in combination with the user's _accessKey_ — to validate ownership of a secret by deriving an _unlockTag_ for each _Realm#sub[i]_.]
+  - $"unlockKey" = "Random"(32)$
++ Create shares of _unlockKey_
+  - $"unlockKeyShares" = "CreateShares"("threshold", "unlockKey")$
++ Compute the _oprfResults_ for _accessKey_ from _oprfSeeds_ #footnote[Since we have the _OPRF_ key material and the _accessKey_ we can directly compute the result and skip the blinding process.]
   - $"oprfResults"_i = "OprfEvaluate"("OprfDeriveKey"("oprfSeeds"_i), "accessKey")$
-+ Derive the _maskedTgkShares_ #footnote[This operation requires that the user to first prove they know their _PIN_ to derive the _oprfResults_ before they can unmask the _tgkShares_ and recover the _tgk_.]
-  - $"maskedTgkShares"_i = "tgkShares"_i "XOR" "oprfResults"_i$
++ Mask the _unlockKeyShares_ with the _oprfResults_ #footnote[This step requires that the user to first prove they know their _PIN_ to recover the _oprfResults_ before they can unmask the _unlockKeyShares_ and recover the _unlockKey_.]
+  - $"maskedUnlockKeyShares"_i = "unlockKeyShares"_i "XOR" "oprfResults"_i$
 + Derive the _unlockTags_ #footnote[Knowledge of this value during recovery grants the user access to their _encryptedSecretShares#sub[i]_.]
-  - $"unlockTags"_i = "MAC"("tgk", "Realm"_"i(id)")$ #footnote[_Realm#sub[i(id)]_ is the unique 16-byte identifier for each _Realm#sub[i]_ as described in @Realms.]
+  - $"unlockTags"_i = "MAC"("unlockKey", "Realm"_"i(id)")$ #footnote[_Realm#sub[i(id)]_ is the unique 16-byte identifier for each _Realm#sub[i]_ as described in @Realms.]
 
 A _register2_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
 - version
 - saltShares#sub[i]
 - oprfSeeds#sub[i]
 - unlockTags#sub[i]
-- maskedTgkShares#sub[i]
+- maskedUnlockKeyShares#sub[i]
 - encryptedSecretShares#sub[i]
 - allowedGuesses
 
@@ -241,7 +241,7 @@ An _OK_ response from this phase should always be expected to return the followi
 
 Once a client has successfully completed Phase 1 on all _Realm#sub[i]_, it must determine a majority consensus on the returned _version_ and _salt_. Only the realms that exist within this majority should be considered for the remaining phases. Provided the initial _threshold_ during registration consisted of a majority of realms, this consensus should always be reached. If this consensus cannot be reached, the client should assume that the user is _NotRegistered_ on any realm.
 
-The purpose of Phase 2 is to recover the _maskedTgkShares_ we stored during registration along with the _OPRF_ result required to unmask them and reconstruct the _tgk_. An optimal client can abort Phase 2 as soon as _threshold_ _OK_ responses are recovered, as this should be sufficient to recover the _tgk_.
+The purpose of Phase 2 is to recover the _maskedUnlockKeyShares_ we stored during registration along with the _OPRF_ result required to unmask them and reconstruct the _unlockKey_. An optimal client can abort Phase 2 as soon as _threshold_ _OK_ responses are recovered, as this should be sufficient to recover the _unlockKey_.
 
 The client should perform the following actions:
 + Derive an _accessKey_ and _encryptionKey_ by hashing the user's _PIN_ #footnote[This process is identical to the one performed during registration.]
@@ -271,7 +271,7 @@ The _Realm#sub[i]_ should perform the following actions to process the request:
 
 An _OK_ response from this phase should always be expected to return the following information:
 - blindedResult
-- maskedTgkShares#sub[i] #footnote[From the user's registration record.]
+- maskedUnlockKeyShares#sub[i] #footnote[From the user's registration record.]
 
 === Phase 3
 
@@ -282,12 +282,12 @@ The purpose of Phase 3 is to recover the _encryptedSecretShares_ allowing decryp
 The client should perform the following actions:
 + Compute the _oprfResults_ using the _blindedResult_ from the response and the _accessKey_
   - $"oprfResults"_i = "OprfFinalize"("blindedResult"_i, "accessKey")$
-+ Unmask the _maskedTgkShares_ from the response
-  - $"tgkShares"_i = "maskedTgkShares"_i "XOR" "oprfResults"_i$
-+ Recover _tgk_ from _tgkShares_ #footnote[If the wrong pin was used the client will recover the wrong _tgk_.]
-  - $"tgk" = "RecoverShares"("tgkShares")$
++ Unmask the _maskedUnlockKeyShares_ from the response
+  - $"unlockKeyShares"_i = "maskedUnlockKeyShares"_i "XOR" "oprfResults"_i$
++ Recover _unlockKey_ from _unlockKeyShares_ #footnote[If the wrong pin was used the client will recover the wrong _unlockKey_ and be unable to recover their secret.]
+  - $"unlockKey" = "RecoverShares"("unlockKeyShares")$
 + Derive the _unlockTags_ #footnote[Knowledge of this value proves to the _Realm#sub[i]_ the user knows their _PIN_ and allow it to release the _encryptedSecretShare_ without revealing the _PIN_. Additionally, if _unlockTags#sub[i]_ is invalid due to an incorrect _PIN_ the client will not know until after confirming with _Realm#sub[i]_, ensuring both the client and the realm know the outcome of the recovery operation for any auditing purposes.]
-  - $"unlockTag"_i = "MAC"("tgk", "Realm"_"i(id)")$ #footnote[_Realm#sub[i(id)]_ is the unique 16-byte identifier for each _Realm#sub[i]_ as described in @Realms.]
+  - $"unlockTag"_i = "MAC"("unlockKey", "Realm"_"i(id)")$ #footnote[_Realm#sub[i(id)]_ is the unique 16-byte identifier for each _Realm#sub[i]_ as described in @Realms.]
 
 A _recover3_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
 - version
