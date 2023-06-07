@@ -875,6 +875,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
+ "juicebox-sdk-marshalling",
  "rand_core",
  "serde",
  "serde_json",

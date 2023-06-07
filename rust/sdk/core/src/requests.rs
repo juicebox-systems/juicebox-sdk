@@ -10,6 +10,7 @@ use crate::types::{
     AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
     RegistrationVersion, SaltShare, SessionId, UnlockTag, UserSecretShare,
 };
+use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -60,8 +61,13 @@ pub enum ClientResponse {
 /// A Noise protocol handshake or transport message.
 #[derive(Clone, Deserialize, Serialize)]
 pub enum NoiseRequest {
-    Handshake { handshake: noise::HandshakeRequest },
-    Transport { ciphertext: Vec<u8> },
+    Handshake {
+        handshake: noise::HandshakeRequest,
+    },
+    Transport {
+        #[serde(with = "bytes")]
+        ciphertext: Vec<u8>,
+    },
 }
 
 impl fmt::Debug for NoiseRequest {
@@ -86,6 +92,7 @@ pub enum NoiseResponse {
         session_lifetime: Duration,
     },
     Transport {
+        #[serde(with = "bytes")]
         ciphertext: Vec<u8>,
     },
 }
