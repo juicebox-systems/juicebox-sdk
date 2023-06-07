@@ -248,13 +248,15 @@ mod tests {
     #[test]
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
-            version: RegistrationVersion::from([0; 16]),
-            salt_share: SaltShare::from([0; 17]),
-            oprf_seed: OprfSeed::from([0; 32]),
-            tag: UnlockTag::from([0; 32]),
-            masked_tgk_share: MaskedTgkShare::try_from(vec![0; 33]).unwrap(),
-            secret_share: UserSecretShare::try_from(vec![0; 146]).unwrap(),
-            policy: Policy { num_guesses: 1 },
+            version: RegistrationVersion::from([0xff; 16]),
+            salt_share: SaltShare::from([0xff; 17]),
+            oprf_seed: OprfSeed::from([0xff; 32]),
+            tag: UnlockTag::from([0xff; 32]),
+            masked_tgk_share: MaskedTgkShare::try_from(vec![0xff; 33]).unwrap(),
+            secret_share: UserSecretShare::try_from(vec![0xff; 146]).unwrap(),
+            policy: Policy {
+                num_guesses: u16::MAX,
+            },
         }));
         let serialized = marshalling::to_vec(&secrets_request).unwrap();
         assert!(serialized.len() < BODY_SIZE_LIMIT);
