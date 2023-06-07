@@ -2,6 +2,7 @@
 members = [
     "rust/sdk/client",
     "rust/sdk/core",
+    "rust/sdk/marshalling",
     "rust/sdk/networking",
     "rust/sdk/noise",
     "rust/bridge/ffi",
