@@ -10,6 +10,7 @@ chacha20poly1305 = { workspace = true }
 digest = { workspace = true }
 hkdf = { workspace = true }
 hmac = { workspace = true }
+juicebox-sdk-marshalling = { path = "../marshalling" }
 rand_core = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }

@@ -12,7 +12,7 @@ use secrecy::{ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
-use super::marshalling::{bytes, serialize_secret};
+use juicebox_sdk_marshalling::{bytes, serialize_secret};
 
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecretBytesArray<const N: usize>(#[serde(with = "bytes")] [u8; N]);
@@ -57,8 +57,8 @@ impl<const N: usize> TryFrom<Vec<u8>> for SecretBytesArray<N> {
     }
 }
 
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub struct SecretBytesVec(Vec<u8>);
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct SecretBytesVec(#[serde(with = "bytes")] Vec<u8>);
 
 impl Zeroize for SecretBytesVec {
     fn zeroize(&mut self) {
@@ -190,7 +190,7 @@ impl From<[u8; 32]> for OprfSeed {
 /// multiple realms, which can run different software and hardware and can be
 /// operated independently.
 #[derive(Copy, Clone, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct RealmId(pub [u8; 16]);
+pub struct RealmId(#[serde(with = "bytes")] pub [u8; 16]);
 
 impl Debug for RealmId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

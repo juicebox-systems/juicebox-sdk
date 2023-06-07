@@ -1,0 +1,14 @@
+[package]
+name = "juicebox-sdk-marshalling"
+version = "0.1.0"
+authors = [
+    "Simon Fell <simon@juicebox.me>",
+    "Diego Ongaro <diego@juicebox.me>",
+    "Nora Trapp <nora@juicebox.me>",
+]
+edition = "2021"
+
+[dependencies]
+ciborium = { workspace = true }
+secrecy = { workspace = true }
+serde = { workspace = true }

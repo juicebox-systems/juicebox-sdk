@@ -11,7 +11,8 @@ edition = "2021"
 [dependencies]
 async-trait = { workspace = true }
 http = { workspace = true }
-juicebox-sdk-core = { path = "../../sdk/core" }
+juicebox-sdk-core = { path = "../core" }
+juicebox-sdk-marshalling = { path = "../marshalling" }
 opentelemetry = { workspace = true, optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

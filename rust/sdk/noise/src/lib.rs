@@ -31,6 +31,7 @@ pub use chacha20poly1305::aead::{Error as EncryptionError, Payload};
 use chacha20poly1305::ChaCha20Poly1305;
 use core::fmt;
 use digest::Digest;
+use juicebox_sdk_marshalling::bytes;
 use serde::{Deserialize, Serialize};
 use x25519_dalek as x25519;
 
@@ -47,9 +48,12 @@ const HASH_LEN: usize = 32;
 #[derive(Clone, Deserialize, Serialize)]
 pub struct HandshakeRequest {
     /// A plaintext ephemeral public key for the client.
+    #[serde(with = "bytes")]
     pub client_ephemeral_public: Vec<u8>,
+
     /// An encrypted request payload. Note that this payload does not have
     /// forward secrecy.
+    #[serde(with = "bytes")]
     pub payload_ciphertext: Vec<u8>,
 }
 
@@ -63,8 +67,11 @@ impl fmt::Debug for HandshakeRequest {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct HandshakeResponse {
     /// A plaintext ephemeral public key for the server.
+    #[serde(with = "bytes")]
     pub server_ephemeral_public: Vec<u8>,
+
     /// An encrypted response payload.
+    #[serde(with = "bytes")]
     pub payload_ciphertext: Vec<u8>,
 }
 

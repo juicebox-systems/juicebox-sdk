@@ -10,6 +10,7 @@ use crate::types::{
     AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
     RegistrationVersion, SaltShare, SessionId, UnlockTag, UserSecretShare,
 };
+use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -60,8 +61,13 @@ pub enum ClientResponse {
 /// A Noise protocol handshake or transport message.
 #[derive(Clone, Deserialize, Serialize)]
 pub enum NoiseRequest {
-    Handshake { handshake: noise::HandshakeRequest },
-    Transport { ciphertext: Vec<u8> },
+    Handshake {
+        handshake: noise::HandshakeRequest,
+    },
+    Transport {
+        #[serde(with = "bytes")]
+        ciphertext: Vec<u8>,
+    },
 }
 
 impl fmt::Debug for NoiseRequest {
@@ -86,6 +92,7 @@ pub enum NoiseResponse {
         session_lifetime: Duration,
     },
     Transport {
+        #[serde(with = "bytes")]
         ciphertext: Vec<u8>,
     },
 }
@@ -237,24 +244,26 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
-        marshalling,
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
             MaskedTgkShare, OprfSeed, Policy, RegistrationVersion, SaltShare, UnlockTag,
             UserSecretShare,
         },
     };
+    use juicebox_sdk_marshalling as marshalling;
 
     #[test]
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
-            version: RegistrationVersion::from([0; 16]),
-            salt_share: SaltShare::from([0; 17]),
-            oprf_seed: OprfSeed::from([0; 32]),
-            tag: UnlockTag::from([0; 32]),
-            masked_tgk_share: MaskedTgkShare::try_from(vec![0; 33]).unwrap(),
-            secret_share: UserSecretShare::try_from(vec![0; 146]).unwrap(),
-            policy: Policy { num_guesses: 1 },
+            version: RegistrationVersion::from([0xff; 16]),
+            salt_share: SaltShare::from([0xff; 17]),
+            oprf_seed: OprfSeed::from([0xff; 32]),
+            tag: UnlockTag::from([0xff; 32]),
+            masked_tgk_share: MaskedTgkShare::try_from(vec![0xff; 33]).unwrap(),
+            secret_share: UserSecretShare::try_from(vec![0xff; 146]).unwrap(),
+            policy: Policy {
+                num_guesses: u16::MAX,
+            },
         }));
         let serialized = marshalling::to_vec(&secrets_request).unwrap();
         assert!(serialized.len() < BODY_SIZE_LIMIT);

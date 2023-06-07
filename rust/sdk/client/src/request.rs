@@ -9,13 +9,13 @@ use x25519_dalek as x25519;
 use crate::auth;
 use crate::{http, types::Session, Client, Realm, Sleeper};
 use juicebox_sdk_core::{
-    marshalling,
     requests::{
         ClientRequest, ClientRequestKind, ClientResponse, NoiseRequest, NoiseResponse,
         SecretsRequest, SecretsResponse,
     },
     types::SessionId,
 };
+use juicebox_sdk_marshalling as marshalling;
 use juicebox_sdk_networking::rpc::{self, RpcError};
 use juicebox_sdk_noise::client as noise;
 
