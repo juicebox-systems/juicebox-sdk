@@ -768,6 +768,7 @@ dependencies = [
  "hmac",
  "instant",
  "juicebox-sdk-core",
+ "juicebox-sdk-marshalling",
  "juicebox-sdk-networking",
  "juicebox-sdk-noise",
  "rand",
@@ -798,9 +799,9 @@ dependencies = [
 name = "juicebox-sdk-core"
 version = "0.1.0"
 dependencies = [
- "ciborium",
  "digest",
  "hex",
+ "juicebox-sdk-marshalling",
  "juicebox-sdk-noise",
  "rand_core",
  "secrecy",
@@ -840,12 +841,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "juicebox-sdk-marshalling"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "secrecy",
+ "serde",
+]
+
+[[package]]
 name = "juicebox-sdk-networking"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "http",
  "juicebox-sdk-core",
+ "juicebox-sdk-marshalling",
  "opentelemetry",
  "serde",
  "thiserror",

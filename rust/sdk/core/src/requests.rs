@@ -237,13 +237,13 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
-        marshalling,
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
             MaskedTgkShare, OprfSeed, Policy, RegistrationVersion, SaltShare, UnlockTag,
             UserSecretShare,
         },
     };
+    use juicebox_sdk_marshalling as marshalling;
 
     #[test]
     fn test_request_body_size_limit() {

@@ -12,7 +12,7 @@ use secrecy::{ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
-use super::marshalling::{bytes, serialize_secret};
+use juicebox_sdk_marshalling::{bytes, serialize_secret};
 
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecretBytesArray<const N: usize>(#[serde(with = "bytes")] [u8; N]);

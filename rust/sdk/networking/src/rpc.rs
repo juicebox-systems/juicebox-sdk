@@ -7,8 +7,8 @@ use tracing::instrument;
 use url::Url;
 
 use crate::http;
-use juicebox_sdk_core::marshalling;
 use juicebox_sdk_core::requests::{ClientRequest, ClientResponse, SecretsRequest, SecretsResponse};
+use juicebox_sdk_marshalling as marshalling;
 
 pub trait Service: Sync {}
 
