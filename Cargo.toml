@@ -63,12 +63,13 @@ wasm-bindgen = { version = "0.2.84", features = ["serde"] }
 wasm-bindgen-futures = "0.4.34"
 wasm-bindgen-test = "0.3.34"
 web-sys = { version = "0.3.4", features = [
+    "Blob",
     "Headers",
     "Request",
     "RequestInit",
     "RequestMode",
     "Response",
-    "Blob",
+    "Window",
 ] }
 x25519-dalek = { version = "2.0.0-rc.2", features = [
     "reusable_secrets",
