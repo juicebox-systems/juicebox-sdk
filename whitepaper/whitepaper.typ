@@ -2,51 +2,72 @@
 
 #show: whitepaper.with(
   title: "Juicebox Protocol",
-  subtitle: "Distributed Storage and Recovery of Secret Values Using Simple PIN Authentication",
+  subtitle: "Distributed Storage and Recovery of Secrets Using Simple PIN Authentication",
   authors: (
     (name: "Nora Trapp", affiliation: "Juicebox Systems, Inc"),
     (name: "Diego Ongaro", affiliation: "Juicebox Systems, Inc"),
   ),
-  date: "June 2, 2023",
-  version: "Revision 1",
-  abstract: [Ensuring high adoption of privacy software requires simplicity. Unfortunately, existing secret management techniques often demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have implemented a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a 4-digit PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudo Random Functions_ (OPRFs) and _Shamir's Secret Sharing_ (SSS) to minimize the trust placed in any singular server. Additionally, our approach allows for servers to be controlled by any number of organizations eliminating the need to trust a singular service operator.],
+  date: "June 7, 2023",
+  version: "Revision 2",
+  abstract: [Existing secret management techniques often demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We present a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a short PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudorandom Functions_ (OPRFs) and a _Secret-Sharing Scheme_ (SSS) combined with self-destructing secrets to minimize the trust placed in any singular server. Additionally, our approach allows for servers distributed across organizations, eliminating the need to trust a singular service operator. We have built a reference open-source implementation of the client and server sides of this new protocol, the latter of which has variants for running on commodity hardware and secure hardware.],
   bibliography-file: "references.bib",
 )
 
 = Introduction
-At its core, the _Juicebox Protocol_ is a specification for performing secret management operations distributed across a set of _Realms_.
+Services are increasingly attempting to provide their users with strong, end-to-end encrypted privacy features, often with the direct goal of preventing the service operator from accessing user data. In such systems, the user is generally given the role of managing a secret key to decrypt and encrypt their data. Secret keys tend to be long, not memorable, and difficult for a user to reliably to reproduce, by design. The burden of this complexity becomes particularly apparent when the user must enter their key material on a new device.
 
-Specifically, the protocol aims to:
-+ Never give any _Realm_ access to secret values
-+ Keep user burden simple by allowing recovery through low-entropy PINs
-+ Eliminate the need to trust any singular _Realm_ operator or hardware vendor
+Techniques like seed phrases @Palatinus_Rusnak_Voisine_Bowe_2013 provide some simplification to this process but still result in long and unmemorable strings of words that a user has to manage. Alternative approaches to key management such as passkeys @FIDO_Alliance_2022 reduce the user burden but ultimately require that a user still have access to a device containing the key material.
 
-Additionally, a key feature of the protocol is that anyone can implement and run instances that conform to it, allowing for distributed trust across different organizational boundaries.
+We present an approach — the _Juicebox Protocol_ — that allows the user to recover their secret material by remembering a short PIN, without having access to any previous devices.
 
-Juicebox provides open source reference implementations for both the client and server on their GitHub @Juicebox_Github.
+Specifically, this protocol aims to:
++ Never give any service access to a user's secret material or PIN
++ Keep user burden low by allowing recovery through memorable low-entropy PINs while maintaining similar security to solutions utilizing high-entropy passwords
++ Distribute trust across mutually distrusting services, eliminating the need to trust any singular server operator or hardware vendor
++ Prevent brute-force attacks by self-destructing secrets after _n_ failed recoveries
++ Allow auditing of secret access attempts
+
+Juicebox provides open-source reference implementations for both the client and server on GitHub @Juicebox_Github.
 
 = Overview
 
+== Configuration
+A protocol client aims to distribute their secrets across _n_ mutually distrusting services that implement the _Juicebox Protocol_. For this paper, we will refer to each service that a secret can be distributed to as an abstract _Realm_, elaborated upon in @Realms.
+
+The overall security of the protocol is directly related to the set of _n_ realms you configure your client with. Adding a _Realm_ to your configuration generally results in a net increase in security, although there can be some caveats.
+
+When adding a _Realm_ to your configuration, some important questions to ask are:
+- Who has access to the data stored on that _Realm_? (referred to as a _trust boundary_ going forward)
+- Does that _trust boundary_ overlap with other realms in your configuration? If so, adding this _Realm_ may reduce your overall security.
+
+Configurations of realms are often used in _threshold_ based operations. A $"threshold" < n$ allows increased availability of secrets when using a configuration with a larger size _n_ since not all realms are required to be operational or in agreement for the operation to succeed.
+
+A $"threshold" >= 3$ is recommended where possible as small _n_ configurations have the weakest security promises.
+
+We require a $"threshold" > n/2$ which ensures that a majority consensus can always be reached and independent disagreeing sets of realms $>="threshold"$ cannot exist in your configuration.
+
 == Realms <Realms>
-For this paper, we will refer to each server that a secret can be distributed to as an abstract _Realm_. Fundamentally, each _Realm_ must adhere to the core protocol as defined here to be compatible. However, different realms may provide different security guarantees influencing the overall security of a user's secret value.
+Fundamentally, each _Realm_ must adhere to the core protocol as defined here to be compatible. However, different realms may provide different security guarantees influencing the overall security of a user's secret value.
 
-Each _Realm_ is assigned a unique 16-byte identifier known as a _Realm#sub[id]_. For implementation purposes, this could be any value as long as it is universally unique across realms in your configuration.
-
-Additionally, realms have the option to generate a 32-byte EC25519 key pair which is used for encrypted communication via Noise, as described in @Noise.
+Each _Realm_ is assigned a unique 16-byte identifier known as a _Realm#sub[id]_. For implementation purposes, this could be any value as long as it is universally unique across realms in your configuration. We generally recommend using a random value.
 
 A _Realm_ is controlled by an _operator_ — the organization or individual who runs the service. The level of trust that must be placed in a given operator varies based on the underlying realm implementation.
 
-It should generally be assumed that each _Realm_ controls only a share of a user's secret value (via SSS, as described in @SSS) and that a singular realm never has access to the full secret material. This guarantee is best achieved by ensuring a variety of realm types are used that span across multiple operators and trust boundaries.
+Communication with a _Realm_ should always occur over a secure protocol such as TLS that ensures the confidentiality and integrity of requests while limiting the possibility of replay attacks.
+
+It should generally be assumed that each _Realm_ controls only a share of a user's secret value (via SSS, as described in @SSS) and that a singular realm never has access to the full secret material. This guarantee is best achieved by ensuring that realms spanning multiple _trust boundaries_ are utilized.
 
 === Hardware Realms
-One form of _Realm_ that we explored is the variant backed by secure hardware, such as a hardware security module (HSM). Realms of this nature allow for a significant reduction in or removal of the user's need to trust a realm's operator, as it is possible to encapsulate all protocol operations within the hardware's trusted execution environment (TEE) such that a malicious operator has no avenue of access. Additionally, it is possible to attest that a specific and verifiable version of software is being executed within the TEE.
+We explored a form of _Realm_ backed by secure hardware, such as a hardware security module (HSM), as an avenue for creating diversity in _trust boundaries_ within a client's configuration. Our primary focus with realms of this nature was on shifting the trust model away from the realm _operator_ and hosting provider and onto the hardware _vendor_.
 
-This reduction in operator trust does not come for free — the user's trust is transitioned from the realm operator to the HSM vendor. Additionally, HSMs come with significant tradeoffs in terms of acquisition and operation cost as well as performance when compared to commodity hardware. This makes any singular HSM product insufficient as a standalone secret storage solution at scale. However, when used in concert with other types of realms — including hardware realms from other vendors — we believe the inclusion of hardware realms can provide a significant increase in security.
+For this purpose, we specifically focused on HSMs that are programmable with non-volatile memory, as encapsulating the protocol operations within the hardware's trusted execution environment (TEE) assures that a malicious operator has no avenue of access. Non-volatile memory is required to prevent an _operator_ from rolling back _Realm_ state, which could prevent self-destruction of secrets. The HSMs we explored also allow some authorized form of programming, such that an _operator_ can prove that a specific and verifiable version of the protocol is being executed within the TEE.
+
+It must be noted that this shift in _trust boundaries_ does not come for free. HSMs come with significant tradeoffs in terms of acquisition and operation cost as well as performance when compared to commodity hardware. This makes an HSM product insufficient as a standalone secret storage solution at scale. However, when used in concert with other types of realms — including hardware realms from other vendors — we believe the inclusion of such realms can provide a significant increase in security.
 
 === Software Realms
-Another form of _Realm_ that we explored is a lightweight software solution that can be easily hosted in common cloud providers. Realms of this nature allow focus on ease of deployment, facilitating further distribution across organizational boundaries. This can be incredibly convenient to augment the costly hardware realms, reducing trust placed on any individual hardware vendor, and even allowing a single organization to operate multiple realms with different trust boundaries.
+We additionally explored a form of _Realm_ that can run on commodity hardware in common cloud providers. We specifically looked at this solution as the ease of deployment has the potential to significantly increase the number of _trust boundaries_ that exist within a configuration. This can be particularly convenient to augment costly hardware realms, reducing trust placed on any individual hardware vendor, and even allowing a single organization to operate multiple realms with different _trust boundaries_.
 
-The software realms we specifically explored by design do not attempt to limit the user's need to trust the operator and additionally require placing some degree of trust in the hosting or database provider. Since these realms only control an encrypted share of a user's secret value, we believe this is an acceptable tradeoff for the increased accessibility it provides.
+The software solutions we specifically explored by design do not attempt to limit the user's need to trust the operator and additionally require placing some degree of trust in the hosting or database provider. Since these realms only control an encrypted share of a user's secret value, we believe this is an acceptable tradeoff for the increased accessibility it provides.
 
 It is also important to recognize that given the limited number of distinct cloud providers currently operating, overuse of such realms can potentially put too much secret information in one party's control and jeopardize user secrets.
 
@@ -57,71 +78,51 @@ We encourage this multi-tenanted approach for realms, as we believe it enables a
 
 This model can also potentially reduce the costs of running expensive hardware realms by distributing the costs of operation across multiple tenants.
 
+= Cryptographic Primitives
+As a prerequisite to defining the protocol, we must define several cryptographic primitives that the protocol relies upon. Each of these is abstractly described, as the fundamental details of their implementation may evolve. For specific algorithms that we recommend as of the writing of this paper, see @Cryptographic_Implementation.
+
 == Oblivious Pseudorandom Functions (OPRFs)
-An OPRF is a cryptographic primitive that enables a client to securely evaluate a function on a server's input while ensuring the server learns nothing about the client's input and the client learns nothing about the server's input beyond the output of the function.
+An OPRF is a cryptographic primitive that enables a server to securely evaluate a function on a client's input while ensuring the server learns nothing about the client's input and the client learns nothing about the server's key beyond the output of the function.
 
-Our protocol specifically utilizes OPRFs as described in the working draft by Davidson _et al._ @Davidson_Faz-Hernandez_Sullivan_Wood_2023 as one part of a strategy for registering and recovering secrets on a _Realm_ without revealing a user's _PIN_ to the _Realm_.
-
-For this paper, we will define the following abstract functions which map to the corresponding operations in the working draft.
+For this paper, we will define an OPRF exchange with the following abstract functions:
 
 / $"OprfDeriveKey"("seed")$: Returns an OPRF _key_ derived from the provided _seed_. The key generated from a specific seed will always be the same.
-/ $"OprfBlind"("input")$: Performs the blinding step for the _input_ value and returns the _blindedInput_. This message is sent from the client to the server.
-/ $"OprfBlindEvaluate"("key", "blindedInput")$: Performs the evaluation step for the _blindedInput_ and returns the _blindedResult_. This message is sent from the server to the client.
-/ $"OprfFinalize"("blindedResult", "input")$: Performs the finalization step to unblind the _blindedResult_ and returns the _result_.
-/ $"OprfEvaluate"("key", "accessKey")$: Computes the unblinded _result_ directly bypassing the blinded exchange.
+/ $"OprfBlind"("input")$: Performs the blinding step for the _input_ value and returns the _blindedInput_ and _blindingFactor_. This _blindedInput_ is sent from the client to the server.
+/ $"OprfBlindEvaluate"("key", "blindedInput")$: Performs the evaluation step for the _blindedInput_ and returns the _blindedResult_. This _blindedResult_ is sent from the server to the client.
+/ $"OprfFinalize"("blindedResult", "blindingFactor", "input")$: Performs the finalization step to unblind the _blindedResult_ using the _blindingFactor_ and the _input_ and returns the _result_.
+/ $"OprfEvaluate"("key", "input")$: Computes the unblinded _result_ directly bypassing the oblivious exchange.
 
-== Shamir's Secret Sharing (SSS) <SSS>
-Shamir's Secret Sharing @Shamir_1979 is a cryptographic algorithm that allows a secret to be divided into multiple shares, which are then distributed among different participants. Only by collecting a minimum number of shares — typically determined by a _threshold_ specified during share creation — can the original secret be reconstructed. This approach provides a way to securely distribute and protect sensitive information by splitting it into multiple fragments that individually reveal nothing about the original secret.
+== Secret-Sharing Scheme (SSS) <SSS>
+A secret-sharing scheme is a cryptographic algorithm that allows a secret to be divided into multiple shares, which are then distributed among different participants. Only by collecting a minimum number of shares — typically determined by a _threshold_ specified during share creation — can the original secret be reconstructed. This approach provides a way to securely distribute and protect sensitive information by splitting it into multiple fragments that individually reveal nothing about the original secret.
 
-For our purposes, we will define the following abstract functions for creating and reconstructing shares using this algorithm:
+For this paper, we will define the following abstract functions for creating and reconstructing shares:
 
-/ $"CreateShares"("threshold", "secret")$: Distributes _secret_ into _N_ _shares_
-/ $"RecoverShares"("shares")$: Recovers _secret_ from _N_ _shares_ or returns an error if less than _threshold_ _shares_ were recovered
+/ $"CreateShares"(n, "threshold", "secret")$: Distributes _secret_ into _n_ _shares_
+/ $"RecoverShares"("shares")$: Recovers _secret_ from _n_ _shares_ or returns an error if $n < "threshold"$
 
 == Noise Protocol <Noise>
-In some implementations of the _Juicebox Protocol_, such as when utilizing a _Hardware Realm_, it can be necessary to implement additional abstraction layers in communication between the user and the realm software. These additional hops introduce the potential for replay of client requests by intermediary parties, potentially allowing a malicious server to make recovery attempts against a user's _secret_.
+In some implementations of the _Juicebox Protocol_, such as when utilizing a _Hardware Realm_, it can be necessary to implement additional abstraction layers in communication between the user and the realm software such that client communication cannot securely terminate within the realm software. Often, this might look like a load balancer that services several realms and terminates a TLS connection. This introduces the possibility of an intermediary party intercepting requests before they reach the realm software.
 
-To prevent replay of requests, the _Juicebox Protocol_ allows for realms to optionally generate a 32-byte EC25519 key pair and distribute the public key to its clients. The realm may then implement the NK-handshake pattern of the Noise Protocol @Perrin_2018. Utilizing this pre-shared key allows users to establish a secure session directly with the realm software and encrypt each request with a new ephemeral key, regardless of additional hops a request may take to arrive at the _Realm_.
+To prevent this, the _Juicebox Protocol_ allows for a _Realm_ to optionally generate a 32-byte key pair and distribute the public key to its clients. The realm may then implement the NK-handshake pattern of the Noise Protocol @Perrin_2018. Utilizing this public key allows users to establish a secure session directly with the realm software and encrypt each request with a new ephemeral key, regardless of additional hops a request may take to arrive at the _Realm_.
 
-= Protocol
-The _Juicebox Protocol_ can be abstracted to three simple operations — _register_, _recover_, and _delete_. These operations, as well as several prerequisites for performing them, are outlined below.
+== Additional Primitives
+In addition to the previously established _OPRF_ and _SSS_ primitives, the following common primitives are necessary to define the protocol:
 
-Protocol clients are expected to be configured with _n_ mutually distrusting realms, each of which will be referred to as _Realm#sub[i]_ from here on. The overall security benefits of the protocol are dependent on sufficient distribution across trust domains.
-
-== Additional External Functions
-In addition to the previously established _OPRF_ and _SSS_ functions, the following additional functions are necessary to define the protocol:
-
-/ $"Encrypt"("encryptionKey", "plaintext", "nonce")$: Returns an AEAD encryption of _plaintext_ with _encryptionKey_. The encryption is performed with the given _nonce_.
-/ $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: Returns the AEAD decryption of _ciphertext_ with _encryptionKey_. The decryption is performed with the given _nonce_.
-/ $"Hash"("data", "salt")$: Returns a fixed 64-byte value that is unique to the input _data_ and _salt_.
+/ $"Encrypt"("encryptionKey", "plaintext", "nonce")$: Returns an authenticated encryption of _plaintext_ with _encryptionKey_. The encryption is performed with the given _nonce_.
+/ $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: Returns the authenticated decryption of _ciphertext_ with _encryptionKey_. The decryption is performed with the given _nonce_.
+/ $"KDF"("data", "salt")$: Returns a fixed 64-byte value that is unique to the input _data_ and _salt_.
 / $"MAC"("key", "input")$: Returns a 32-byte tag by combining the _key_ with the provided _input_.
 / $"Random"(n)$: Returns _n_ random bytes. The _Random_ function should ensure the generation of random data with high entropy, suitable for cryptographic purposes.
 
-Recommendations on implementing these functions can be found in @Cryptographic_Implementation.
+= Protocol
+The _Juicebox Protocol_ can be abstracted to three simple operations — _register_, _recover_, and _delete_.
 
-== Authentication
-To enforce _tenant_ boundaries, a given _Realm#sub[i]_ requires authentication proving that a user has permission to perform operations.
+The following sections contain Python code that demonstrates the work required for each operation. For this code, we assume that the protocol has been appropriately configured with _n_ mutually distrusting realms, each of which will be referred to as _Realm#sub[i]_.
 
-A _Realm#sub[i]_ aims to know as little as possible about users, and consequently relies on individual tenants to determine whether or not a user is allowed to perform a given operation.
+== State
+_Realm#sub[i]_ will store a record indexed by the combination of the registering user's identifier (UID#footnote[As defined in @Authentication]) and their _tenant_. This ensures that a given _tenant_ may only authorize operations for its users.
 
-To cede this control to tenants, a realm _operator_ must generate a random 32-byte signing key ($
-"signingKey" = "Random"(32)$) for each _tenant_ they wish to access their _Realm#sub[i]_. This signing key should be provided an integer version _v_ and the tenant should be provided a consistent alphanumeric name _tenantName_ that is shared by both the realm _operator_ and the _tenant_.
-
-Given this information, a _tenant_ must vend a signed JSON Web Token (JWT) @Jones_Bradley_Sakimura_2015 to grant a given user access to the realm.
-
-The header of this JWT must contain a _kid_ field of _tenantName:v_ so that the _Realm#sub[i]_ knows which version _v_ of _tenantName_'s signing key to validate against.
-
-The claims of this JWT must contain an _iss_ field equivalent to _tenantName_ and a _sub_ field that represents a persistent user identifier (UID) the realm can use for storing secrets. Additionally, an _aud_ field must be present and contain a single hex-string equivalent to the _Realm#sub[i(id)]_ a token is valid for.
-
-A _Realm#sub[i]_ must reject any connections that:
-+ Don't contain an authentication token
-+ Aren't signed with a known signing key for a given _tenantName_ and version _v_ matching the _kid_
-+ Don't have an _aud_ exactly matching their _Realm#sub[i(id)]_
-
-From this point forward, this paper will assume all requests contain valid authentication tokens for a given _Realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _Realm_.
-
-== Storage
-_Realm#sub[i]_ will store a record indexed by the combination of the registering user's identifier (UID) and their _tenant_. This ensures that a given _tenant_ may only authorize operations for its users.
+Clients do not require any persistent state to recover their secrets and should just rely on the user's _PIN_ input.
 
 This record can exist in one of three states:
 
@@ -129,11 +130,9 @@ This record can exist in one of three states:
 / Registered: The user has registered secret information with this _Realm_ and can still attempt to restore that registration.
 / NoGuesses: The user has registered secret information with this _Realm_, but can no longer attempt to restore that registration.
 
-A user transitions into the _NoGuesses_ state when the number of _attemptedGuesses_ on their registration equals or exceeds their _allowedGuesses_.
+A user transitions into the _NoGuesses_ state when the number of _attemptedGuesses_ on their registration equals or exceeds their _allowedGuesses_, self-destructing the registered data.
 
-In the _Registered_ state, the following additional information is stored
-#footnote[Standalone, none of the values stored in the _Registered_ state expose sensitive user secrets and can be stored by the _Realm_ as they see fit for their trust model. This constraint depends on realms existing across trust boundaries to prevent the recovery of secret shared values.]
-corresponding to the registration:
+In the _Registered_ state, the following additional information is stored corresponding to the registration:
 
 / version: a unique 16-byte value that identifies this registration across all _Realms_
 / allowedGuesses: the maximum number of guesses allowed before the registration is permanently deleted by the _Realm_
@@ -145,185 +144,254 @@ corresponding to the registration:
 / encryptedSecretShares#sub[i]: a share of the user's encrypted secret
 
 == Registration
-Registration is a two-phase process that a new user takes to store a PIN-protected secret.
+Registration is a two-phase operation that a new user takes to store a PIN-protected secret. A registration operation is also performed to change a user's PIN or register a new secret for an existing user.
 
 A reference client might expose registration in the following form:
 
-$ "register"("pin", "secret", "allowedGuesses", "threshold") $
+$ "register"("pin", "secret", "allowedGuesses", "threshold", "associatedData") $
 
-/ pin: represents a low entropy value known to the user that will be used to recover their secret, such as a 4-digit pin
+/ pin: represents a low entropy value known to the user that will be used to recover their secret, such as a 4-digit pin #footnote[While the protocol aims to provide strong security guarantees for low entropy pins, using a high entropy value here will provide increased security.]
 / secret: represents the secret value a user wishes to persist
 / allowedGuesses: specifies the number of failed attempts a user can make to recover their secret before it is permanently deleted
-/ threshold: represents the number of realms that shares must be recovered from for the _secret_ to be restored. it is generally recommended that $"threshold">n/2$ where _n_ is the number of realms you are distributing to. we additionally recommend a $"threshold">=3$
+/ threshold: represents the number of realms that shares must be recovered from for the _secret_ to be restored
+/ associatedData: known user data that is factored into the random _salt_ used to stretch the user's _PIN_ #footnote[Using a known constant, like the UID, can prevent a malicious _Realm_ from returning a fixed _salt_ with a pre-computed password table.]
 
 === Phase 1
+The purpose of Phase 1 is to verify that at least _y_ realms are available to store a new registration, where $y >= "threshold"$. Ensuring registration succeeds on more realms than your _threshold_ increases availability during recovery.
+
 An empty _register1_ request is sent from the client to each _Realm#sub[i]_.
 
-For realms that expose a _public key_ and implement _Noise_, this request performs the handshake and establishes a _Noise_ session prior to any sensitive information being transmitted in subsequent phases.
-
-For realms that don't implement _Noise_, this request has no operation. A client implementation could choose to optimize their behavior by skipping this phase for a given _Realm#sub[i]_ that has no _public key_.
+For realms that expose a _public key_ and implement _Noise_, it is recommended to combine this request with the handshake if there is no open connection, as it does not reveal any sensitive information.
 
 A _Realm_ should always be expected to respond _OK_ to this request unless the Noise handshake fails or a transient network error occurs.
 
+Provided a client has completed _Phase 1_ on _y_ realms, the client can proceed to prepare the registration material that will be stored on each _Realm#sub[i]_ within that set.
+
 === Phase 2
+The purpose of Phase 2 is to update the registration state on each _Realm#sub[i]_ to reflect the new _PIN_ and _secret_.
 
-Provided a client has completed _Phase 1_ (or decided it was safe to omit), the client can proceed to prepare the registration material that will be stored on each _Realm#sub[i]_. Phase 2 should not be conducted until Phase 1 is completed successfully on all realms to avoid a mismatched registration state across realms.
+The following demonstrates the work a client should perform to prepare a new registration:
 
-The client should perform the following actions:
-+ Generate a random 16-byte _version_ that is used to validate registration consistency across realms
-  - $"version" = "Random"(16)$
-+ Generate a random 16-byte _salt_ that is used when hashing the user's _PIN_ #footnote[This hashing operation adds additional entropy to the user's _PIN_ before using it in _OPRF_ operations.]
-  - $"salt" = "Random"(16)$
-+ Derive an _accessKey_ and _encryptionKey_ by hashing the user's _PIN_
-  - $"accessKey", "encryptionKey" = "Hash"("PIN", "salt")$
-  - _accessKey_ is the first 32-bytes of the _Hash_ result
-  - _encryptionKey_ is the last 32-bytes of the _Hash_ result
-+ Encrypt the user's _secret_ using the derived _encryptionKey_ #footnote[This serves as a low-overhead way to ensure that even if realms were to collude the user's _PIN_ is required to recover their _secret_. However, since a _Realm#sub[i]_ only ever should have access to a single _secret_ share this operation could technically be considered optional depending on your trust concerns.]
-  - $"encryptedSecret" = "Encrypt"("secret", "encryptionKey", 0)$ #footnote[Since a new _encryptionKey_ is used for every registration, a constant _nonce_ of zero can be safely used.]
-+ Create shares of _encryptedSecret_
-  - $"encryptedSecretShares" = "CreateShares"("threshold", "encryptedSecret")$
-+ Generate a random 32-byte _oprfSeeds#sub[i]_ for each _Realm#sub[i]_ #footnote[We acknowledge that it is unconventional for _OPRF_ key material to be generated on the client. However, in this instance, the benefits of doing so outweigh the downsides. Specifically, this behavior change allows it to be possible to register a secret on a realm without the additional round trip to compute the _OprfResult_. When distributed across 3 or more realms, the performance impacts of this change start to become significant. Since this protocol generally expects clients to have access to a secure random number generator capable of generating a good _oprfSeed_, the primary cause for concern becomes one of implementation and verifying that the key material is not leaked from the client before or after being provided to the _Realm_.]
-  - $"oprfSeeds"_i = "Random"(32)$
-+ Generate a random 32-byte _unlockKey_ #footnote[The _unlockKey_ is later used — in combination with the user's _accessKey_ — to validate ownership of a secret by deriving an _unlockTag_ for each _Realm#sub[i]_.]
-  - $"unlockKey" = "Random"(32)$
-+ Create shares of _unlockKey_
-  - $"unlockKeyShares" = "CreateShares"("threshold", "unlockKey")$
-+ Compute the _oprfResults_ for _accessKey_ from _oprfSeeds_ #footnote[Since we have the _OPRF_ key material and the _accessKey_ we can directly compute the result and skip the blinding process.]
-  - $"oprfResults"_i = "OprfEvaluate"("OprfDeriveKey"("oprfSeeds"_i), "accessKey")$
-+ Mask the _unlockKeyShares_ with the _oprfResults_ #footnote[This step requires that the user to first prove they know their _PIN_ to recover the _oprfResults_ before they can unmask the _unlockKeyShares_ and recover the _unlockKey_.]
-  - $"maskedUnlockKeyShares"_i = "unlockKeyShares"_i "XOR" "oprfResults"_i$
-+ Derive the _unlockTags_ #footnote[Knowledge of this value during recovery grants the user access to their _encryptedSecretShares#sub[i]_.]
-  - $"unlockTags"_i = "MAC"("unlockKey", "Realm"_"i(id)")$ #footnote[_Realm#sub[i(id)]_ is the unique 16-byte identifier for each _Realm#sub[i]_ as described in @Realms.]
+```python
+def PrepareRegister2(realms, pin, secret, associatedData):
+  version = Random(16)
 
-A _register2_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
+  salt = Random(16)
+  saltShares = CreateShares(y, threshold, salt)
+
+  stretchedPin = KDF(pin, salt + associatedData)
+  accessKey = stretchedPin[:32]
+  encryptionKey = stretchedPin[-32:]
+
+  # A `nonce` of 0 can be safely used since `encryptionKey` changes with each registration
+  encryptedSecret = Encrypt(secret, encryptionKey, 0)
+  encryptedSecretShares = CreateShares(len(realms), threshold, encryptedSecret)
+
+  oprfSeeds = [Random(32) for _ in realms]
+  oprfResults = [OprfEvaluate(OprfDeriveKey(seed), accessKey) for seed in oprfSeeds]
+
+  unlockKey = Random(32)
+  unlockKeyShares = CreateShares(len(realms), threshold, unlockKey)
+
+  maskedUnlockKeyShares = [x ^ y for x, y in zip(unlockKeyShares, oprfResults)]
+
+  unlockTags = [MAC(unlockKey, realm.id) for realm in realms]
+
+  return (
+      version,
+      saltShares,
+      oprfSeeds,
+      maskedUnlockKeyShares,
+      unlockTags,
+      encryptedSecretShares
+  )
+```
+
+A _register2_ request is then sent from the client to each _Realm#sub[i]_ that contains the prepared:
 - version
+- allowedGuesses
 - saltShares#sub[i]
 - oprfSeeds#sub[i]
-- unlockTags#sub[i]
 - maskedUnlockKeyShares#sub[i]
+- unlockTags#sub[i]
 - encryptedSecretShares#sub[i]
-- allowedGuesses
 
-Upon receipt of a _register2_ request, _Realm#sub[i]_ creates or overwrites the user's registration record with the corresponding values from the request.
+Upon receipt of a _register2_ request, _Realm#sub[i]_ creates or overwrites the user's registration state with the corresponding values from the request.
 
 A _Realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
 
 == Recovery
-Recovery is a three-phase process that a new user takes to store a PIN-protected secret.
+Recovery is a three-phase operation that an existing user takes to restore a PIN-protected secret.
 
 A reference client might expose recovery in the following form:
 
-$ "secret", "error" = "recover"("pin", "threshold" ) $
+$ "secret", "error" = "recover"("pin", "threshold", "associatedData") $
 
 / pin: represents the same value used during _register_
 / threshold: represents the same value used during _register_
+/ associatedData: represents the same value used during _register_
 / secret: the recovered secret as provided during registration, if and only if the correct _pin_ was provided
 / error: indicates an error in recovery, such as an invalid _pin_ or the _allowedGuesses_ having been exceeded
 
 === Phase 1
+The purpose of Phase 1 is to recover the _version_ and _saltShares#sub[i]_ from each _Realm#sub[i]_ and determine a set of realms to restore from.
+
 An empty _recover1_ request is sent from the client to each _Realm#sub[i]_.
 
-For realms that expose a _public key_ and implement _Noise_, this request additionally performs the handshake and establishes a _Noise_ session before any sensitive information being transmitted in subsequent phases.
+For realms that expose a _public key_ and implement _Noise_, it is recommended to combine this request with the handshake if there is no open connection, as it does not reveal any sensitive information.
 
-Upon receipt of a _recover1_ request, _Realm#sub[i]_ checks the current state of a user's registration and responds appropriately.
+The following demonstrates the work a _Realm#sub[i]_ should perform to process the request:
 
-/ NotRegistered: The _Realm_ will respond with a _NotRegistered_ error to this request.
-/ Registered:
-  - If $"attemptedGuesses" >= "allowedGuesses"$ on the stored registration, the _Realm_ will immediately update the record to the _NoGuesses_ state and respond appropriately.
-  - Otherwise, the _Realm_ will process this request and return an _OK_ response.
-/ NoGuesses: The _Realm_ will respond with a _NoGuesses_ error to this request.
+```python
+def Recovery1(state, request):
+  if state.isRegistered:
+    if state.attemptedGuesses >= state.allowedGuesses:
+      state.transitionToNoGuesses()
+      return Error(NoGuesses)
+
+    return Ok(state.version, state.saltShare)
+  elif state.isNoGuesses:
+    return Error(NoGuesses):
+  elif state.isNotRegistered:
+    return Error(NotRegistered)
+```
 
 An _OK_ response from this phase should always be expected to return the following information from the user's registration:
 - version
 - saltShares#sub[i]
 
+Once a client has completed Phase 1 on at least _threshold_ _Realm#sub[i]_ with a majority consensus on the returned _version_ and _salt_ it can proceed to Phase 2. Only the realms that exist within this majority should be considered for the remaining phases. Provided the initial _threshold_ during registration consisted of a majority of realms, this consensus should always be reached as long as the user is registered. If this consensus cannot be reached, the client should assume that the user is _NotRegistered_ on any realm.
+
 === Phase 2
+The purpose of Phase 2 is to increment the _attemptedGuesses_ for the user and recover the _maskedUnlockKeyShares_ stored during registration along with the _OPRF_ result required to unmask them and reconstruct the _unlockKey_. An optimal client can abort Phase 2 as soon as _threshold_ _OK_ responses are recovered, as this should be sufficient to recover the _unlockKey_.
 
-Once a client has successfully completed Phase 1 on all _Realm#sub[i]_, it must determine a majority consensus on the returned _version_ and _salt_. Only the realms that exist within this majority should be considered for the remaining phases. Provided the initial _threshold_ during registration consisted of a majority of realms, this consensus should always be reached. If this consensus cannot be reached, the client should assume that the user is _NotRegistered_ on any realm.
+By design, a client cannot recover their secret or determine the validity of their PIN by performing Phase 2 alone. This ensures that each realm has an opportunity to learn if the client succeeded or failed in their recovery attempt in order to audit their attempt appropriately and self-destruct their secret data if necessary.
 
-The purpose of Phase 2 is to recover the _maskedUnlockKeyShares_ we stored during registration along with the _OPRF_ result required to unmask them and reconstruct the _unlockKey_. An optimal client can abort Phase 2 as soon as _threshold_ _OK_ responses are recovered, as this should be sufficient to recover the _unlockKey_.
+The following demonstrates the work a client should perform to prepare for Phase 2:
 
-The client should perform the following actions:
-+ Derive an _accessKey_ and _encryptionKey_ by hashing the user's _PIN_ #footnote[This process is identical to the one performed during registration.]
-  - $"accessKey", "encryptionKey" = "Hash"("PIN", "salt")$
-  - _accessKey_ is the first 32-bytes of the _Hash_ result
-  - _encryptionKey_ is the last 32-bytes of the _Hash_ result
-+ Compute _blindedAccessKeys_ for each _Realm#sub[i]_
-  - $"blindedAccessKeys"_i = "OprfBlind"("accessKey")$
+```python
+def PrepareRecovery2(realms, pin, associatedData, version, salt):
+  stretchedPin = KDF(pin, salt + associatedData)
+  accessKey = stretchedPin[:32]
+  encryptionKey = stretchedPin[-32:]
+
+  blindedAccessKeys, blindingFactors = zip(*[OprfBlind(accessKey) for _ in realms])
+
+  return (
+    accessKey,
+    encryptionKey,
+    blindedAccessKeys,
+    blindingFactors
+  )
+```
 
 A _recover2_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
 - version
 - blindedAccessKeys#sub[i]
 
-Upon receipt of a _recover2_ request, _Realm#sub[i]_ checks the current state of a user's registration and responds appropriately.
+The following demonstrates the work a _Realm#sub[i]_ should perform to process the request:
 
-/ NotRegistered: The _Realm_ will respond with a _NotRegistered_ error to this request.
-/ Registered:
-  - If $"attemptedGuesses" >= "allowedGuesses"$ on the stored registration, the _Realm_ will immediately update the record to the _NoGuesses_ state and respond appropriately.
-  - If the _version_ on the stored registration does not match the _version_ on the request, the _Realm_ will respond with a _VersionMismatch_ error to this request.
-  - Otherwise, the _Realm_ will process this request and return an _OK_ response.
-/ NoGuesses: The _Realm_ will respond with a _NoGuesses_ error to this request.
+```python
+def Recovery2(state, request):
+  if state.isRegistered:
+    if state.attemptedGuesses >= state.allowedGuesses:
+      state.transitionToNoGuesses()
+      return Error(NoGuesses)
+    if request.version != state.version:
+      return Error(VersionMismatch)
 
-The _Realm#sub[i]_ should perform the following actions to process the request:
-+ Compute the _blindedResult_ using the _blindedAccessKeys#sub[i]_ from the request:
-  - $"blindedResult" = "OprfBlindEvaluate"("blindedAccessKeys"_i)$
-+ Increment the _attemptedGuesses_ on the stored registration #footnote[This is necessary as we are now revealing sensitive information about the _OPRF_ to the client that could allow them to brute force the _accessKey_ if attempts are not limited.]
+    oprfKey = OprfDeriveKey(state.oprfSeed)
+    blindedResult = OprfBlindEvaluate(oprfKey, request.blindedAccessKey)
+
+    state.attemptedGuesses += 1
+
+    return Ok(blindedResult, state.maskedUnlockKeyShare)
+  elif state.isNoGuesses:
+    return Error(NoGuesses):
+  elif state.isNotRegistered:
+    return Error(NotRegistered)
+```
 
 An _OK_ response from this phase should always be expected to return the following information:
 - blindedResult
-- maskedUnlockKeyShares#sub[i] #footnote[From the user's registration record.]
-
-=== Phase 3
+- maskedUnlockKeyShares#sub[i]
 
 Provided at least _threshold_ _OK_ responses have been received from Phase 2, a client can safely proceed to Phase 3.
 
-The purpose of Phase 3 is to recover the _encryptedSecretShares_ allowing decryption and reconstruction of the user's _secret_. Additionally, upon success this phase resets the _attemptedGuesses_ on each _Realm#sub[i]_ to 0. For the latter reason, a client must complete this process on _all_ realms, even if sufficient material has been received to recover the user's _secret_.
+=== Phase 3
+The purpose of Phase 3 is to recover the _encryptedSecretShares_ allowing decryption and reconstruction of the user's _secret_. Additionally, this phase tells each _Realm#sub[i]_ the result of the operation so it can be audited appropriately.
 
-The client should perform the following actions:
-+ Compute the _oprfResults_ using the _blindedResult_ from the response and the _accessKey_
-  - $"oprfResults"_i = "OprfFinalize"("blindedResult"_i, "accessKey")$
-+ Unmask the _maskedUnlockKeyShares_ from the response
-  - $"unlockKeyShares"_i = "maskedUnlockKeyShares"_i "XOR" "oprfResults"_i$
-+ Recover _unlockKey_ from _unlockKeyShares_ #footnote[If the wrong pin was used the client will recover the wrong _unlockKey_ and be unable to recover their secret.]
-  - $"unlockKey" = "RecoverShares"("unlockKeyShares")$
-+ Derive the _unlockTags_ #footnote[Knowledge of this value proves to the _Realm#sub[i]_ the user knows their _PIN_ and allow it to release the _encryptedSecretShare_ without revealing the _PIN_. Additionally, if _unlockTags#sub[i]_ is invalid due to an incorrect _PIN_ the client will not know until after confirming with _Realm#sub[i]_, ensuring both the client and the realm know the outcome of the recovery operation for any auditing purposes.]
-  - $"unlockTag"_i = "MAC"("unlockKey", "Realm"_"i(id)")$ #footnote[_Realm#sub[i(id)]_ is the unique 16-byte identifier for each _Realm#sub[i]_ as described in @Realms.]
+Upon success this phase resets the _attemptedGuesses_ on each _Realm#sub[i]_ to 0. For this reason, a client should complete this process on _all_ realms that Phase 2 was performed on, even if sufficient material has been received to recover the user's _secret_. Otherwise, secret material may prematurely self-destruct.
+
+The following demonstrates the work a client should perform to prepare for Phase 3:
+
+```python
+def PrepareRecovery3(
+  realms,
+  accessKey,
+  blindingFactors,
+  blindedResults,
+  maskedUnlockKeyShares
+):
+  oprfResults = []
+  for blindedResult, blindingFactor in zip(blindedResults, blindingFactors):
+    oprfResults.append(OprfFinalize(blindedResult, blindingFactor, accessKey))
+
+  unlockKeyShares = [x ^ y for x, y in zip(maskedUnlockKeyShares, oprfResults)]
+  unlockKey = RecoverShares(unlockKeyShares)
+  unlockTags = [MAC(unlockKey, realm.id) for realm in realms]
+
+  return unlockTags
+```
 
 A _recover3_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
 - version
 - unlockTags#sub[i]
 
-Upon receipt of a _recover2_ request, _Realm#sub[i]_ checks the current state of a user's registration and responds appropriately.
+The following demonstrates the work a _Realm#sub[i]_ should perform to process the request:
 
-/ NotRegistered: The _Realm_ will respond with a _NotRegistered_ error to this request.
-/ Registered:
-  - If the _version_ on the stored registration does not match the _version_ on the request, the _Realm_ will respond with a _VersionMismatch_ error to this request.
-  - If the _unlockTags#sub[i]_ on the stored registration does not match the _unlockTags#sub[i]_ on the request, the _Realm_ will respond with a _BadUnlockTag_ error to this request.
-  - Otherwise, the _Realm_ will process this request and return an _OK_ response.
-/ NoGuesses: The _Realm_ will respond with a _NoGuesses_ error to this request.
+```python
+def Recovery3(state, request):
+  if state.isRegistered:
+    if request.version != state.version:
+      return Error(VersionMismatch)
 
-If returning an _OK_ response, _Realm#sub[i]_ should perform the following actions:
-+ Reset the _attemptedGuesses_ to 0 as the user has proven they know their _PIN_
+    if !ConstantTimeCompare(request.unlockTag, state.unlockTag):
+      guessesRemaining = state.allowedGuesses - state.attemptedGuesses
 
-An _OK_ response from this phase should always be expected to return the following information from the user's registration record:
+      if guessesRemaining == 0:
+        state.transitionToNoGuesses()
+
+      return Error(BadUnlockTag(guessesRemaining))
+
+    state.attemptedGuesses = 0
+
+    return Ok(state.encryptedSecretShare)
+  elif state.isNoGuesses:
+    return Error(NoGuesses):
+  elif state.isNotRegistered:
+    return Error(NotRegistered)
+```
+
+An _OK_ response from this phase should always be expected to return the following information from the user's registration state:
 - encryptedSecretShares#sub[i]
-
-If returning a _BadUnlockTag_, _Realm#sub[i]_ should perform the following actions:
-+ Compute _guessesRemaining_
-  - $"guessesRemaining" = "MAX"("allowedGuesses" - "attemptedGuesses", 0)$
-+ If $"guessesRemaining" = 0$ update the stored record to the _NoGuesses_ state preventing future attempts and erasing any stored material
 
 A _BadUnlockTag_ response from this phase should always be expected to return the previously determined:
 - guessesRemaining
 
-Upon receipt of _threshold_ _OK_ responses, the client can reconstruct the user's _secret_ by performing the following actions:
-+ Reconstruct _encryptedSecret_ from _encryptedSecretShares_
-  - $"encryptedSecret" = "RecoverShares"("encryptedSecretShares")$
-+ Decrypted _encryptedSecret_ using the previously derived _encryptionKey_ from Phase 2
-  - $"secret" = "Decrypt"("encryptionKey", "encryptedSecret", 0)$
+Upon receipt of _threshold_ _OK_ responses, the client can reconstruct the user's _secret_.
+
+The following demonstrates the work a client should perform to do so:
+
+```python
+def RecoverSecret(encryptionKey, encryptedSecretShares):
+  encryptedSecret = RecoverShares(encryptedSecretShares)
+  secret = Decrypt(encryptionKey, encryptedSecret, 0)
+  return secret
+```
 
 == Deletion
-Delete is a single-phase process that reverts a user's registration state to _NotRegistered_.
+Delete is a single-phase operation that reverts a user's registration state to _NotRegistered_.
 
 A reference client might expose delete in the following form:
 $ "delete"() $
@@ -338,40 +406,73 @@ Upon receipt of a _delete_ request _Realm#sub[i]_ sets the user's registration s
 
 A _Realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
 
+== Authentication <Authentication>
+To enforce _tenant_ boundaries and prevent unauthorized clients from self-destructing a user's secret, a given _Realm#sub[i]_ requires authentication proving that a user has permission to perform operations.
+
+A _Realm#sub[i]_ aims to know as little as possible about users and consequently relies on individual tenants to determine whether or not a user is allowed to perform operations.
+
+To delegate this control to tenants, a realm _operator_ must generate a random 32-byte signing key ($
+"signingKey" = "Random"(32)$) for each _tenant_ they wish to access their _Realm#sub[i]_. This signing key should be provided an integer version _v_ and the tenant should be provided a consistent alphanumeric name _tenantName_ that is shared by both the realm _operator_ and the _tenant_.
+
+Given this information, a _tenant_ must vend a signed JSON Web Token (JWT) @Jones_Bradley_Sakimura_2015 to grant a given user access to the realm.
+
+The header of this JWT must contain a _kid_ field of _tenantName:v_ so that the _Realm#sub[i]_ knows which version _v_ of _tenantName_'s signing key to validate against.
+
+The claims of this JWT must contain an _iss_ field equivalent to _tenantName_ and a _sub_ field that represents a persistent user identifier (UID) the realm can use for storing secrets. Additionally, an _aud_ field must be present and contain a single hex-string equivalent to the _Realm#sub[i(id)]_ a token is valid for.
+
+A _Realm#sub[i]_ must reject any connections that:
++ Don't contain an authentication token
++ Aren't signed with a known signing key for a given _tenantName_ and version _v_ matching the _kid_
++ Don't have an _aud_ exactly matching their _Realm#sub[i(id)]_
+
+The operations defined in the prior sections assume all requests contain valid authentication tokens for a given _Realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _Realm_.
+
 = Implementation Considerations
 
 == Post-Quantum and OPRFs
-While we have not performed extensive exploration into the state of post-quantum OPRFs, the data stored long-term in a user's registration at rest is sufficiently hardened against quantum attacks. Since the protocol limits replay of any requests that contain OPRF primitives, we believe it may sufficiently render such data useless in a post-quantum environment.
+While we have not performed extensive exploration into the state of post-quantum OPRFs, we believe that using a PQ-confidential transport ensures that even if an attacker was able to record the OPRF outputs today, they would not be able to later utilize an _unlockTag_ gleaned from them in any meaningful way. The user's _secret_ is still protected within the Phase 3 response. This assumes that the protocol has sufficiently evolved by this point, or that the user has otherwise re-registered their secret rotating their _oprfSeed_, such that the _unlockTag_ could not be provided directly in new interaction with a _Realm_.
 
 == Registration Generations
-Earlier versions of this protocol included a concept of generations. These were needed primarily to prevent the re-use of server-derived OPRF keys, but they also allowed recovery from partial failures in registration. The current protocol does not include generations and assumes that each realm stores either 0 or 1 record per user. This approach is much simpler, but it does have a downside in the specific scenario of a user re-registering (for example, changing their PIN). If the re-registration succeeds locally but fails globally (it succeeds on some realms but not enough to reach a threshold), then the user may be unable to recover their secret using either the old or new PIN. They will need to try again later to register successfully.
+The current protocol assumes that each user realm stores either 0 or 1 record per user. While this approach is simple, it does have a downside in the specific scenario of a user re-registering. If the re-registration succeeds locally but fails globally (it succeeds on some realms but not enough to reach a threshold), then the user may be unable to recover their secret using either the old or new PIN. They will need to try again later to register successfully.
+
+This downside could be resolved by adding the concept of _generations_ to realms allowing users to store _n_ registrations on a realm. During recovery, a user could fall back to the latest generation that still has at least _threshold_ realms available to recover from, so a failed registration would not erase their existing registration.
 
 = Recommended Cryptographic Algorithms <Cryptographic_Implementation>
 
-== PIN Hashing
-The protocol relies on a _Hash_ function to add entropy to the user's _PIN_. While the specific hashing algorithm is up to the client, we recommend utilizing _Argon2_ @Biryukov_Dinu_Khovratovich_2015.
+== OPRFs
+The protocol relies on multiple _OPRF_ functions to ensure a _Realm_ does not gain access to the user's PIN.
+
+We recommend utilizing OPRFs as described in the working draft by Davidson _et al._ @Davidson_Faz-Hernandez_Sullivan_Wood_2023 with the _Ristretto255_ curve as defined by Valence _et al._ @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023. Note that other cipher suites could also be potentially suitable depending on hardware and software constraints. In particular, we recognize that certain HSMs may place restrictions on available cipher suites.
+
+== SSS
+The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret.
+
+We recommend utilizing the scheme defined by Shamir @Shamir_1979, but other schemes are viable.
+
+== KDF
+The protocol relies on a _KDF_ function to add entropy to the user's _PIN_, which provides an additional layer of protection if a _threshold_ of realms were to be compromised. While the specific hashing algorithm is up to the client, we recommend utilizing _Argon2_ @Biryukov_Dinu_Khovratovich_2015.
 
 Determining the appropriate configuration parameters for Argon2 is highly dependent on the limitations of your client hardware. Additionally, since users may register and recover secrets across multiple devices a given user is specifically limited by the weakest device they expect to use. An intelligent client could potentially adjust a user's hashing strength based on the performance of their registered devices, assuming user devices only get more performant. This is of course not a valid assumption in many common cases.
 
-For the common case, we have evaluated performance across popular smartphones and browsers circa 2019 and determined the following recommended parameters:
+For the common case, we have evaluated performance across popular smartphones and browsers circa 2019 and determined the following recommended parameters: #footnote[Parts of this evaluation were performed in 2019 at the Signal Foundation as part of their Secure Value Recovery project.]
 - Utilize Argon2id to defend against timing and GPU attacks
-- Utilize a parallelism of 1 (limited primarily by browser-based threading)
+- Utilize parallelism of 1 (limited primarily by browser-based threading)
 - Utilize 32 iterations
-- Utilize 16kbs of memory (limited primarily by low-end Android devices)
+- Utilize 16 KiB of memory (limited primarily by low-end Android devices)
 
 We believe this combination of parameters provides a reasonable balance between performance — a user will not wait minutes to register a secret — and security.
+
+A client may always re-register utilizing new parameters to provide stronger guarantees in the future.
 
 == Secret Encryption
 The protocol relies on an authenticated _Encrypt_ and _Decrypt_ function to ensure that the user's PIN is required to access the secret value, even if secret shares are compromised. While the specific encryption algorithm is up to the client, we recommend utilizing _ChaCha20_ and _Poly1305_ @Nir_Langley_2015.
 
 == Tag MAC
-The protocol relies on a _MAC_ function to compute an _unlockTag_ for a given realm. While the specific algorithm is up to the client, we recommend utilizing _BLAKE2s-256_ @Saarinen_Aumasson_2015.
-
-== OPRF Cipher Suite
-We recommend utilizing the _Ristretto255_ curve as defined by Valence _et al._ @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023, but other cipher suites could also be potentially suitable depending on hardware and software constraints. In particular, we recognize that certain HSMs may place restrictions on available cipher suites.
+The protocol relies on a _MAC_ function to compute an _unlockTag_ for a given realm. While the specific algorithm is up to the client, we recommend utilizing _HMAC_ over _BLAKE2s-256_ @Saarinen_Aumasson_2015.
 
 = Acknowledgements
-- Trevor Perrin for helping design and review the majority of the cryptography details in the protocol
-- The Signal Foundation for suggesting many of the approaches used here in the future looking portion of their _"Secure Value Recovery"_ technology preview @Lund_2019
+- The protocol is heavily based on design and feedback from Trevor Perrin and Moxie Marlinspike.
+- The protocol builds on concepts closely related to those explored by Jarecki _et al._ in their PPSS @Jarecki_Kiayias_Krawczyk_Xu_2016 primitive and Davies _et al._ in their _Perks_ @Davies_Pijnenburg_2022 design.
+- Some of the ideas utilized in this design were first suggested by the Signal Foundation in the future-looking portion of their _"Secure Value Recovery"_ blog post @Lund_2019.
 
 = References
