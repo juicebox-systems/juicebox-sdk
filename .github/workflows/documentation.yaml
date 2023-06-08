@@ -13,6 +13,41 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
 
 jobs:
+  whitepaper:
+    name: Whitepaper
+    runs-on: ubuntu-20.04
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: '${{ secrets.ACCESS_TOKEN }}'
+
+      - name: Compile Whitepaper
+        uses: lvignoli/typst-action@main
+        with:
+          source_file: whitepaper/whitepaper.typ
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: '${{ secrets.GCP_DOCUMENTATION_CREDENTIALS }}'
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Sync Whitepaper to Google Cloud Storage
+        run: |
+          WHITEPAPER_DATE=$(date -d "$(awk -F'["]' '/date:/ { print $2 }' whitepaper.typ)" +"%Y%m%d")
+          WHITEPAPER_REVISION=$(awk -F'["]' '/version:/ { gsub(/ /, "", $2); print tolower($2) }' whitepaper.typ)
+          WHITEPAPER_NAME=juiceboxprotocol_${WHITEPAPER_REVISION}_${WHITEPAPER_DATE}.pdf
+          gsutil -m cp whitepaper.pdf \
+          gs://e2d3e242bbd420b1f977a1f84684a45f1803a5b4/whitepapers/${WHITEPAPER_NAME}
+        working-directory: whitepaper
+
   swift:
     name: Swift
     runs-on: ubuntu-20.04
