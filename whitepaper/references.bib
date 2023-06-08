@@ -1,14 +1,136 @@
-@misc{Biryukov_Dinu_Khovratovich_2015, url={https://www.password-hashing.net/argon2-specs.pdf}, title={Argon2: The memory-hard function for password hashing and other applications}, author={Biryukov, Alex and Dinu, Daniel and Khovratovich, Dmitry}, year={2015}, month={Dec}}
-@misc{Juicebox_Github, title={Juicebox-Systems GitHub Organization}, url={https://github.com/juicebox-systems}}
-@misc{Davidson_Faz-Hernandez_Sullivan_Wood_2023, title={Oblivious Pseudorandom Functions (OPRFs) using Prime-Order Groups}, url={https://www.ietf.org/id/draft-irtf-cfrg-voprf-21.html}, journal={IETF Datatracker}, author={Davidson, Alex and Faz-Hernandez, Armando and Sullivan, Nick and Wood, Christopher A.}, year={2023}, month={Feb}}
-@misc{Shamir_1979, url={https://web.mit.edu/6.857/OldStuff/Fall03/ref/Shamir-HowToShareASecret.pdf}, title={How to share a secret}, author={Shamir, Adi}, year={1979}, month={Nov}}
-@misc{Perrin_2018, url={https://www.noiseprotocol.org/noise.html}, title={The Noise Protocol Framework}, author={Perrin, Trevor}, year={2018}, month={Jul}}
-@misc{Lund_2019, title={Technology preview for Secure Value Recovery}, url={https://signal.org/blog/secure-value-recovery/}, author={Lund, Joshua}, year={2019}, month={Dec}}
-@misc{Jones_Bradley_Sakimura_2015, title={RFC 7519: JSON web token (JWT)}, url={https://datatracker.ietf.org/doc/html/rfc7519}, journal={IETF Datatracker}, author={Jones, Michael B. and Bradley, John and Sakimura, Nat}, year={2015}, month={May}}
-@misc{Saarinen_Aumasson_2015, title={RFC 7693: The blake2 cryptographic hash and message authentication code (MAC)}, url={https://datatracker.ietf.org/doc/html/rfc7693}, journal={IETF Datatracker}, author={Saarinen, Markku-Juhani O. and Aumasson, Jean-Philippe}, year={2015}, month={Nov}}
-@misc{Nir_Langley_2015, title={RFC 7539: Chacha20 and Poly1305 for IETF protocols}, url={https://datatracker.ietf.org/doc/html/rfc7539}, journal={IETF Datatracker}, author={Nir, Yoav and Langley, Adam}, year={2015}, month={May}}
-@misc{Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023, title={The ristretto255 and decaf448 Groups}, url={https://www.ietf.org/id/draft-irtf-cfrg-ristretto255-decaf448-07.html}, journal={IETF Datatracker}, author={Valence, Henry de and Grigg, Jack and Hamburg, Mike and Lovecruft, Isis and Tankersley, George and Valsorda, Filippo}, year={2023}, month={Apr}}
-@misc{Palatinus_Rusnak_Voisine_Bowe_2013, title={Mnemonic code for generating deterministic keys}, url={https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki}, author={Palatinus, Marek and Rusnak, Pavol and Voisine, Aaron and Bowe, Sean}, year={2013}, month={Sep}}
-@misc{Jarecki_Kiayias_Krawczyk_Xu_2016, url={https://eprint.iacr.org/2016/144.pdf}, journal={Highly-Efficient and Composable Password-Protected Secret Sharing (Or: How to Protect Your Bitcoin Wallet Online)}, author={Jarecki, Stanislaw and Kiayias, Aggelos and Krawczyk, Hugo and Xu, Jiaya}, year={2016}, month={Feb}}
-@misc{Davies_Pijnenburg_2022, url={https://eprint.iacr.org/2022/1017}, journal={Perks: Persistent and distributed key acquisition for secure storage from passwords}, author={Davies, Gareth T. and Pijnenburg, Jeroen}, year={2022}, month={Aug}}
-@misc{FIDO_Alliance_2022, url={https://fidoalliance.org/specifications/}, journal={User authentication specifications overview}, author={The FIDO Alliance}, year={2022}, month={Dec}}
+@misc{Biryukov_Dinu_Khovratovich_2015,
+    title        = {Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications},
+    author       = {Alex Biryukov and Daniel Dinu and Dmitry Khovratovich and Simon Josefsson},
+    year         = 2021,
+    month        = sep,
+    publisher    = {RFC Editor},
+    series       = {Request for Comments},
+    number       = 9106,
+    doi          = {10.17487/RFC9106},
+    url          = {https://www.rfc-editor.org/info/rfc9106},
+    howpublished = {RFC 9106},
+    pagetotal    = 21
+}
+@misc{Davidson_Faz-Hernandez_Sullivan_Wood_2023,
+    title        = {Oblivious Pseudorandom Functions (OPRFs) using Prime-Order Groups},
+    author       = {Alex Davidson and Armando Faz-Hernandez and Nick Sullivan and Christopher A. Wood},
+    year         = 2023,
+    month        = feb,
+    publisher    = {Internet Engineering Task Force},
+    number       = {draft-irtf-cfrg-voprf-21},
+    url          = {https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/21/},
+    note         = {Work in Progress},
+    type         = {Internet-Draft},
+    institution  = {Internet Engineering Task Force},
+    pagetotal    = 73
+}
+@misc{Davies_Pijnenburg_2022,
+    title        = {PERKS: Persistent and Distributed Key Acquisition for Secure Storage from Passwords},
+    author       = {Gareth T. Davies and Jeroen Pijnenburg},
+    year         = 2022,
+    url          = {https://eprint.iacr.org/2022/1017},
+    howpublished = {Cryptology ePrint Archive, Paper 2022/1017}
+}
+@misc{FIDO_Alliance_2019,
+    title        = {Client to Authenticator Protocol (CTAP)},
+    author       = {Christiaan Brand and Alexei Czeskis and Jakob Ehrensvärd and Michael B. Jones and Akshay Kumar and Rolf Lindemann and Adam Powers and Johan Verrept},
+    year         = 2019,
+    month        = jan,
+    url          = {https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html},
+    howpublished = {FIDO Alliance}
+}
+@misc{Jarecki_Kiayias_Krawczyk_Xu_2016,
+    title        = {Highly-Efficient and Composable Password-Protected Secret Sharing (Or: How to Protect Your Bitcoin Wallet Online)},
+    author       = {Stanislaw Jarecki and Aggelos Kiayias and Hugo Krawczyk and Jiayu Xu},
+    year         = 2016,
+    url          = {https://eprint.iacr.org/2016/144},
+    howpublished = {Cryptology ePrint Archive, Paper 2016/144}
+}
+@misc{Jones_Bradley_Sakimura_2015,
+    title        = {JSON Web Token (JWT)},
+    author       = {Michael B. Jones and John Bradley and Nat Sakimura},
+    year         = 2015,
+    month        = may,
+    publisher    = {RFC Editor},
+    series       = {Request for Comments},
+    number       = 7519,
+    doi          = {10.17487/RFC7519},
+    url          = {https://www.rfc-editor.org/info/rfc7519},
+    howpublished = {RFC 7519},
+    pagetotal    = 30
+}
+@misc{Juicebox_Github,
+    title        = {Juicebox-Systems GitHub Organization},
+    url          = {https://github.com/juicebox-systems}
+}
+@misc{Lund_2019,
+    title        = {Technology preview for Secure Value Recovery},
+    author       = {Joshua Lund},
+    year         = 2019,
+    month        = dec,
+    publisher    = {Signal Blog},
+    series       = {Technology Previews},
+    url          = {https://signal.org/blog/secure-value-recovery/}
+}
+@misc{Nir_Langley_2015,
+    title        = {ChaCha20 and Poly1305 for IETF Protocols},
+    author       = {Yoav Nir and Adam Langley},
+    year         = 2015,
+    month        = may,
+    publisher    = {RFC Editor},
+    series       = {Request for Comments},
+    number       = 7539,
+    doi          = {10.17487/RFC7539},
+    url          = {https://www.rfc-editor.org/info/rfc7539},
+    howpublished = {RFC 7539},
+    pagetotal    = 45
+}
+@misc{Palatinus_Rusnak_Voisine_Bowe_2013,
+    title        = {Mnemonic code for generating deterministic keys},
+    author       = {Marek Palatinus and Pavol Rusnak and Aaron Voisine and Sean Bowe},
+    year         = 2013,
+    month        = sep,
+    url          = {https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki},
+    howpublished = {GitHub}
+}
+@misc{Perrin_2018,
+    title        = {The Noise Protocol Framework},
+    author       = {Trevor Perrin},
+    year         = 2018,
+    month        = jul,
+    url          = {https://www.noiseprotocol.org/noise.html}
+}
+@misc{Saarinen_Aumasson_2015,
+    title        = {The BLAKE2 Cryptographic Hash and Message Authentication Code (MAC)},
+    author       = {Markku-Juhani O. Saarinen and Jean-Philippe Aumasson},
+    year         = 2015,
+    month        = nov,
+    publisher    = {RFC Editor},
+    series       = {Request for Comments},
+    number       = 7693,
+    doi          = {10.17487/RFC7693},
+    url          = {https://www.rfc-editor.org/info/rfc7693},
+    howpublished = {RFC 7693},
+    pagetotal    = 30
+}
+@article{Shamir_1979,
+    title        = {How to share a secret},
+    author       = {Adi Shamir},
+    year         = 1979,
+    journal      = {Commun. ACM},
+    volume       = 22,
+    pages        = {612--613}
+}
+@misc{Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023,
+    title        = {The ristretto255 and decaf448 Groups},
+    author       = {Henry de Valence and Jack Grigg and Mike Hamburg and Isis Lovecruft and George Tankersley and Filippo Valsorda},
+    year         = 2023,
+    month        = apr,
+    publisher    = {Internet Engineering Task Force},
+    number       = {draft-irtf-cfrg-ristretto255-decaf448-07},
+    url          = {https://datatracker.ietf.org/doc/draft-irtf-cfrg-ristretto255-decaf448/07/},
+    note         = {Work in Progress},
+    type         = {Internet-Draft},
+    institution  = {Internet Engineering Task Force},
+    pagetotal    = 23
+}

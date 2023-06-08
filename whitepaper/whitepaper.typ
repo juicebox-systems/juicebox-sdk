@@ -16,7 +16,7 @@
 = Introduction
 Services are increasingly attempting to provide their users with strong, end-to-end encrypted privacy features, often with the direct goal of preventing the service operator from accessing user data. In such systems, the user is generally given the role of managing a secret key to decrypt and encrypt their data. Secret keys tend to be long, not memorable, and difficult for a user to reliably to reproduce, by design. The burden of this complexity becomes particularly apparent when the user must enter their key material on a new device.
 
-Techniques like seed phrases @Palatinus_Rusnak_Voisine_Bowe_2013 provide some simplification to this process but still result in long and unmemorable strings of words that a user has to manage. Alternative approaches to key management such as passkeys @FIDO_Alliance_2022 reduce the user burden but ultimately require that a user still have access to a device containing the key material.
+Techniques like seed phrases @Palatinus_Rusnak_Voisine_Bowe_2013 provide some simplification to this process but still result in long and unmemorable strings of words that a user has to manage. Alternative approaches to key management such as passkeys @FIDO_Alliance_2019 reduce the user burden but ultimately require that a user still have access to a device containing the key material.
 
 We present an approach — the _Juicebox Protocol_ — that allows the user to recover their secret material by remembering a short PIN, without having access to any previous devices.
 
@@ -163,9 +163,9 @@ An empty _register1_ request is sent from the client to each _Realm#sub[i]_.
 
 For realms that expose a _public key_ and implement _Noise_, it is recommended to combine this request with the handshake if there is no open connection, as it does not reveal any sensitive information.
 
-A _Realm_ should always be expected to respond _OK_ to this request unless the Noise handshake fails or a transient network error occurs.
+A _Realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
 
-Provided a client has completed _Phase 1_ on _y_ realms, the client can proceed to prepare the registration material that will be stored on each _Realm#sub[i]_ within that set.
+Provided a client has completed _Phase 1_ on _y_ realms, the client can proceed to Phase 2.
 
 === Phase 2
 The purpose of Phase 2 is to update the registration state on each _Realm#sub[i]_ to reflect the new _PIN_ and _secret_.
@@ -433,7 +433,7 @@ The operations defined in the prior sections assume all requests contain valid a
 While we have not performed extensive exploration into the state of post-quantum OPRFs, we believe that using a PQ-confidential transport ensures that even if an attacker was able to record the OPRF outputs today, they would not be able to later utilize an _unlockTag_ gleaned from them in any meaningful way. The user's _secret_ is still protected within the Phase 3 response. This assumes that the protocol has sufficiently evolved by this point, or that the user has otherwise re-registered their secret rotating their _oprfSeed_, such that the _unlockTag_ could not be provided directly in new interaction with a _Realm_.
 
 == Registration Generations
-The current protocol assumes that each user realm stores either 0 or 1 record per user. While this approach is simple, it does have a downside in the specific scenario of a user re-registering. If the re-registration succeeds locally but fails globally (it succeeds on some realms but not enough to reach a threshold), then the user may be unable to recover their secret using either the old or new PIN. They will need to try again later to register successfully.
+The current protocol assumes that each realm stores either 0 or 1 record per user. While this approach is simple, it does have a downside in the specific scenario of a user re-registering. If the re-registration succeeds locally but fails globally (it succeeds on some realms but not enough to reach a threshold), then the user may be unable to recover their secret using either the old or new PIN. They will need to try again later to register successfully.
 
 This downside could be resolved by adding the concept of _generations_ to realms allowing users to store _n_ registrations on a realm. During recovery, a user could fall back to the latest generation that still has at least _threshold_ realms available to recover from, so a failed registration would not erase their existing registration.
 
