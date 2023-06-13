@@ -14,7 +14,8 @@ use std::iter::zip;
 use url::Url;
 
 use juicebox_sdk_core::types::{
-    MaskedTgkShare, OprfResult, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockTag,
+    MaskedUnlockKeyShare, OprfResult, RealmId, SecretBytesArray, SecretBytesVec, SessionId,
+    UnlockTag,
 };
 use juicebox_sdk_noise::client as noise;
 
@@ -287,18 +288,18 @@ impl From<Vec<u8>> for UserInfo {
 ///
 /// # Note
 ///
-/// The TGK should be at least one byte smaller than the OPRF
-/// output (64 bytes) so that the TGK shares can be masked with the
+/// The unlock key should be at least one byte smaller than the OPRF
+/// output (64 bytes) so that the key shares can be masked with the
 /// OPRF output. The `sharks` library adds an extra byte for the
 /// x-coordinate.
-pub(crate) struct TagGeneratingKey(SecretBytesArray<32>);
+pub(crate) struct UnlockKey(SecretBytesArray<32>);
 
-impl TagGeneratingKey {
+impl UnlockKey {
     /// Generates a new key with random data.
     pub fn new_random() -> Self {
-        let mut tgk = [0u8; 32];
-        OsRng.fill_bytes(&mut tgk);
-        Self::from(tgk)
+        let mut unlock_key = [0u8; 32];
+        OsRng.fill_bytes(&mut unlock_key);
+        Self::from(unlock_key)
     }
 
     /// Computes a derived secret-unlocking tag for the realm.
@@ -312,13 +313,13 @@ impl TagGeneratingKey {
     }
 }
 
-impl From<[u8; 32]> for TagGeneratingKey {
+impl From<[u8; 32]> for UnlockKey {
     fn from(value: [u8; 32]) -> Self {
         Self(SecretBytesArray::from(value))
     }
 }
 
-impl TryFrom<Vec<u8>> for TagGeneratingKey {
+impl TryFrom<Vec<u8>> for UnlockKey {
     type Error = &'static str;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
@@ -326,26 +327,26 @@ impl TryFrom<Vec<u8>> for TagGeneratingKey {
     }
 }
 
-/// Error return type for [`TgkShare::try_from_masked`].
+/// Error return type for [`UnlockKeyShare::try_from_masked`].
 #[derive(Debug)]
 pub(crate) struct LengthMismatchError;
 
-/// A share of the [`TagGeneratingKey`].
+/// A share of the [`UnlockKey`].
 ///
 /// The version of this that is XORed with `OPRF(PIN)` is
-/// [`MaskedTgkShare`](super::types::MaskedTgkShare).
+/// [`MaskedUnlockKeyShare`](super::types::MaskedUnlockKeyShare).
 #[derive(Clone)]
-pub(crate) struct TgkShare(pub sharks::Share);
+pub(crate) struct UnlockKeyShare(pub sharks::Share);
 
-impl Debug for TgkShare {
+impl Debug for UnlockKeyShare {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("TgkShare(REDACTED)")
+        f.write_str("UnlockKeyShare(REDACTED)")
     }
 }
 
-impl TgkShare {
+impl UnlockKeyShare {
     pub fn try_from_masked(
-        masked_share: &MaskedTgkShare,
+        masked_share: &MaskedUnlockKeyShare,
         oprf_result: &OprfResult,
     ) -> Result<Self, LengthMismatchError> {
         if oprf_result.expose_secret().len() >= masked_share.expose_secret().len() {
@@ -361,13 +362,13 @@ impl TgkShare {
         }
     }
 
-    pub fn mask(&self, oprf_result: &OprfResult) -> MaskedTgkShare {
+    pub fn mask(&self, oprf_result: &OprfResult) -> MaskedUnlockKeyShare {
         let share = Vec::from(&self.0);
         assert!(oprf_result.expose_secret().len() >= share.len());
         let vec: Vec<u8> = zip(oprf_result.expose_secret(), share)
             .map(|(a, b)| a ^ b)
             .collect();
-        MaskedTgkShare::try_from(vec).expect("incorrect masked tgk share length")
+        MaskedUnlockKeyShare::try_from(vec).expect("incorrect masked unlock key share length")
     }
 }
 

@@ -18,7 +18,7 @@ use crate::{
     configuration::CheckedConfiguration,
     http,
     request::{join_at_least_threshold, join_until_threshold, RequestError},
-    types::{EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey},
+    types::{EncryptedUserSecret, UnlockKey, UnlockKeyShare, UserSecretAccessKey},
     Client, Pin, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -139,13 +139,15 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .iter()
             .map(|realm| self.recover2_on_realm(realm, &version, &access_key));
 
-        let tgk_shares: Vec<TgkShare> =
+        let unlock_key_shares: Vec<UnlockKeyShare> =
             join_until_threshold(recover2_requests, configuration.recover_threshold).await?;
 
-        let tgk = match Sharks(configuration.recover_threshold)
-            .recover(tgk_shares.iter().map(|share| &share.0))
+        let unlock_key = match Sharks(configuration.recover_threshold)
+            .recover(unlock_key_shares.iter().map(|share| &share.0))
         {
-            Ok(tgk) => TagGeneratingKey::try_from(tgk).map_err(|_| RecoverError::Assertion)?,
+            Ok(unlock_key) => {
+                UnlockKey::try_from(unlock_key).map_err(|_| RecoverError::Assertion)?
+            }
             Err(_) => {
                 return Err(RecoverError::Assertion);
             }
@@ -153,7 +155,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let recover3_requests = realms.iter().map(|realm| async {
             let share: UserSecretShare = self
-                .recover3_on_realm(realm, &version, tgk.tag(&realm.id))
+                .recover3_on_realm(realm, &version, unlock_key.tag(&realm.id))
                 .await?;
             sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
         });
@@ -200,7 +202,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         realm: &Realm,
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
-    ) -> Result<TgkShare, RecoverError> {
+    ) -> Result<UnlockKeyShare, RecoverError> {
         let blinded_oprf_input = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
             .expect("failed to blind access_key");
 
@@ -212,7 +214,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             }),
         );
 
-        let (blinded_oprf_result, masked_tgk_share) = match recover2_request.await {
+        let (blinded_oprf_result, masked_unlock_key_share) = match recover2_request.await {
             Err(RequestError::Transient) => return Err(RecoverError::Transient),
             Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
@@ -220,8 +222,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Ok(SecretsResponse::Recover2(rr)) => match rr {
                 Recover2Response::Ok {
                     blinded_oprf_result,
-                    masked_tgk_share,
-                } => (blinded_oprf_result, masked_tgk_share),
+                    masked_unlock_key_share,
+                } => (blinded_oprf_result, masked_unlock_key_share),
 
                 Recover2Response::VersionMismatch => {
                     return Err(RecoverError::Assertion);
@@ -250,10 +252,11 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .expect("failed to unblind blinded_oprf_input")
             .into();
 
-        let tgk_share = TgkShare::try_from_masked(&masked_tgk_share, &oprf_result)
-            .expect("failed to unmask tgk_share");
+        let unlock_key_share =
+            UnlockKeyShare::try_from_masked(&masked_unlock_key_share, &oprf_result)
+                .expect("failed to unmask unlock_key_share");
 
-        Ok(tgk_share)
+        Ok(unlock_key_share)
     }
 
     /// Performs phase 3 of recovery on a particular realm.

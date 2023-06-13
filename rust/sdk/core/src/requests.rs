@@ -7,8 +7,8 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, MaskedTgkShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId,
-    RegistrationVersion, SaltShare, SessionId, UnlockTag, UserSecretShare,
+    AuthToken, MaskedUnlockKeyShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy,
+    RealmId, RegistrationVersion, SaltShare, SessionId, UnlockTag, UserSecretShare,
 };
 use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
@@ -174,7 +174,7 @@ pub struct Register2Request {
     pub salt_share: SaltShare,
     pub oprf_seed: OprfSeed,
     pub tag: UnlockTag,
-    pub masked_tgk_share: MaskedTgkShare,
+    pub masked_unlock_key_share: MaskedUnlockKeyShare,
     pub secret_share: UserSecretShare,
     pub policy: Policy,
 }
@@ -208,7 +208,7 @@ pub struct Recover2Request {
 pub enum Recover2Response {
     Ok {
         blinded_oprf_result: OprfBlindedResult,
-        masked_tgk_share: MaskedTgkShare,
+        masked_unlock_key_share: MaskedUnlockKeyShare,
     },
     VersionMismatch,
     NotRegistered,
@@ -246,7 +246,7 @@ mod tests {
     use crate::{
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
-            MaskedTgkShare, OprfSeed, Policy, RegistrationVersion, SaltShare, UnlockTag,
+            MaskedUnlockKeyShare, OprfSeed, Policy, RegistrationVersion, SaltShare, UnlockTag,
             UserSecretShare,
         },
     };
@@ -259,7 +259,7 @@ mod tests {
             salt_share: SaltShare::from([0xff; 17]),
             oprf_seed: OprfSeed::from([0xff; 32]),
             tag: UnlockTag::from([0xff; 32]),
-            masked_tgk_share: MaskedTgkShare::try_from(vec![0xff; 33]).unwrap(),
+            masked_unlock_key_share: MaskedUnlockKeyShare::try_from(vec![0xff; 33]).unwrap(),
             secret_share: UserSecretShare::try_from(vec![0xff; 146]).unwrap(),
             policy: Policy {
                 num_guesses: u16::MAX,
