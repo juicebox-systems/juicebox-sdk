@@ -19,7 +19,6 @@ chacha20poly1305 = { workspace = true }
 digest = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
-hmac = { workspace = true }
 instant = { workspace = true }
 juicebox-sdk-core = { path = "../core" }
 juicebox-sdk-marshalling = { path = "../marshalling" }

@@ -1,8 +1,7 @@
-use blake2::Blake2s256;
+use blake2::Blake2sMac256;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
-use digest::KeyInit;
-use hmac::{Mac, SimpleHmac};
+use digest::{KeyInit, Mac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -304,9 +303,7 @@ impl TagGeneratingKey {
 
     /// Computes a derived secret-unlocking tag for the realm.
     pub fn tag(&self, realm_id: &RealmId) -> UnlockTag {
-        let mut mac = <SimpleHmac<Blake2s256> as Mac>::new_from_slice(self.expose_secret())
-            .expect("failed to initialize HMAC");
-        mac.update(&realm_id.0);
+        let mac = <Blake2sMac256 as Mac>::new(self.expose_secret().into()).chain_update(realm_id.0);
         UnlockTag::from(Into::<[u8; 32]>::into(mac.finalize().into_bytes()))
     }
 
