@@ -52,10 +52,13 @@
 
   v(8em)
 
+  set par(justify: true)
+
   align(center)[
-    *Abstract* \
-    #abstract
+    *Abstract*
   ]
+
+  abstract
 
   pagebreak()
 
@@ -64,7 +67,6 @@
   pagebreak()
 
   // Main body.
-  set par(justify: true)
 
   body
 
