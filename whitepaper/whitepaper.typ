@@ -16,9 +16,9 @@
 = Introduction
 Services are increasingly attempting to provide their users with strong, end-to-end encrypted privacy features, with the direct goal of preventing the service operator from accessing user data. In such systems, the user is generally given the role of managing a secret key to decrypt and encrypt their data. Secret keys tend to be long, not memorable, and difficult for a user to reliably reproduce, by design. The burden of this complexity becomes particularly apparent when the user must enter their key material on a new device.
 
-Techniques like seed phrases @Palatinus_Rusnak_Voisine_Bowe_2013 provide some simplification to this process but still result in long and unmemorable strings of words that a user has to manage. Alternative approaches to key management such as passkeys @FIDO_Alliance_2019 reduce the user burden but ultimately require that a user still have access to a device containing the key material or otherwise sync their key material with a third party they must trust.
+Techniques like seed phrases @Palatinus_Rusnak_Voisine_Bowe_2013 provide some simplification to this process but still result in long and unmemorable strings of words that a user has to manage. Alternative approaches to key management such as passkeys @FIDO_Alliance_2019 reduce the user burden but ultimately require that a user still have access to a device containing the key material or otherwise backup their key material with a third party they trust.
 
-We have designed the _Juicebox Protocol_ to solve these problems, allowing the user to recover their secret material by remembering a short PIN, without having access to any previous devices.
+We have designed the _Juicebox Protocol_ to solve these problems. It allows the user to recover their secret material by remembering a short PIN, without having access to any previous devices or placing their trust in any single party.
 
 Specifically, this protocol:
 + Keeps user burden low by allowing recovery through memorable low-entropy PINs while maintaining similar security to solutions utilizing high-entropy passwords.
@@ -70,7 +70,7 @@ For this purpose, we specifically focused on using HSMs that are programmable wi
 It must be noted that this shift in _trust boundaries_ does not come for free. HSMs come with significant tradeoffs in terms of acquisition and operation cost as well as performance when compared to commodity hardware. Additionally, an HSM-based realm assumes that a combination of relatively opaque hardware and firmware is secure. Creating a secure HSM is no easy task, and any vulnerability in the HSM could be catastrophic for the realm. For all of these reasons, we strongly recommend using hardware realms in concert with other types of realms — including hardware realms from other vendors — with different _trust boundaries_.
 
 === Realm Communication
-Communication with a _Realm_ should always occur over a secure protocol that ensures the confidentiality and integrity of requests while limiting the possibility of replay attacks. This requirement can be satisfied by instantiating a TLS session between the client and the realm software, but realm infrastructure can make this configuration impractical. This is most notably a problem when using an external load balancer to terminate TLS and relay requests to a realm.
+Communication with a _Realm_ should always occur over a secure protocol that ensures the confidentiality and integrity of requests while limiting the possibility of replay attacks. This requirement can be satisfied by instantiating a TLS session between the client and the realm software, but realm infrastructure can make this configuration impractical. This is most notably a problem when using an external load balancer outside of your _trust boundary_ to terminate TLS and relay requests to a realm.
 
 To satisfy the need for secure communications even in such scenarios, the _Juicebox Protocol_ allows for a _Realm_ and client to communicate directly over the _Noise Protocol_ @Perrin_2018 using the NK-handshake pattern. To do so, a realm may generate a 32-byte key pair and distribute the public key to its clients. The realm and client can then implement the Noise handshake allowing the client to establish a secure session directly with the realm software and encrypt each request with a new ephemeral key, regardless of additional hops a request may take to arrive at the _Realm_.
 
@@ -223,7 +223,7 @@ The recovery operations should be exposed by a client in the following form:
 $ "secret", "error" = "recover"("pin", "userInfo") $
 
 / pin: \ This argument represents the same value used during _register_.
-/ userInfo: represents the same value used during _register_
+/ userInfo: \ This argument represents the same value used during _register_.
 / secret: \ The recovered secret, as provided during registration, if and only if the correct _PIN_ was provided and no _error_ was returned.
 / error: \ An error in recovery, such as an invalid _PIN_ or the _allowedGuesses_ having been exceeded.
 
@@ -236,16 +236,16 @@ The following demonstrates the work a _Realm#sub[i]_ should perform to process t
 
 ```python
   def Recovery1(state, request):
-    if state.isRegistered:
+    if state.isRegistered():
       if state.attemptedGuesses >= state.allowedGuesses:
         state.transitionToNoGuesses()
-        return Error(NoGuesses)
+        return Error.NoGuesses()
 
       return Ok(state.version, state.saltShare)
-    elif state.isNoGuesses:
-      return Error(NoGuesses):
-    elif state.isNotRegistered:
-      return Error(NotRegistered)
+    elif state.isNoGuesses():
+      return Error.NoGuesses():
+    elif state.isNotRegistered():
+      return Error.NotRegistered()
 ```
 
 An _OK_ response from this phase should always be expected to return the following information from the user's registration:
@@ -287,12 +287,12 @@ The following demonstrates the work a _Realm#sub[i]_ should perform to process t
 
 ```python
   def Recovery2(state, request):
-    if state.isRegistered:
+    if state.isRegistered():
       if state.attemptedGuesses >= state.allowedGuesses:
         state.transitionToNoGuesses()
-        return Error(NoGuesses)
+        return Error.NoGuesses()
       if request.version != state.version:
-        return Error(VersionMismatch)
+        return Error.VersionMismatch()
 
       oprfKey = OprfDeriveKey(state.oprfSeed)
       blindedResult = OprfBlindEvaluate(oprfKey, request.blindedAccessKey)
@@ -300,10 +300,10 @@ The following demonstrates the work a _Realm#sub[i]_ should perform to process t
       state.attemptedGuesses += 1
 
       return Ok(blindedResult, state.maskedUnlockKeyShare)
-    elif state.isNoGuesses:
-      return Error(NoGuesses):
-    elif state.isNotRegistered:
-      return Error(NotRegistered)
+    elif state.isNoGuesses():
+      return Error.NoGuesses():
+    elif state.isNotRegistered():
+      return Error.NotRegistered()
 ```
 
 An _OK_ response from this phase should always be expected to return the following information:
@@ -346,9 +346,9 @@ The following demonstrates the work a _Realm#sub[i]_ should perform to process t
 
 ```python
   def Recovery3(state, request):
-    if state.isRegistered:
+    if state.isRegistered():
       if request.version != state.version:
-        return Error(VersionMismatch)
+        return Error.VersionMismatch()
 
       if !ConstantTimeCompare(request.unlockTag, state.unlockTag):
         guessesRemaining = state.allowedGuesses - state.attemptedGuesses
@@ -356,15 +356,15 @@ The following demonstrates the work a _Realm#sub[i]_ should perform to process t
         if guessesRemaining == 0:
           state.transitionToNoGuesses()
 
-        return Error(BadUnlockTag(guessesRemaining))
+        return Error.BadUnlockTag(guessesRemaining)
 
       state.attemptedGuesses = 0
 
       return Ok(state.encryptedSecretShare)
-    elif state.isNoGuesses:
-      return Error(NoGuesses):
-    elif state.isNotRegistered:
-      return Error(NotRegistered)
+    elif state.isNoGuesses():
+      return Error.NoGuesses():
+    elif state.isNotRegistered():
+      return Error.NotRegistered()
 ```
 
 An _OK_ response from this phase should always be expected to return the following information from the user's registration state:
@@ -418,7 +418,7 @@ A _Realm#sub[i]_ must reject any connections that:
 + Don't contain an authentication token
 + Aren't signed with a known signing key for a given _tenantName_ and version _v_ matching the _kid_
 + Don't have an _aud_ exactly matching their _Realm#sub[i(id)]_
-+ Don't contain an _iss_ matching their _kid_
++ Don't contain an _iss_ matching the _tenantName_ in the _kid_
 
 The operations defined in the prior sections assume all requests contain valid authentication tokens for a given _Realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _Realm_.
 
@@ -437,7 +437,7 @@ This downside could be resolved by adding the concept of _generations_ to realms
 == OPRFs
 The protocol relies on multiple _OPRF_ functions to ensure a _Realm_ does not gain access to the user's PIN.
 
-We recommend utilizing OPRFs as described in the working draft by Davidson _et al._ @Davidson_Faz-Hernandez_Sullivan_Wood_2023 with the _Ristretto255_ @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 Group and SHA-512 @Hansen_Eastlake_2011 Hash. Note that other cipher suites could also be potentially suitable depending on hardware and software constraints. In particular, we recognize that certain HSMs may place restrictions on available cipher suites.
+We recommend utilizing OPRFs as described in the working draft by Davidson _et al._ @Davidson_Faz-Hernandez_Sullivan_Wood_2023 with the cipher suite _Ristretto255_ @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 Group and SHA-512 @Hansen_Eastlake_2011 Hash. Note that other cipher suites could also be potentially suitable depending on hardware and software constraints. In particular, we recognize that certain HSMs may place restrictions on available cipher suites.
 
 == SSS
 The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret.
