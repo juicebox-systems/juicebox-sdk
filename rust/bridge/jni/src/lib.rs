@@ -180,16 +180,19 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientRegister(
     client: jlong,
     pin: JByteArray,
     secret: JByteArray,
+    info: JByteArray,
     num_guesses: jshort,
 ) {
     let client = &*(client as *const Client<HttpClient, AuthTokenManager>);
     let pin = env.convert_byte_array(pin).unwrap();
     let secret = env.convert_byte_array(secret).unwrap();
+    let info = env.convert_byte_array(info).unwrap();
     let num_guesses = num_guesses.try_into().unwrap();
 
     if let Err(err) = client.runtime.block_on(client.sdk.register(
         &sdk::Pin::from(pin),
         &sdk::UserSecret::from(secret),
+        &sdk::UserInfo::from(info),
         sdk::Policy { num_guesses },
     )) {
         let error = RegisterError::from(err);
@@ -204,14 +207,17 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientRecover<'lo
     _class: JClass,
     client: jlong,
     pin: JByteArray<'local>,
+    info: JByteArray<'local>,
 ) -> JByteArray<'local> {
     let client = &*(client as *const Client<HttpClient, AuthTokenManager>);
     let pin = env.convert_byte_array(pin).unwrap();
+    let info = env.convert_byte_array(info).unwrap();
 
-    match client
-        .runtime
-        .block_on(client.sdk.recover(&sdk::Pin::from(pin)))
-    {
+    match client.runtime.block_on(
+        client
+            .sdk
+            .recover(&sdk::Pin::from(pin), &sdk::UserInfo::from(info)),
+    ) {
         Ok(secret) => env.byte_array_from_slice(secret.expose_secret()).unwrap() as JByteArray,
         Err(err) => {
             let error = RecoverError::from(err);

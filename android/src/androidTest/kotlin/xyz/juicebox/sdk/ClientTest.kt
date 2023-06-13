@@ -62,7 +62,7 @@ class ClientTest {
         val client = client("https://httpbin.org/anything/")
         val exception = assertThrows(RegisterException::class.java) {
             runBlocking {
-                client.register("test".toByteArray(), "secret".toByteArray(), 5)
+                client.register("test".toByteArray(), "secret".toByteArray(), "info".toByteArray(), 5)
             }
         }
         assertEquals(RegisterError.ASSERTION, exception.error)
@@ -73,7 +73,7 @@ class ClientTest {
         val client = client("https://httpbin.org/anything/")
         val exception = assertThrows(RecoverException::class.java) {
             runBlocking {
-                client.recover("test".toByteArray())
+                client.recover("test".toByteArray(), "info".toByteArray())
             }
         }
         assertEquals(RecoverError.ASSERTION, exception.error)

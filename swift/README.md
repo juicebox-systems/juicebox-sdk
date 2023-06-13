@@ -74,6 +74,7 @@ Once you've created a client, you can register a secret for the `authToken`'s us
 try await client.register(
     pin: "1234".data(using: .utf8)!,
     secret: "secret".data(using: .utf8)!,
+    info: "info".data(using: .utf8)!,
     guesses: 5
 )
 ```
@@ -82,7 +83,8 @@ To recover the secret you just registered, you can call:
 
 ```swift
 let secret = try await client.recover(
-    pin: "1234".data(using: .utf8)!
+    pin: "1234".data(using: .utf8)!,
+    info: "info".data(using: .utf8)!
 )
 ```
 

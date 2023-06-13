@@ -52,13 +52,13 @@ window.JuiceboxGetAuthToken = async (realmId) => authTokens[realmId];
 Once you've created a client, you can register a secret for the `authToken`'s user by calling:
 
 ```typescript
-await client.register(encoder.encode("1234"), encoder.encode("secret"), 2);
+await client.register(encoder.encode("1234"), encoder.encode("secret"), encoder.encode("info"), 2);
 ```
 
 To recover the secret you just registered, you can call:
 
 ```typescript
-const secret = await client.recover(encoder.encode("1234"));
+const secret = await client.recover(encoder.encode("1234"), encoder.encode("info"));
 ```
 
 And when you're ready to delete any secret from the remote store, simply call:

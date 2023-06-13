@@ -55,12 +55,12 @@ async function main() {
     const decoder = new TextDecoder();
 
     console.log("[JavaScript] Starting register (allowing 2 guesses)");
-    await client.register(encoder.encode("1234"), encoder.encode("apollo"), 2);
+    await client.register(encoder.encode("1234"), encoder.encode("apollo"), encoder.encode("artemis"), 2);
     console.log("[JavaScript] Register succeeded");
 
     console.log("[JavaScript] Starting recover with wrong PIN (guess 1)");
     try {
-        const secret = await client.recover(encoder.encode("4321"));
+        const secret = await client.recover(encoder.encode("4321"), encoder.encode("artemis"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
         if (error instanceof RecoverError && error.reason === RecoverErrorReason.InvalidPin) {
@@ -72,12 +72,12 @@ async function main() {
     }
 
     console.log("[JavaScript] Starting recover with correct PIN (guess 2)");
-    const secret1 = await client.recover(encoder.encode("1234"));
+    const secret1 = await client.recover(encoder.encode("1234"), encoder.encode("artemis"));
     console.log("[JavaScript] Recovered secret: " + decoder.decode(secret1));
 
     console.log("[JavaScript] Starting recover with wrong PIN (guess 1)");
     try {
-        const secret = await client.recover(encoder.encode("4321"));
+        const secret = await client.recover(encoder.encode("4321"), encoder.encode("artemis"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
         if (error instanceof RecoverError && error.reason === RecoverErrorReason.InvalidPin) {
@@ -90,7 +90,7 @@ async function main() {
 
     console.log("[JavaScript] Starting recover with wrong PIN (guess 2)");
     try {
-        const secret = await client.recover(encoder.encode("4321"));
+        const secret = await client.recover(encoder.encode("4321"), encoder.encode("artemis"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
         if (error instanceof RecoverError && error.reason === RecoverErrorReason.InvalidPin) {
@@ -103,7 +103,7 @@ async function main() {
 
     console.log("[JavaScript] Starting recover with correct PIN (guess 3)");
     try {
-        const secret = await client.recover(encoder.encode("1234"));
+        const secret = await client.recover(encoder.encode("1234"), encoder.encode("artemis"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
         if (error instanceof RecoverError && error.reason === RecoverErrorReason.InvalidPin) {
@@ -115,12 +115,12 @@ async function main() {
     }
 
     console.log("[JavaScript] Starting register (allowing 2 guesses)");
-    await client.register(encoder.encode("abcd"), encoder.encode("artemis"), 2);
+    await client.register(encoder.encode("abcd"), encoder.encode("artemis"), encoder.encode("apollo"), 2);
     console.log("[JavaScript] Register succeeded");
 
     console.log("[JavaScript] Starting recover with wrong PIN (guess 1)");
     try {
-        const secret = await client.recover(encoder.encode("zyxw"));
+        const secret = await client.recover(encoder.encode("zyxw"), encoder.encode("apollo"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
         if (error instanceof RecoverError && error.reason === RecoverErrorReason.InvalidPin) {
@@ -132,7 +132,7 @@ async function main() {
     }
 
     console.log("[JavaScript] Starting recover with correct PIN (guess 2)");
-    const secret2 = await client.recover(encoder.encode("abcd"));
+    const secret2 = await client.recover(encoder.encode("abcd"), encoder.encode("apollo"));
     console.log("[JavaScript] Recovered secret: " + decoder.decode(secret2));
 
     console.log("[JavaScript] Deleting secret");
@@ -141,7 +141,7 @@ async function main() {
 
     console.log("[JavaScript] Starting recover with correct PIN after delete");
     try {
-        const secret = await client.recover(encoder.encode("abcd"));
+        const secret = await client.recover(encoder.encode("abcd"), encoder.encode("apollo"));
         assert.fail("[JavaScript] Recover unexpectedly succeeded with secret: " + decoder.decode(secret));
     } catch (error) {
         if (error instanceof RecoverError && error.reason === RecoverErrorReason.NotRegistered) {

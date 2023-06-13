@@ -265,6 +265,24 @@ impl TryFrom<Vec<u8>> for UserSecretEncryptionKey {
     }
 }
 
+/// Known data unique to the user that can be provided during
+/// registration and recovery to additionally salt their PIN.
+#[derive(Clone, Debug)]
+pub struct UserInfo(SecretBytesVec);
+
+impl UserInfo {
+    /// Access the underlying secret bytes.
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for UserInfo {
+    fn from(value: Vec<u8>) -> Self {
+        Self(SecretBytesVec::from(value))
+    }
+}
+
 /// A random key that is used to derive secret-unlocking tags
 /// ([`UnlockTag`]) for each realm.
 ///

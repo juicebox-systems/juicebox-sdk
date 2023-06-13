@@ -51,7 +51,7 @@ final class JuiceboxSdkTests: XCTestCase {
     func testRegisterRequestError() async throws {
         let client = client(url: "https://httpbin.org/anything/")
         do {
-            try await client.register(pin: Data(), secret: Data(), guesses: 5)
+            try await client.register(pin: Data(), secret: Data(), info: Data(), guesses: 5)
         } catch RegisterError.assertion {
 
         }
@@ -60,7 +60,7 @@ final class JuiceboxSdkTests: XCTestCase {
     func testRecoverRequestError() async throws {
         let client = client(url: "https://httpbin.org/anything/")
         do {
-            let secret = try await client.recover(pin: Data())
+            let secret = try await client.recover(pin: Data(), info: Data())
             XCTAssertNil(secret)
         } catch RecoverError.assertion {
 

@@ -17,7 +17,7 @@ use crate::{
     auth, http,
     request::{join_at_least_threshold, RequestError},
     types::{TagGeneratingKey, TgkShare},
-    Client, Pin, Policy, Realm, Sleeper, UserSecret,
+    Client, Pin, Policy, Realm, Sleeper, UserInfo, UserSecret,
 };
 
 /// Error return type for [`Client::register`].
@@ -41,6 +41,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         &self,
         pin: &Pin,
         secret: &UserSecret,
+        info: &UserInfo,
         policy: Policy,
     ) -> Result<(), RegisterError> {
         let register1_requests = self
@@ -54,7 +55,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
-            .hash(self.configuration.pin_hashing_mode, &salt)
+            .hash(self.configuration.pin_hashing_mode, &salt, info)
             .expect("pin hashing failed");
 
         let salt_shares: Vec<SaltShare> = Sharks(self.configuration.recover_threshold)

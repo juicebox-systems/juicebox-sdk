@@ -19,7 +19,7 @@ use crate::{
     http,
     request::{join_at_least_threshold, join_until_threshold, RequestError},
     types::{EncryptedUserSecret, TagGeneratingKey, TgkShare, UserSecretAccessKey},
-    Client, Pin, Realm, Sleeper, UserSecret,
+    Client, Pin, Realm, Sleeper, UserInfo, UserSecret,
 };
 
 /// Error return type for [`Client::recover`].
@@ -48,12 +48,16 @@ pub enum RecoverError {
 }
 
 impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
-    pub(crate) async fn perform_recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
+    pub(crate) async fn perform_recover(
+        &self,
+        pin: &Pin,
+        info: &UserInfo,
+    ) -> Result<UserSecret, RecoverError> {
         let mut configuration = &self.configuration;
         let mut iter = self.previous_configurations.iter();
         loop {
             return match self
-                .perform_recover_with_configuration(pin, configuration)
+                .perform_recover_with_configuration(pin, info, configuration)
                 .await
             {
                 Ok(secret) => Ok(secret),
@@ -77,6 +81,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     async fn perform_recover_with_configuration(
         &self,
         pin: &Pin,
+        info: &UserInfo,
         configuration: &CheckedConfiguration,
     ) -> Result<UserSecret, RecoverError> {
         let recover1_requests = configuration
@@ -127,7 +132,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             };
 
         let (access_key, encryption_key) = pin
-            .hash(configuration.pin_hashing_mode, &salt)
+            .hash(configuration.pin_hashing_mode, &salt, info)
             .expect("pin hashing failed");
 
         let recover2_requests = realms

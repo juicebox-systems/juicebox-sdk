@@ -81,6 +81,7 @@ Once you've created a client, you can register a secret for the `auth_token`'s u
 client.register(
     &Pin::from(b"1234".to_vec()),
     &UserSecret::from(b"secret".to_vec()),
+    &UserInfo::from(b"info".to_vec()),
     Policy { num_guesses: 5 },
 ).await.unwrap();
 ```
@@ -90,6 +91,7 @@ To recover the secret you just registered, you can call:
 ```rust
 let secret = client.recover(
     &Pin::from(b"1234".to_vec()),
+    &UserInfo::from(b"info".to_vec()),
 ).await.unwrap();
 ```
 

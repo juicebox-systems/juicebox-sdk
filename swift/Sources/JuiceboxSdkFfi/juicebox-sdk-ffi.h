@@ -170,6 +170,7 @@ void juicebox_client_register(JuiceboxClient *client,
                               const void *context,
                               JuiceboxUnmanagedDataArray pin,
                               JuiceboxUnmanagedDataArray secret,
+                              JuiceboxUnmanagedDataArray info,
                               uint16_t num_guesses,
                               void (*response)(const void *context, const JuiceboxRegisterError *error));
 
@@ -181,6 +182,7 @@ void juicebox_client_register(JuiceboxClient *client,
 void juicebox_client_recover(JuiceboxClient *client,
                              const void *context,
                              JuiceboxUnmanagedDataArray pin,
+                             JuiceboxUnmanagedDataArray info,
                              void (*response)(const void *context, JuiceboxUnmanagedDataArray secret, const JuiceboxRecoverError *error));
 
 /**
