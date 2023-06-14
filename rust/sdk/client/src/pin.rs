@@ -83,9 +83,14 @@ impl Pin {
         Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
             .hash_password_into(
                 self.expose_secret(),
-                [salt.expose_secret(), info.expose_secret()]
-                    .concat()
-                    .as_slice(),
+                [
+                    &(salt.expose_secret().len() as u32).to_le_bytes(),
+                    salt.expose_secret(),
+                    &(info.expose_secret().len() as u32).to_le_bytes(),
+                    info.expose_secret(),
+                ]
+                .concat()
+                .as_slice(),
                 &mut hashed_pin,
             )
             .ok()?;
@@ -118,12 +123,12 @@ mod tests {
             .hash(PinHashingMode::Standard2019, &salt, &info)
             .unwrap();
         let expected_access_key: [u8; 32] = [
-            92, 165, 41, 92, 46, 155, 98, 107, 169, 38, 32, 51, 142, 47, 160, 234, 42, 206, 254,
-            17, 136, 238, 137, 133, 137, 48, 129, 218, 206, 167, 164, 188,
+            219, 189, 174, 194, 242, 53, 30, 101, 138, 242, 120, 255, 220, 150, 60, 46, 176, 40,
+            187, 237, 133, 51, 227, 10, 183, 63, 28, 40, 29, 207, 40, 47,
         ];
         let expected_encryption_key: [u8; 32] = [
-            235, 70, 249, 19, 37, 95, 102, 137, 152, 169, 242, 91, 241, 216, 191, 38, 92, 51, 86,
-            63, 101, 33, 79, 27, 171, 251, 176, 63, 182, 14, 186, 20,
+            92, 89, 67, 194, 238, 53, 33, 114, 249, 151, 69, 130, 14, 236, 130, 129, 134, 136, 49,
+            174, 139, 51, 63, 150, 145, 75, 25, 232, 77, 184, 253, 174,
         ];
         assert_eq!(*access_key.expose_secret(), expected_access_key.to_vec());
         assert_eq!(
