@@ -90,7 +90,11 @@ public final class Client {
         - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
             safely be a low-entropy value.
         - secret: A user provided secret with a maximum length of 128-bytes.
-        - info: User known info used as part of the salt for the configured `PinHashingMode`.
+        - info: Additional data added to the salt for the configured `PinHashingMode`.
+            The chosen data must be consistent between registration and recovery or recovery
+            will fail. This data does not need to be a well-kept secret. A user's ID is a reasonable
+            choice, but even the name of the company or service could be viable if nothing else
+            is available.
         - guesses: The number of guesses allowed before the secret can no longer
             be accessed.
 
@@ -131,7 +135,11 @@ public final class Client {
      - Parameters:
         - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
             safely be a low-entropy value.
-        - info: User known info used as part of the salt for the configured `PinHashingMode`.
+        - info: Additional data added to the salt for the configured `PinHashingMode`.
+            The chosen data must be consistent between registration and recovery or recovery
+            will fail. This data does not need to be a well-kept secret. A user's ID is a reasonable
+            choice, but even the name of the company or service could be viable if nothing else
+            is available.
 
      - Returns: The recovered user provided secret.
 

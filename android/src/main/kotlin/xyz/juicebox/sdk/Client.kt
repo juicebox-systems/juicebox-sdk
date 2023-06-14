@@ -45,7 +45,11 @@ class Client private constructor (
      * @param pin A user provided PIN. If using a strong [PinHashingMode], this can
      * safely be a low-entropy value.
      * @param secret A user provided secret with a maximum length of 128-bytes.
-     * @param info User known info used as part of the salt for the configured [PinHashingMode].
+     * @param info Additional data added to the salt for the configured [PinHashingMode].
+     * The chosen data must be consistent between registration and recovery or recovery
+     * will fail. This data does not need to be a well-kept secret. A user's ID is a
+     * reasonable choice, but even the name of the company or service could be viable
+     * if nothing else is available.
      * @param numGuesses The number of guesses allowed before the secret can no longer
      * be accessed.
      *
@@ -64,7 +68,11 @@ class Client private constructor (
      *
      * @param pin A user provided PIN. If using a strong [PinHashingMode], this can
      * safely be a low-entropy value.
-     * @param info User known info used as part of the salt for the configured [PinHashingMode].
+     * @param info Additional data added to the salt for the configured [PinHashingMode].
+     * The chosen data must be consistent between registration and recovery or recovery
+     * will fail. This data does not need to be a well-kept secret. A user's ID is a
+     * reasonable choice, but even the name of the company or service could be viable
+     * if nothing else is available.
      *
      * @return secret The recovered user provided secret.
      *

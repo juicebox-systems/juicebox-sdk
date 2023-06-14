@@ -265,8 +265,15 @@ impl TryFrom<Vec<u8>> for UserSecretEncryptionKey {
     }
 }
 
-/// Known data unique to the user that can be provided during
-/// registration and recovery to additionally salt their PIN.
+/// Additional data added to the salt for a user's PIN. The chosen
+/// data must be consistent between registration and recovery or
+/// recovery will fail. This data does not need to be a well-kept
+/// secret. A user's ID is a reasonable choice, but even the name
+/// of the company or service could be viable if nothing else is
+/// available.
+///
+/// This data is used to prevent a malicious [`Realm`] from
+/// forcing use of a salt with a precomputed password table.
 #[derive(Clone, Debug)]
 pub struct UserInfo(SecretBytesVec);
 
