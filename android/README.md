@@ -78,13 +78,13 @@ val client = Client(
 Once you've created a client, you can register a secret for the `authToken`'s user by calling:
 
 ```kotlin
-client.register("1234".toByteArray(), "secret".toByteArray(), 5)
+client.register("1234".toByteArray(), "secret".toByteArray(), "info".toByteArray(), 5)
 ```
 
 To recover the secret you just registered, you can call:
 
 ```kotlin
-val secret = String(client.recover("1234".toByteArray()))
+val secret = String(client.recover("1234".toByteArray(), "info".toByteArray()))
 ```
 
 And when you're ready to delete any secret from the remote store, simply call:

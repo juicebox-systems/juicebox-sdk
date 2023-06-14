@@ -45,15 +45,20 @@ class Client private constructor (
      * @param pin A user provided PIN. If using a strong [PinHashingMode], this can
      * safely be a low-entropy value.
      * @param secret A user provided secret with a maximum length of 128-bytes.
+     * @param info Additional data added to the salt for the configured [PinHashingMode].
+     * The chosen data must be consistent between registration and recovery or recovery
+     * will fail. This data does not need to be a well-kept secret. A user's ID is a
+     * reasonable choice, but even the name of the company or service could be viable
+     * if nothing else is available.
      * @param numGuesses The number of guesses allowed before the secret can no longer
      * be accessed.
      *
      * @throws [RegisterException] if registration could not be completed successfully.
      */
     @Throws(RegisterException::class)
-    suspend fun register(pin: ByteArray, secret: ByteArray, numGuesses: Short) {
+    suspend fun register(pin: ByteArray, secret: ByteArray, info: ByteArray, numGuesses: Short) {
         withContext(Dispatchers.IO) {
-            Native.clientRegister(native, pin, secret, numGuesses)
+            Native.clientRegister(native, pin, secret, info, numGuesses)
         }
     }
 
@@ -63,15 +68,20 @@ class Client private constructor (
      *
      * @param pin A user provided PIN. If using a strong [PinHashingMode], this can
      * safely be a low-entropy value.
+     * @param info Additional data added to the salt for the configured [PinHashingMode].
+     * The chosen data must be consistent between registration and recovery or recovery
+     * will fail. This data does not need to be a well-kept secret. A user's ID is a
+     * reasonable choice, but even the name of the company or service could be viable
+     * if nothing else is available.
      *
      * @return secret The recovered user provided secret.
      *
      * @throws [RecoverException] if recovery could not be completed successfully.
      */
     @Throws(RecoverException::class)
-    suspend fun recover(pin: ByteArray): ByteArray {
+    suspend fun recover(pin: ByteArray, info: ByteArray): ByteArray {
         return withContext(Dispatchers.IO) {
-            Native.clientRecover(native, pin)
+            Native.clientRecover(native, pin, info)
         }
     }
 

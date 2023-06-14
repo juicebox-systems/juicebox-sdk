@@ -90,29 +90,37 @@ public final class Client {
         - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
             safely be a low-entropy value.
         - secret: A user provided secret with a maximum length of 128-bytes.
+        - info: Additional data added to the salt for the configured `PinHashingMode`.
+            The chosen data must be consistent between registration and recovery or recovery
+            will fail. This data does not need to be a well-kept secret. A user's ID is a reasonable
+            choice, but even the name of the company or service could be viable if nothing else
+            is available.
         - guesses: The number of guesses allowed before the secret can no longer
             be accessed.
 
      - Throws: `RegisterError` if registration could not be completed successfully.
      */
-    public func register(pin: Data, secret: Data, guesses: UInt16) async throws {
+    public func register(pin: Data, secret: Data, info: Data, guesses: UInt16) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             pin.withJuiceboxUnmanagedDataArray { pinArray in
                 secret.withJuiceboxUnmanagedDataArray { secretArray in
-                    juicebox_client_register(
-                        opaque,
-                        Unmanaged.passRetained(Box(continuation)).toOpaque(),
-                        pinArray,
-                        secretArray,
-                        guesses
-                    ) { context, error in
-                        guard let context = context else { fatalError() }
-                        let box: Box<CheckedContinuation<Void, Error>>
-                            = Unmanaged.fromOpaque(context).takeRetainedValue()
-                        if let error = error?.pointee {
-                            box.value.resume(throwing: RegisterError(error))
-                        } else {
-                            box.value.resume(returning: ())
+                    info.withJuiceboxUnmanagedDataArray { infoArray in
+                        juicebox_client_register(
+                            opaque,
+                            Unmanaged.passRetained(Box(continuation)).toOpaque(),
+                            pinArray,
+                            secretArray,
+                            infoArray,
+                            guesses
+                        ) { context, error in
+                            guard let context = context else { fatalError() }
+                            let box: Box<CheckedContinuation<Void, Error>>
+                                = Unmanaged.fromOpaque(context).takeRetainedValue()
+                            if let error = error?.pointee {
+                                box.value.resume(throwing: RegisterError(error))
+                            } else {
+                                box.value.resume(returning: ())
+                            }
                         }
                     }
                 }
@@ -127,27 +135,36 @@ public final class Client {
      - Parameters:
         - pin: A user provided PIN. If using a strong `PinHashingMode`, this can
             safely be a low-entropy value.
+        - info: Additional data added to the salt for the configured `PinHashingMode`.
+            The chosen data must be consistent between registration and recovery or recovery
+            will fail. This data does not need to be a well-kept secret. A user's ID is a reasonable
+            choice, but even the name of the company or service could be viable if nothing else
+            is available.
 
      - Returns: The recovered user provided secret.
 
      - Throws: `RecoverError` if recovery could not be completed successfully.
      */
-    public func recover(pin: Data) async throws -> Data {
+    public func recover(pin: Data, info: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
             pin.withJuiceboxUnmanagedDataArray { pinArray in
-                juicebox_client_recover(
-                    opaque,
-                    Unmanaged.passRetained(Box(continuation)).toOpaque(),
-                    pinArray
-                ) { context, secretBuffer, error in
-                    guard let context = context else { fatalError() }
-                    let box: Box<CheckedContinuation<Data, Error>> = Unmanaged.fromOpaque(context).takeRetainedValue()
-                    if let error = error?.pointee {
-                        box.value.resume(throwing: RecoverError(error))
-                    } else if let secret = Data(secretBuffer) {
-                        box.value.resume(returning: secret)
-                    } else {
-                        box.value.resume(throwing: RecoverError.assertion)
+                info.withJuiceboxUnmanagedDataArray { infoArray in
+                    juicebox_client_recover(
+                        opaque,
+                        Unmanaged.passRetained(Box(continuation)).toOpaque(),
+                        pinArray,
+                        infoArray
+                    ) { context, secretBuffer, error in
+                        guard let context = context else { fatalError() }
+                        let box: Box<CheckedContinuation<Data, Error>> =
+                            Unmanaged.fromOpaque(context).takeRetainedValue()
+                        if let error = error?.pointee {
+                            box.value.resume(throwing: RecoverError(error))
+                        } else if let secret = Data(secretBuffer) {
+                            box.value.resume(returning: secret)
+                        } else {
+                            box.value.resume(throwing: RecoverError.assertion)
+                        }
                     }
                 }
             }

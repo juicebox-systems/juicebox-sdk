@@ -29,7 +29,7 @@ pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
 pub use sleeper::Sleeper;
-pub use types::{Realm, UserSecret};
+pub use types::{Realm, UserInfo, UserSecret};
 
 #[cfg(feature = "tokio")]
 pub use sleeper::TokioSleeper;
@@ -114,17 +114,18 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         &self,
         pin: &Pin,
         secret: &UserSecret,
+        info: &UserInfo,
         policy: Policy,
     ) -> Result<(), RegisterError> {
-        self.perform_register(pin, secret, policy).await
+        self.perform_register(pin, secret, info, policy).await
     }
 
     /// Retrieves a PIN-protected secret from the configured realms, or falls
     /// back to the previous realms if the current realms do not have a secret
     /// registered.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
-    pub async fn recover(&self, pin: &Pin) -> Result<UserSecret, RecoverError> {
-        self.perform_recover(pin).await
+    pub async fn recover(&self, pin: &Pin, info: &UserInfo) -> Result<UserSecret, RecoverError> {
+        self.perform_recover(pin, info).await
     }
 
     /// Deletes the registered secret for this user, if any.

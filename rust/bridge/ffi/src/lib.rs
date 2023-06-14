@@ -166,6 +166,7 @@ pub unsafe extern "C" fn juicebox_client_register(
     context: *const c_void,
     pin: UnmanagedArray<u8>,
     secret: UnmanagedArray<u8>,
+    info: UnmanagedArray<u8>,
     num_guesses: u16,
     response: extern "C" fn(context: &c_void, error: *const RegisterError),
 ) {
@@ -173,12 +174,14 @@ pub unsafe extern "C" fn juicebox_client_register(
     let context = &*context;
     let pin = pin.to_vec();
     let secret = secret.to_vec();
+    let info = info.to_vec();
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
         match client.runtime.block_on(client.sdk.register(
             &sdk::Pin::from(pin),
             &sdk::UserSecret::from(secret),
+            &sdk::UserInfo::from(info),
             sdk::Policy { num_guesses },
         )) {
             Ok(_) => (response)(context, ptr::null()),
@@ -199,6 +202,7 @@ pub unsafe extern "C" fn juicebox_client_recover(
     client: *mut Client<HttpClient, AuthTokenManager>,
     context: *const c_void,
     pin: UnmanagedArray<u8>,
+    info: UnmanagedArray<u8>,
     response: extern "C" fn(
         context: &c_void,
         secret: UnmanagedArray<u8>,
@@ -208,13 +212,15 @@ pub unsafe extern "C" fn juicebox_client_recover(
     assert!(!client.is_null());
     let context = &*context;
     let pin = pin.to_vec();
+    let info = info.to_vec();
     let client = &*client;
 
     client.runtime.spawn_blocking(move || {
-        match client
-            .runtime
-            .block_on(client.sdk.recover(&sdk::Pin::from(pin)))
-        {
+        match client.runtime.block_on(
+            client
+                .sdk
+                .recover(&sdk::Pin::from(pin), &sdk::UserInfo::from(info)),
+        ) {
             Ok(secret) => {
                 let mut secret = ManagedArray(secret.expose_secret().to_vec());
                 (response)(context, secret.unmanaged_borrow(), ptr::null());

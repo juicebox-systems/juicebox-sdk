@@ -765,7 +765,6 @@ dependencies = [
  "digest",
  "futures",
  "hex",
- "hmac",
  "instant",
  "juicebox-sdk-core",
  "juicebox-sdk-marshalling",

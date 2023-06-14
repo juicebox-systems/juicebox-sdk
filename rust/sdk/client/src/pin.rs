@@ -1,4 +1,7 @@
-use crate::types::{UserSecretAccessKey, UserSecretEncryptionKey};
+use crate::{
+    types::{UserSecretAccessKey, UserSecretEncryptionKey},
+    UserInfo,
+};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
 use juicebox_sdk_core::types::{Salt, SecretBytesVec};
 use secrecy::{ExposeSecret, Zeroize};
@@ -45,6 +48,7 @@ impl Pin {
         &self,
         mode: PinHashingMode,
         salt: &Salt,
+        info: &UserInfo,
     ) -> Option<(UserSecretAccessKey, UserSecretEncryptionKey)> {
         match mode {
             PinHashingMode::Standard2019 => {
@@ -54,7 +58,7 @@ impl Pin {
                     .p_cost(1)
                     .build()
                     .ok()?;
-                self.argon2(params, salt)
+                self.argon2(params, salt, info)
             }
             PinHashingMode::FastInsecure => {
                 let params = ParamsBuilder::new()
@@ -63,7 +67,7 @@ impl Pin {
                     .p_cost(Params::MIN_P_COST)
                     .build()
                     .ok()?;
-                self.argon2(params, salt)
+                self.argon2(params, salt, info)
             }
         }
     }
@@ -72,11 +76,23 @@ impl Pin {
         &self,
         params: argon2::Params,
         salt: &Salt,
+        info: &UserInfo,
     ) -> Option<(UserSecretAccessKey, UserSecretEncryptionKey)> {
         let mut hashed_pin = vec![0u8; 64];
 
         Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
-            .hash_password_into(self.expose_secret(), salt.expose_secret(), &mut hashed_pin)
+            .hash_password_into(
+                self.expose_secret(),
+                [
+                    &(salt.expose_secret().len() as u32).to_le_bytes(),
+                    salt.expose_secret(),
+                    &(info.expose_secret().len() as u32).to_le_bytes(),
+                    info.expose_secret(),
+                ]
+                .concat()
+                .as_slice(),
+                &mut hashed_pin,
+            )
             .ok()?;
 
         let derived_keys = (
@@ -92,21 +108,27 @@ impl Pin {
 
 #[cfg(test)]
 mod tests {
-    use crate::pin::{Pin, PinHashingMode};
+    use crate::{
+        pin::{Pin, PinHashingMode},
+        UserInfo,
+    };
     use juicebox_sdk_core::types::Salt;
 
     #[test]
     fn test_pin_hashing() {
         let salt = Salt::from([5; 16]);
         let pin = Pin::from(b"1234".to_vec());
-        let (access_key, encryption_key) = pin.hash(PinHashingMode::Standard2019, &salt).unwrap();
+        let info = UserInfo::from(b"artemis".to_vec());
+        let (access_key, encryption_key) = pin
+            .hash(PinHashingMode::Standard2019, &salt, &info)
+            .unwrap();
         let expected_access_key: [u8; 32] = [
-            250, 122, 193, 108, 118, 82, 58, 127, 80, 184, 73, 2, 230, 142, 48, 164, 97, 0, 162,
-            119, 27, 95, 248, 237, 86, 240, 196, 193, 182, 35, 230, 61,
+            219, 189, 174, 194, 242, 53, 30, 101, 138, 242, 120, 255, 220, 150, 60, 46, 176, 40,
+            187, 237, 133, 51, 227, 10, 183, 63, 28, 40, 29, 207, 40, 47,
         ];
         let expected_encryption_key: [u8; 32] = [
-            130, 251, 98, 220, 131, 58, 101, 94, 114, 250, 200, 58, 77, 123, 38, 170, 36, 224, 90,
-            92, 252, 95, 186, 106, 101, 91, 147, 161, 4, 175, 91, 40,
+            92, 89, 67, 194, 238, 53, 33, 114, 249, 151, 69, 130, 14, 236, 130, 129, 134, 136, 49,
+            174, 139, 51, 63, 150, 145, 75, 25, 232, 77, 184, 253, 174,
         ];
         assert_eq!(*access_key.expose_secret(), expected_access_key.to_vec());
         assert_eq!(

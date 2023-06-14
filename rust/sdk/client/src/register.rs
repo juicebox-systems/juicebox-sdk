@@ -8,7 +8,7 @@ use juicebox_sdk_core::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
     types::{
-        MaskedTgkShare, OprfSeed, OprfServer, RegistrationVersion, Salt, SaltShare,
+        MaskedUnlockKeyShare, OprfSeed, OprfServer, RegistrationVersion, Salt, SaltShare,
         UserSecretShare, OPRF_KEY_INFO,
     },
 };
@@ -16,8 +16,8 @@ use juicebox_sdk_core::{
 use crate::{
     auth, http,
     request::{join_at_least_threshold, RequestError},
-    types::{TagGeneratingKey, TgkShare},
-    Client, Pin, Policy, Realm, Sleeper, UserSecret,
+    types::{UnlockKey, UnlockKeyShare},
+    Client, Pin, Policy, Realm, Sleeper, UserInfo, UserSecret,
 };
 
 /// Error return type for [`Client::register`].
@@ -41,6 +41,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         &self,
         pin: &Pin,
         secret: &UserSecret,
+        info: &UserInfo,
         policy: Policy,
     ) -> Result<(), RegisterError> {
         let register1_requests = self
@@ -54,7 +55,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let salt = Salt::new_random(&mut OsRng);
         let (access_key, encryption_key) = pin
-            .hash(self.configuration.pin_hashing_mode, &salt)
+            .hash(self.configuration.pin_hashing_mode, &salt, info)
             .expect("pin hashing failed");
 
         let salt_shares: Vec<SaltShare> = Sharks(self.configuration.recover_threshold)
@@ -72,25 +73,26 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .take(self.configuration.realms.len())
             .collect();
 
-        let tgk = TagGeneratingKey::new_random();
+        let unlock_key = UnlockKey::new_random();
 
-        let tgk_shares: Vec<TgkShare> = Sharks(self.configuration.recover_threshold)
-            .dealer_rng(tgk.expose_secret(), &mut OsRng)
+        let unlock_key_shares: Vec<UnlockKeyShare> = Sharks(self.configuration.recover_threshold)
+            .dealer_rng(unlock_key.expose_secret(), &mut OsRng)
             .take(self.configuration.realms.len())
-            .map(TgkShare)
+            .map(UnlockKeyShare)
             .collect();
 
-        let masked_tgk_shares: Vec<MaskedTgkShare> = zip(tgk_shares, &oprf_seeds)
-            .map(|(share, key)| {
-                let oprf_server = OprfServer::new_from_seed(key.expose_secret(), OPRF_KEY_INFO)
-                    .expect("oprf key derivation failed");
-                let oprf_result = oprf_server
-                    .evaluate(access_key.expose_secret())
-                    .expect("oprf pin evaluation failed")
-                    .into();
-                share.mask(&oprf_result)
-            })
-            .collect();
+        let masked_unlock_key_shares: Vec<MaskedUnlockKeyShare> =
+            zip(unlock_key_shares, &oprf_seeds)
+                .map(|(share, key)| {
+                    let oprf_server = OprfServer::new_from_seed(key.expose_secret(), OPRF_KEY_INFO)
+                        .expect("oprf key derivation failed");
+                    let oprf_result = oprf_server
+                        .evaluate(access_key.expose_secret())
+                        .expect("oprf pin evaluation failed")
+                        .into();
+                    share.mask(&oprf_result)
+                })
+                .collect();
 
         let secret_shares: Vec<UserSecretShare> = Sharks(self.configuration.recover_threshold)
             .dealer_rng(encrypted_user_secret.expose_secret(), &mut OsRng)
@@ -105,19 +107,19 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             &self.configuration.realms,
             oprf_seeds,
             salt_shares,
-            masked_tgk_shares,
+            masked_unlock_key_shares,
             secret_shares,
         )
         .map(
-            |(realm, oprf_seed, salt_share, masked_tgk_share, secret_share)| {
+            |(realm, oprf_seed, salt_share, masked_unlock_key_share, secret_share)| {
                 self.register2_on_realm(
                     realm,
                     Register2Request {
                         version: version.to_owned(),
                         salt_share,
                         oprf_seed,
-                        tag: tgk.tag(&realm.id),
-                        masked_tgk_share,
+                        tag: unlock_key.tag(&realm.id),
+                        masked_unlock_key_share,
                         secret_share,
                         policy: policy.to_owned(),
                     },

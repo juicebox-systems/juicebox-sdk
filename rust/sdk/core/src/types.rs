@@ -359,24 +359,23 @@ pub struct Policy {
     pub num_guesses: u16,
 }
 
-/// A share of the tag-generating key that has been XORed with
-/// `OPRF(PIN)`.
+/// A share of the unlock key that has been XORed with `OPRF(PIN)`.
 ///
 /// The client sends this to a realm during registration and gets it back from
 /// the realm during recovery.
 ///
 /// The client needs the correct PIN and a threshold number of such shares and
-/// OPRF results to recover the tag-generating key.
+/// OPRF results to recover the unlock key.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct MaskedTgkShare(SecretBytesArray<33>);
+pub struct MaskedUnlockKeyShare(SecretBytesArray<33>);
 
-impl MaskedTgkShare {
+impl MaskedUnlockKeyShare {
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }
 }
 
-impl TryFrom<Vec<u8>> for MaskedTgkShare {
+impl TryFrom<Vec<u8>> for MaskedUnlockKeyShare {
     type Error = &'static str;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {

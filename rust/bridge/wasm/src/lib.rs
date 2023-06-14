@@ -131,12 +131,14 @@ impl Client {
         &self,
         pin: Vec<u8>,
         secret: Vec<u8>,
+        info: Vec<u8>,
         num_guesses: u16,
     ) -> Result<(), RegisterError> {
         self.0
             .register(
                 &sdk::Pin::from(pin),
                 &sdk::UserSecret::from(secret),
+                &sdk::UserInfo::from(info),
                 sdk::Policy { num_guesses },
             )
             .await
@@ -148,8 +150,12 @@ impl Client {
     /// registered.
     ///
     /// Upon failure, a `RecoverError` will be provided.
-    pub async fn recover(&self, pin: Vec<u8>) -> Result<Uint8Array, RecoverError> {
-        match self.0.recover(&sdk::Pin::from(pin)).await {
+    pub async fn recover(&self, pin: Vec<u8>, info: Vec<u8>) -> Result<Uint8Array, RecoverError> {
+        match self
+            .0
+            .recover(&sdk::Pin::from(pin), &sdk::UserInfo::from(info))
+            .await
+        {
             Ok(secret) => Ok(Uint8Array::from(secret.expose_secret())),
             Err(err) => Err(RecoverError::from(err)),
         }
@@ -305,7 +311,12 @@ mod tests {
     async fn test_register() {
         let client = client("https://httpbin.org/anything/");
         let result = client
-            .register(Vec::from("1234"), Vec::from("apollo"), 2)
+            .register(
+                Vec::from("1234"),
+                Vec::from("apollo"),
+                Vec::from("artemis"),
+                2,
+            )
             .await;
         assert!(
             matches!(result, Err(RegisterError::Assertion)),
@@ -316,7 +327,9 @@ mod tests {
     #[wasm_bindgen_test]
     async fn test_recover() {
         let client = client("https://httpbin.org/anything/");
-        let result = client.recover(Vec::from("1234")).await;
+        let result = client
+            .recover(Vec::from("1234"), Vec::from("artemis"))
+            .await;
         assert!(
             matches!(
                 result,

@@ -40,11 +40,13 @@ public final class Native {
             long client,
             @NotNull byte[] pin,
             @NotNull byte[] secret,
+            @NotNull byte[] info,
             short numGuesses) throws RegisterException;
 
     public static native @NotNull byte[] clientRecover(
             long client,
-            @NotNull byte[] pin) throws RecoverException;
+            @NotNull byte[] pin,
+            @NotNull byte[] info) throws RecoverException;
 
     public static native void clientDelete(
             long client) throws DeleteException;
