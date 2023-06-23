@@ -25,7 +25,6 @@ juicebox-sdk-marshalling = { path = "../marshalling" }
 juicebox-sdk-networking = { path = "../networking" }
 juicebox-sdk-noise = { path = "../noise" }
 rand = { workspace = true }
-secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sharks = { workspace = true }
@@ -34,6 +33,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 voprf = { workspace = true }
 x25519-dalek = { workspace = true }
+zeroize = { workspace = true }
 
 [features]
 tokio = []

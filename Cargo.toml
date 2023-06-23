@@ -39,7 +39,6 @@ libc = "0.2.140"
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
-secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.152", default-features = false, features = [
     "alloc",
     "derive",
@@ -76,9 +75,9 @@ x25519-dalek = { version = "2.0.0-rc.2", features = [
     "serde",
     "static_secrets",
 ] }
+zeroize = "1.6.0"
 
 [patch.crates-io]
-secrecy = { git = "ssh://git@github.com/juicebox-systems/secrecy.git", branch = "loam-main" }
 # We need https://github.com/tokio-rs/tracing/pull/2335 to quiet down error return
 # values in tokio::instrument, which is not yet unreleased.
 tracing = { git = "https://github.com/tokio-rs/tracing" }

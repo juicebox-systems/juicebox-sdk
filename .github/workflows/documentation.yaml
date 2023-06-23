@@ -6,11 +6,6 @@ on:
       - main
   workflow_dispatch: {}
 
-env:
-  # Configures Cargo to use the CLI `git`, which is configured to access
-  # private repos. See
-  # <https://doc.rust-lang.org/cargo/appendix/git-authentication.html>.
-  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
 
 jobs:
   whitepaper:
@@ -23,8 +18,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          token: '${{ secrets.ACCESS_TOKEN }}'
 
       - name: Compile Whitepaper
         uses: lvignoli/typst-action@main
@@ -58,8 +51,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          token: '${{ secrets.ACCESS_TOKEN }}'
 
       - name: Generate Documentation
         run: |
@@ -94,23 +85,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          token: '${{ secrets.ACCESS_TOKEN }}'
-
-      - name: Set up Git
-        run: >
-          # Configures the global `git` CLI to be able to access private repos.
-
-          # `cargo` will make use of this.
-
-          git config --global url.'https://github.com/'.insteadOf
-          'ssh://git@github.com/'
-
-          # Copy the encoded auth token from local config that actions/checkout
-          configured.
-
-          git config --global http.'https://github.com/'.extraHeader "$(git
-          config --local http.'https://github.com/'.extraHeader)"
 
       - name: Install Rust stable toolchain
         uses: actions-rs/toolchain@v1
@@ -151,23 +125,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          token: '${{ secrets.ACCESS_TOKEN }}'
-
-      - name: Set up Git
-        run: >
-          # Configures the global `git` CLI to be able to access private repos.
-
-          # `cargo` will make use of this.
-
-          git config --global url.'https://github.com/'.insteadOf
-          'ssh://git@github.com/'
-
-          # Copy the encoded auth token from local config that actions/checkout
-          configured.
-
-          git config --global http.'https://github.com/'.extraHeader "$(git
-          config --local http.'https://github.com/'.extraHeader)"
 
       - run: >-
           rustup toolchain install stable --profile minimal --target

@@ -4,8 +4,8 @@ use crate::{
 };
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
 use juicebox_sdk_core::types::{Salt, SecretBytesVec};
-use secrecy::{ExposeSecret, Zeroize};
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 /// A strategy for hashing the user provided [`Pin`]
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

@@ -771,7 +771,6 @@ dependencies = [
  "juicebox-sdk-networking",
  "juicebox-sdk-noise",
  "rand",
- "secrecy",
  "serde",
  "serde_json",
  "sharks",
@@ -780,6 +779,7 @@ dependencies = [
  "url",
  "voprf",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
@@ -803,10 +803,10 @@ dependencies = [
  "juicebox-sdk-marshalling",
  "juicebox-sdk-noise",
  "rand_core",
- "secrecy",
  "serde",
  "subtle",
  "voprf",
+ "zeroize",
 ]
 
 [[package]]
@@ -844,7 +844,6 @@ name = "juicebox-sdk-marshalling"
 version = "0.1.0"
 dependencies = [
  "ciborium",
- "secrecy",
  "serde",
 ]
 
@@ -1211,15 +1210,6 @@ dependencies = [
  "der",
  "generic-array",
  "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "secrecy"
-version = "0.8.0"
-source = "git+ssh://git@github.com/juicebox-systems/secrecy.git?branch=loam-main#b50e54817d6c4b919a8062e024bebe34aa3165c5"
-dependencies = [
- "serde",
  "zeroize",
 ]
 

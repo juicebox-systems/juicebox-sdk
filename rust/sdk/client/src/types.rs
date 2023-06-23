@@ -5,7 +5,6 @@ use digest::{KeyInit, Mac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use rand::RngCore;
-use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
 use std::fmt::{self, Debug};
