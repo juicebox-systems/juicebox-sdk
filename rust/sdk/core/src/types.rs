@@ -8,14 +8,20 @@ use core::{
     str::FromStr,
 };
 use rand_core::{CryptoRng, RngCore};
-use secrecy::{ExposeSecret, SecretString, Zeroize};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
+use zeroize::Zeroize;
 
-use juicebox_sdk_marshalling::{bytes, serialize_secret};
+use juicebox_sdk_marshalling::bytes;
 
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecretBytesArray<const N: usize>(#[serde(with = "bytes")] [u8; N]);
+
+impl<const N: usize> SecretBytesArray<N> {
+    pub fn expose_secret(&self) -> &[u8; N] {
+        &self.0
+    }
+}
 
 impl<const N: usize> Zeroize for SecretBytesArray<N> {
     fn zeroize(&mut self) {
@@ -32,12 +38,6 @@ impl<const N: usize> Drop for SecretBytesArray<N> {
 impl<const N: usize> Debug for SecretBytesArray<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("SecretBytesArray(REDACTED)")
-    }
-}
-
-impl<const N: usize> ExposeSecret<[u8; N]> for SecretBytesArray<N> {
-    fn expose_secret(&self) -> &[u8; N] {
-        &self.0
     }
 }
 
@@ -60,6 +60,12 @@ impl<const N: usize> TryFrom<Vec<u8>> for SecretBytesArray<N> {
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecretBytesVec(#[serde(with = "bytes")] Vec<u8>);
 
+impl SecretBytesVec {
+    pub fn expose_secret(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 impl Zeroize for SecretBytesVec {
     fn zeroize(&mut self) {
         self.0.zeroize();
@@ -78,14 +84,41 @@ impl Debug for SecretBytesVec {
     }
 }
 
-impl ExposeSecret<Vec<u8>> for SecretBytesVec {
-    fn expose_secret(&self) -> &Vec<u8> {
+impl From<Vec<u8>> for SecretBytesVec {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct SecretString(String);
+
+impl SecretString {
+    pub fn expose_secret(&self) -> &str {
         &self.0
     }
 }
 
-impl From<Vec<u8>> for SecretBytesVec {
-    fn from(value: Vec<u8>) -> Self {
+impl Zeroize for SecretString {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl Drop for SecretString {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl Debug for SecretString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("SecretString(REDACTED)")
+    }
+}
+
+impl From<String> for SecretString {
+    fn from(value: String) -> Self {
         Self(value)
     }
 }
@@ -212,7 +245,7 @@ impl FromStr for RealmId {
 
 /// Represents the authority to act as a particular user.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct AuthToken(#[serde(serialize_with = "serialize_secret")] pub SecretString);
+pub struct AuthToken(pub SecretString);
 
 impl AuthToken {
     pub fn expose_secret(&self) -> &str {
@@ -410,7 +443,7 @@ impl From<[u8; 32]> for UnlockTag {
 #[cfg(test)]
 mod tests {
     use crate::types::{SecretBytesArray, SecretBytesVec};
-    use secrecy::Zeroize;
+    use zeroize::Zeroize;
 
     #[test]
     fn test_secret_byte_vec_redaction() {

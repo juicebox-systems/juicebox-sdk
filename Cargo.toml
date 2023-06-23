@@ -39,7 +39,6 @@ libc = "0.2.140"
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
-secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.152", default-features = false, features = [
     "alloc",
     "derive",
@@ -58,7 +57,7 @@ tracing = { version = "0.2.0", default-features = false, features = [
 tracing-opentelemetry = { version = "*" }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.3.0", features = ["v4"] }
-voprf = { version = "0.5.0-pre.3" }
+voprf = { version = "0.5.0-pre.4" }
 wasm-bindgen = { version = "0.2.84", features = ["serde"] }
 wasm-bindgen-futures = "0.4.34"
 wasm-bindgen-test = "0.3.34"
@@ -76,12 +75,10 @@ x25519-dalek = { version = "2.0.0-rc.2", features = [
     "serde",
     "static_secrets",
 ] }
+zeroize = "1.6.0"
 
 [patch.crates-io]
-secrecy = { git = "ssh://git@github.com/juicebox-systems/secrecy.git", branch = "loam-main" }
 # We need https://github.com/tokio-rs/tracing/pull/2335 to quiet down error return
 # values in tokio::instrument, which is not yet unreleased.
 tracing = { git = "https://github.com/tokio-rs/tracing" }
 tracing-opentelemetry = { git = "https://github.com/tokio-rs/tracing" }
-# This VOPRF commit is v0.5.0-pre.3 plus an update to curve25519-dalek.
-voprf = { git = "https://github.com/facebook/voprf", rev = "4bd2cf466e45a7003f7acf34d5278b0871dbdb11" }

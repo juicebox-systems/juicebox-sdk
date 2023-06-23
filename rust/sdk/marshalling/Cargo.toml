@@ -10,5 +10,4 @@ edition = "2021"
 
 [dependencies]
 ciborium = { workspace = true }
-secrecy = { workspace = true }
 serde = { workspace = true }
