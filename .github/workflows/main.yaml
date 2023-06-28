@@ -25,17 +25,29 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Show cargo package versions before cache unpack
+      run: cargo install --list && cbindgen -V && which cbindgen
+
     - name: Install Rust stable toolchain
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
 
+    - name: Show cargo package versions before cache unpack
+      run: cargo install --list && cbindgen -V && which cbindgen
+
     - name: Use Rust Cache
       uses: Swatinem/rust-cache@v2
 
+    - name: Show cached cargo package versions
+      run: cargo install --list && cbindgen -V && which cbindgen
+
     - name: Install cbindgen
-      run: cargo +stable install cbindgen --version 0.24.3
+      run: cargo +stable install cbindgen --version 0.24.3 --force
+
+    - name: Show cargo package versions
+      run: cargo install --list && cbindgen -V && which cbindgen
 
     - name: Build juicebox-sdk-ffi
       run: swift/ffi.sh --debug --verbose --verify
@@ -43,6 +55,9 @@ jobs:
     - name: Build and Test
       run: swift test -v
       working-directory: swift
+
+    - name: Show cargo package versions after tests
+      run: cargo install --list && cbindgen -V && which cbindgen
 
   swift-pod:
     name: Swift Pod

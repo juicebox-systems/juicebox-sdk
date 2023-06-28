@@ -4,15 +4,28 @@ extern crate alloc;
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use core::fmt::Display;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub mod bytes;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct SerializationError(String);
+pub struct SerializationError(pub String);
+
+impl Display for SerializationError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Serialization error: {}", self.0)
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct DeserializationError(String);
+pub struct DeserializationError(pub String);
+
+impl Display for DeserializationError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Deserialization error: {}", self.0)
+    }
+}
 
 pub fn to_vec<T: Serialize>(val: &T) -> Result<Vec<u8>, SerializationError> {
     let mut bytes = Vec::new();
