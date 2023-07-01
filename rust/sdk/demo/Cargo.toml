@@ -1,0 +1,17 @@
+[package]
+name = "juicebox-sdk-demo"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "juicebox_sdk_demo"
+path = "src/demo.rs"
+
+[dependencies]
+clap = { workspace = true }
+hex = { workspace = true }
+juicebox-sdk = { path = "../client", features = ["reqwest", "tokio"] }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing = { workspace = true }
