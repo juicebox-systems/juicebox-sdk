@@ -33,7 +33,7 @@ The auth tokens should be acquired out-of-band from a server you run and specifi
 For maximum security, we recommend utilizing multiple realms with a register and recover threshold greater than 1.
 
 ```rust
-use juicebox_sdk:{Client, Configuration, Realm, PinHashingMode};
+use juicebox_sdk:{ClientBuilder, Configuration, Realm, PinHashingMode};
 use std::collections::HashMap;
 use url::Url;
 
@@ -62,15 +62,16 @@ let configuration = Configuration::from_json(r#"
 }
 "#).expect("failed to parse configuration json");
 
-let client = Client::with_tokio(
-    configuration,
-    vec![],
-    HashMap::from([
+let client = ClientBuilder::new()
+    .configuration(configuration)
+    .tokio_sleeper()
+    .reqwest()
+    .auth_token_manager(HashMap::from([
         ("0102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken1),
         ("2102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken2),
         ("3102030405060708090a0b0c0d0e0f10".parse().expect("invalid realm id"), authToken3)
-    ])
-)
+    ]))
+    .build();
 ```
 
 If you haven't enabled the `reqwest` or `tokio` feature, you also need to specify an `http::Client` and a `Sleeper` appropriate for your configuration.

@@ -14,6 +14,7 @@ http = { workspace = true }
 juicebox-sdk-core = { path = "../core" }
 juicebox-sdk-marshalling = { path = "../marshalling" }
 opentelemetry = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -23,3 +24,4 @@ url = { workspace = true }
 [features]
 "distributed-tracing" = ["tracing-opentelemetry", "opentelemetry"]
 "threadsafe-futures" = []
+"reqwest" = ["dep:reqwest", "threadsafe-futures"]

@@ -34,6 +34,145 @@ pub use types::{Realm, UserInfo, UserSecret};
 #[cfg(feature = "tokio")]
 pub use sleeper::TokioSleeper;
 
+#[cfg(feature = "reqwest")]
+pub use juicebox_sdk_networking::reqwest;
+#[cfg(feature = "reqwest")]
+use juicebox_sdk_networking::rpc::LoadBalancerService;
+
+/// Used to build a [`Client`].
+pub struct ClientBuilder<S, Http, Atm> {
+    configuration: Option<CheckedConfiguration>,
+    previous_configurations: Vec<CheckedConfiguration>,
+    auth_token_manager: Option<Atm>,
+    http: Option<Http>,
+    sleeper: Option<S>,
+    sessions: HashMap<RealmId, Mutex<Option<Session>>>,
+}
+
+impl<S, Http, Atm> Default for ClientBuilder<S, Http, Atm>
+where
+    S: Sleeper,
+    Http: http::Client,
+    Atm: auth::AuthTokenManager,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<S, Http, Atm> ClientBuilder<S, Http, Atm>
+where
+    S: Sleeper,
+    Http: http::Client,
+    Atm: auth::AuthTokenManager,
+{
+    /// Constructs a new `ClientBuilder`.
+    pub fn new() -> Self {
+        ClientBuilder {
+            configuration: None,
+            previous_configurations: Vec::new(),
+            auth_token_manager: None,
+            http: None,
+            sleeper: None,
+            sessions: HashMap::new(),
+        }
+    }
+
+    /// Sets the current configuration. The configuration provided must include at least one [`Realm`]
+    pub fn configuration(mut self, configuration: Configuration) -> Self {
+        let checked_configuration = CheckedConfiguration::from(configuration);
+        self.sessions = checked_configuration
+            .realms
+            .iter()
+            .map(|realm| (realm.id, Mutex::new(None)))
+            .collect();
+        self.configuration = Some(checked_configuration);
+        self
+    }
+
+    /// Sets any configurations you have previously registered with that you may not yet have
+    /// migrated secrets from to the current configuration. During [`Client::recover`], they
+    /// will be tried if the current user has not yet registered on the current configuration.
+    /// These should be ordered from most recently to least recently used.
+    pub fn previous_configurations(mut self, previous_configurations: Vec<Configuration>) -> Self {
+        self.previous_configurations = previous_configurations
+            .into_iter()
+            .map(CheckedConfiguration::from)
+            .collect();
+        self
+    }
+
+    /// Sets the [`AuthTokenManager`] used to authenticate requests on a given [`Realm`].
+    pub fn auth_token_manager(mut self, auth_token_manager: Atm) -> Self {
+        self.auth_token_manager = Some(auth_token_manager);
+        self
+    }
+
+    /// Sets an [`http::Client`] used to make [`http::Request`] to a [`Realm`].
+    pub fn http(mut self, http: Http) -> Self {
+        self.http = Some(http);
+        self
+    }
+
+    /// Sets a [`Sleeper`] to use when the `Client` needs to perform sleep operations.
+    pub fn sleeper(mut self, sleeper: S) -> Self {
+        self.sleeper = Some(sleeper);
+        self
+    }
+
+    /// Constructs a new [`Client`].
+    pub fn build(self) -> Client<S, Http, Atm> {
+        let configuration = self.configuration.expect("configuration is required");
+        let auth_token_manager = self
+            .auth_token_manager
+            .expect("auth_token_manager is required");
+        let http = self.http.expect("http_client is required");
+        let sleeper = self.sleeper.expect("sleeper is required");
+
+        Client {
+            configuration,
+            previous_configurations: self.previous_configurations,
+            auth_token_manager,
+            http,
+            sleeper,
+            sessions: self.sessions,
+        }
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<Http, Atm> ClientBuilder<TokioSleeper, Http, Atm>
+where
+    Http: http::Client,
+    Atm: auth::AuthTokenManager,
+{
+    /// Configures the [`Client`] to use the tokio runtime for sleep operations.
+    pub fn tokio_sleeper(self) -> Self {
+        self.sleeper(TokioSleeper)
+    }
+}
+
+#[cfg(feature = "reqwest")]
+impl<S, Atm> ClientBuilder<S, reqwest::Client<LoadBalancerService>, Atm>
+where
+    S: Sleeper,
+    Atm: auth::AuthTokenManager,
+{
+    /// Sets the [`http::Client`] to [`reqwest::Client`].
+    pub fn reqwest(self) -> Self {
+        self.http(reqwest::Client::<LoadBalancerService>::new(
+            reqwest::ClientOptions {
+                additional_root_certs: vec![],
+            },
+        ))
+    }
+
+    /// Sets the [`http::Client`] to [`reqwest::Client`] with the supplied [`reqwest::ClientOptions`].
+    pub fn reqwest_with_options(self, options: reqwest::ClientOptions) -> Self {
+        self.http(reqwest::Client::<LoadBalancerService>::new(options))
+    }
+}
+
 /// Used to register and recover PIN-protected secrets on behalf of a
 /// particular user.
 pub struct Client<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> {
@@ -45,69 +184,7 @@ pub struct Client<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> {
     sessions: HashMap<RealmId, Mutex<Option<Session>>>,
 }
 
-#[cfg(feature = "tokio")]
-impl<Http: http::Client, Atm: auth::AuthTokenManager> Client<TokioSleeper, Http, Atm> {
-    /// Constructs a new `Client` that uses the tokio runtime for delaying request retries.
-    ///
-    /// see also [`Client::new`]
-    pub fn with_tokio(
-        configuration: Configuration,
-        previous_configurations: Vec<Configuration>,
-        auth_token_manager: Atm,
-        http: Http,
-    ) -> Self {
-        Self::new(
-            configuration,
-            previous_configurations,
-            auth_token_manager,
-            http,
-            TokioSleeper,
-        )
-    }
-}
-
 impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
-    /// Constructs a new `Client`.
-    ///
-    /// # Arguments
-    ///
-    /// * `configuration` – Represents the current configuration. The configuration
-    /// provided must include at least one [`Realm`].
-    /// * `previous_configurations` – Represents any other configurations you have
-    /// previously registered with that you may not yet have migrated the data from.
-    /// During [`Client::recover`], they will be tried if the current user has not yet
-    /// registered on the current configuration. These should be ordered from most recently
-    /// to least recently used.
-    /// * `auth_token_manager` – An [`AuthTokenManager`] used to retrieve a token for
-    /// a given [`Realm`].
-    /// * `http` – An [`http::Client`] used to make [`http::Request`] to a [`Realm`].
-    /// * `sleeper` – A [`Sleeper`] to use when the SDK needs to perform a `sleep` operation.
-    pub fn new(
-        configuration: Configuration,
-        previous_configurations: Vec<Configuration>,
-        auth_token_manager: Atm,
-        http: Http,
-        sleeper: S,
-    ) -> Self {
-        let configuration = CheckedConfiguration::from(configuration);
-        let sessions = configuration
-            .realms
-            .iter()
-            .map(|realm| (realm.id, Mutex::new(None)))
-            .collect();
-        Self {
-            configuration,
-            previous_configurations: previous_configurations
-                .into_iter()
-                .map(CheckedConfiguration::from)
-                .collect(),
-            auth_token_manager,
-            http,
-            sessions,
-            sleeper,
-        }
-    }
-
     /// Stores a new PIN-protected secret on the configured realms.
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     pub async fn register(

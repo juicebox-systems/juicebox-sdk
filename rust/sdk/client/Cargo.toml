@@ -37,3 +37,4 @@ zeroize = { workspace = true }
 
 [features]
 tokio = []
+reqwest = ["juicebox-sdk-networking/reqwest"]

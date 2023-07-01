@@ -1,0 +1,88 @@
+//! An [`http::Client`] implementation that utilizes [`reqwest`].
+
+use ::http::{HeaderName, HeaderValue};
+use async_trait::async_trait;
+use reqwest::Certificate;
+use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::str::FromStr;
+use std::time::Duration;
+
+use crate::{http, rpc};
+
+/// Options for configuring the [`reqwest`] [`Client`].
+#[derive(Debug, Default, Clone)]
+pub struct ClientOptions {
+    pub additional_root_certs: Vec<Certificate>,
+}
+
+/// An [`http::Client`] implementation that utilizes [`reqwest`].
+#[derive(Clone, Debug, Default)]
+pub struct Client<F: rpc::Service> {
+    // reqwest::Client holds a connection pool. It's reference-counted
+    // internally, so this field is relatively cheap to clone.
+    http: reqwest::Client,
+    _phantom_data: PhantomData<F>,
+}
+
+impl<F: rpc::Service> Client<F> {
+    pub fn new(options: ClientOptions) -> Self {
+        let mut b = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .use_rustls_tls();
+        for c in options.additional_root_certs {
+            b = b.add_root_certificate(c);
+        }
+        Self {
+            http: b.build().expect("TODO"),
+            _phantom_data: PhantomData {},
+        }
+    }
+}
+
+#[async_trait]
+impl<F: rpc::Service> http::Client for Client<F> {
+    async fn send(&self, request: http::Request) -> Option<http::Response> {
+        let mut request_builder = match request.method {
+            http::Method::Get => self.http.get(request.url),
+            http::Method::Put => self.http.put(request.url),
+            http::Method::Post => self.http.post(request.url),
+            http::Method::Delete => self.http.delete(request.url),
+        };
+
+        let mut headers = reqwest::header::HeaderMap::new();
+        for (key, value) in request.headers {
+            if let (Ok(header_name), Ok(header_value)) =
+                (HeaderName::from_str(&key), HeaderValue::from_str(&value))
+            {
+                headers.append(header_name, header_value);
+            }
+        }
+        request_builder = request_builder.headers(headers);
+
+        if let Some(body) = request.body {
+            request_builder = request_builder.body(body);
+        }
+
+        match request_builder.send().await {
+            Err(_) => None,
+            Ok(response) => {
+                let status = response.status().as_u16();
+                let mut headers = HashMap::new();
+                for (header_name, header_value) in response.headers() {
+                    if let Ok(value) = header_value.to_str() {
+                        headers.insert(header_name.to_string(), value.to_owned());
+                    }
+                }
+                match response.bytes().await {
+                    Err(_) => None,
+                    Ok(bytes) => Some(http::Response {
+                        status_code: status,
+                        headers,
+                        body: bytes.to_vec(),
+                    }),
+                }
+            }
+        }
+    }
+}

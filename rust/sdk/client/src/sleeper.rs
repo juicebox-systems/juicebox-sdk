@@ -6,7 +6,7 @@ use std::time::Duration;
 /// using the `async_trait` crate.
 ///
 /// Most users should simply use `tokio::sleep` by enabling
-/// the `tokio` feature and using [`Client::with_tokio`](crate::Client::with_tokio)
+/// the `tokio` feature and using [`ClientBuilder::tokio_sleeper`](crate::ClientBuilder::tokio_sleeper)
 #[async_trait]
 pub trait Sleeper {
     async fn sleep(&self, duration: Duration);

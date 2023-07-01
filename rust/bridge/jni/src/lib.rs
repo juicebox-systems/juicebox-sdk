@@ -49,18 +49,19 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientCreate(
         })
         .collect();
 
-    let sdk = sdk::Client::with_tokio(
-        (*configuration).to_owned(),
-        previous_configurations,
-        AuthTokenManager::new(
+    let sdk = sdk::ClientBuilder::new()
+        .configuration((*configuration).to_owned())
+        .previous_configurations(previous_configurations)
+        .auth_token_manager(AuthTokenManager::new(
             env.new_global_ref(auth_token_get).unwrap(),
             env.get_java_vm().unwrap(),
-        ),
-        HttpClient::new(
+        ))
+        .http(HttpClient::new(
             env.new_global_ref(http_send).unwrap(),
             env.get_java_vm().unwrap(),
-        ),
-    );
+        ))
+        .tokio_sleeper()
+        .build();
 
     Box::into_raw(Box::new(Client::new(sdk))) as jlong
 }
