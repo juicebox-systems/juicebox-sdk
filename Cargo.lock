@@ -1145,9 +1145,12 @@ dependencies = [
  "juicebox-sdk-core",
  "libc",
  "nix",
+ "rand_core",
  "regex",
+ "reqwest",
  "serde",
  "serde_json",
+ "tokio",
  "tracing 0.2.0",
 ]
 
