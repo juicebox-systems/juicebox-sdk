@@ -1,0 +1,22 @@
+[package]
+name = "juicebox-sdk-util"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true }
+juicebox-sdk-core = { path = "../core", optional = true }
+libc = { workspace = true, optional = true  }
+nix = { workspace = true, optional = true  }
+regex = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+
+[features]
+process_group = ["libc", "nix", "tracing"]
+realm_auth = ["hex", "jsonwebtoken", "juicebox-sdk-core", "regex", "serde"]
+software_realm_runner = ["hex", "juicebox-sdk-core", "process_group", "serde_json"]

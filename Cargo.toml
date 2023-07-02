@@ -6,6 +6,7 @@ members = [
     "rust/sdk/marshalling",
     "rust/sdk/networking",
     "rust/sdk/noise",
+    "rust/sdk/util",
     "rust/bridge/ffi",
     "rust/bridge/jni",
     "rust/bridge/wasm",
@@ -36,11 +37,14 @@ hmac = "0.12.1"
 http = "0.2.8"
 instant = "0.1.12"
 jni = "0.21.1"
+jsonwebtoken = { version = "8.3.0", default-features = false }
 js-sys = "0.3.61"
 libc = "0.2.140"
+nix = { version = "0.26.2", default-features = false, features = ["signal"] }
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
+regex = "1.5"
 reqwest = { version = "0.11.14", default-features = false, features = [
     "rustls-tls",
 ] }
