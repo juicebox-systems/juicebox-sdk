@@ -140,6 +140,12 @@ impl From<OprfHash> for OprfResult {
     }
 }
 
+impl From<[u8; 64]> for OprfResult {
+    fn from(value: [u8; 64]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
+
 impl OprfResult {
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
@@ -422,6 +428,12 @@ impl TryFrom<Vec<u8>> for MaskedUnlockKeyShare {
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         Ok(Self(SecretBytesArray::try_from(value)?))
+    }
+}
+
+impl From<[u8; 33]> for MaskedUnlockKeyShare {
+    fn from(value: [u8; 33]) -> Self {
+        MaskedUnlockKeyShare(SecretBytesArray::from(value))
     }
 }
 

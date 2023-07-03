@@ -429,3 +429,71 @@ where
 fn min<T: Ord>(values: Vec<T>) -> T {
     values.into_iter().min().unwrap()
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::request::{join_at_least_threshold, join_until_threshold};
+    use futures::future::{err, ready};
+
+    #[tokio::test]
+    async fn test_join_until_threshold() {
+        let futures = vec![
+            ready(Ok("Result 1")),
+            ready(Ok("Result 2")),
+            ready(Ok("Result 3")),
+            ready(Err(Box::new(TestError))),
+            ready(Ok("Result 4")),
+        ];
+
+        let result: Result<Vec<&str>, Box<TestError>> = join_until_threshold(futures, 3).await;
+
+        assert!(result.is_ok());
+        let results = result.unwrap();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results, vec!["Result 1", "Result 2", "Result 3"]);
+
+        let futures = vec![
+            ready(Ok("Result 1")),
+            ready(Ok("Result 2")),
+            ready(Ok("Result 3")),
+            ready(Err(Box::new(TestError))),
+        ];
+
+        let result: Result<Vec<&str>, Box<TestError>> = join_until_threshold(futures, 4).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_join_at_least_threshold() {
+        let futures = vec![
+            ready(Ok("Result 1")),
+            ready(Ok("Result 2")),
+            ready(Ok("Result 3")),
+            err(Box::new(TestError)),
+            ready(Ok("Result 4")),
+        ];
+
+        let result: Result<Vec<&str>, Box<TestError>> = join_at_least_threshold(futures, 3).await;
+
+        assert!(result.is_ok());
+        let results = result.unwrap();
+        assert_eq!(results.len(), 4);
+        assert_eq!(
+            results,
+            vec!["Result 1", "Result 2", "Result 3", "Result 4"]
+        );
+
+        let futures = vec![
+            err(Box::new(TestError)),
+            err(Box::new(TestError)),
+            err(Box::new(TestError)),
+        ];
+
+        let result: Result<Vec<&str>, Box<TestError>> = join_at_least_threshold(futures, 2).await;
+
+        assert!(result.is_err());
+    }
+
+    #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+    struct TestError;
+}

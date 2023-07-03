@@ -392,10 +392,34 @@ pub(crate) struct Session {
 
 #[cfg(test)]
 mod tests {
+    use juicebox_sdk_core::types::{MaskedUnlockKeyShare, OprfResult};
+
     use crate::types::{
-        EncryptedUserSecret, PaddedUserSecret, UserSecret, UserSecretEncryptionKey,
+        EncryptedUserSecret, PaddedUserSecret, UnlockKeyShare, UserSecret, UserSecretEncryptionKey,
         MAX_USER_SECRET_LENGTH,
     };
+
+    #[test]
+    fn test_unlock_key_share_masking() {
+        let oprf_result = OprfResult::from([10u8; 64]);
+
+        // TODO: We should not be including / masking the first byte (the X)
+        let unmasked_share = vec![
+            1u8, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+            5, 5, 5, 5, 5,
+        ];
+
+        let masked_share = MaskedUnlockKeyShare::from([
+            11u8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+        ]);
+
+        let s = UnlockKeyShare::try_from_masked(&masked_share, &oprf_result).unwrap();
+        assert_eq!(Vec::from(&s.0), unmasked_share);
+
+        let m = s.mask(&oprf_result);
+        assert_eq!(m.expose_secret(), masked_share.expose_secret());
+    }
 
     #[test]
     fn test_secret_padding() {

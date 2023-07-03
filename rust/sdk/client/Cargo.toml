@@ -39,6 +39,7 @@ zeroize = { workspace = true }
 juicebox-sdk-process-group = { path = "../process_group" }
 juicebox-sdk-realm-auth = { path = "../realm_auth" }
 juicebox-sdk-software-realm = { path = "../software_realm" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [features]
 tokio = []
