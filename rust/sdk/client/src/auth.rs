@@ -5,6 +5,8 @@ use async_trait::async_trait;
 use juicebox_sdk_core::types::{AuthToken, RealmId};
 use std::collections::HashMap;
 
+/// A trait representing generic management of tokens that grant
+/// the authority to act as a particular user on a particular realm.
 #[async_trait]
 pub trait AuthTokenManager {
     /// Called when authentication is needed for a given realm.
@@ -15,6 +17,8 @@ pub trait AuthTokenManager {
     async fn get(&self, realm: &RealmId) -> Option<AuthToken>;
 }
 
+/// A trait representing generic management of tokens that grant
+/// the authority to act as a particular user on a particular realm.
 #[async_trait]
 impl AuthTokenManager for HashMap<RealmId, AuthToken> {
     async fn get(&self, realm: &RealmId) -> Option<AuthToken> {

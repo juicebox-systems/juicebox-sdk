@@ -107,16 +107,18 @@ impl Client {
     #[wasm_bindgen(constructor)]
     pub fn new(configuration: Configuration, previous_configurations: ConfigurationArray) -> Self {
         console_error_panic_hook::set_once();
-        let sdk = sdk::Client::new(
-            sdk::Configuration::from(configuration),
-            Array::from(&previous_configurations)
-                .iter()
-                .map(|value| from_value::<sdk::Configuration>(value).unwrap())
-                .collect(),
-            WasmAuthTokenManager,
-            HttpClient(),
-            WasmSleeper,
-        );
+        let sdk = sdk::ClientBuilder::new()
+            .configuration(sdk::Configuration::from(configuration))
+            .previous_configurations(
+                Array::from(&previous_configurations)
+                    .iter()
+                    .map(|value| from_value::<sdk::Configuration>(value).unwrap())
+                    .collect(),
+            )
+            .auth_token_manager(WasmAuthTokenManager)
+            .http(HttpClient())
+            .sleeper(WasmSleeper)
+            .build();
         Self(sdk)
     }
 

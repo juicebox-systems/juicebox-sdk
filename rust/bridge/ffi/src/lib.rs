@@ -84,12 +84,13 @@ pub unsafe extern "C" fn juicebox_client_create(
             (*(*configuration)).0.to_owned()
         })
         .collect();
-    let sdk = sdk::Client::with_tokio(
-        (*configuration).0.to_owned(),
-        previous_configurations,
-        AuthTokenManager::new(auth_token_get),
-        HttpClient::new(http_send),
-    );
+    let sdk = sdk::ClientBuilder::new()
+        .tokio_sleeper()
+        .configuration((*configuration).0.to_owned())
+        .previous_configurations(previous_configurations)
+        .auth_token_manager(AuthTokenManager::new(auth_token_get))
+        .http(HttpClient::new(http_send))
+        .build();
     Box::into_raw(Box::new(Client::new(sdk)))
 }
 
