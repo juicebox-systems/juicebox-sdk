@@ -1,5 +1,4 @@
 use rand::rngs::OsRng;
-use sharks::Sharks;
 use std::collections::HashMap;
 use tracing::instrument;
 
@@ -8,9 +7,7 @@ use juicebox_sdk_core::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
     },
-    types::{
-        OprfClient, OprfResult, RegistrationVersion, Salt, SaltShare, UnlockTag, UserSecretShare,
-    },
+    types::{OprfClient, OprfResult, RegistrationVersion, Salt, SaltShare, UnlockTag},
 };
 
 use crate::{
@@ -18,6 +15,7 @@ use crate::{
     configuration::CheckedConfiguration,
     http,
     request::{join_at_least_threshold, join_until_threshold, RequestError},
+    secret_sharing,
     types::{EncryptedUserSecret, UnlockKey, UnlockKeyShare, UserSecretAccessKey},
     Client, Pin, Realm, Sleeper, UserInfo, UserSecret,
 };
@@ -113,23 +111,29 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             return Err(RecoverError::NotRegistered);
         };
 
-        let (salt_shares, realms): (Vec<SaltShare>, Vec<Realm>) =
-            salt_shares_and_realms.into_iter().unzip();
-
-        let salt_shark_shares: Vec<sharks::Share> = salt_shares
+        let salt_shares: Vec<secret_sharing::Share> = salt_shares_and_realms
             .iter()
-            .map(|share| {
-                sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
+            .map(|(share, realm)| {
+                let position = configuration
+                    .share_position(&realm.id)
+                    .ok_or(RecoverError::Assertion)?;
+                let bytes = secret_sharing::ShareBytes::from(share.expose_secret());
+                secret_sharing::Share::try_from(&position, &bytes)
+                    .map_err(|_| RecoverError::Assertion)
             })
             .collect::<Result<_, _>>()?;
 
-        let salt: Salt =
-            match Sharks(configuration.recover_threshold).recover(salt_shark_shares.iter()) {
-                Ok(salt) => Salt::try_from(salt).map_err(|_| RecoverError::Assertion)?,
-                Err(_) => {
-                    return Err(RecoverError::Assertion);
-                }
-            };
+        let salt: Salt = match secret_sharing::reconstruct(
+            salt_shares.iter(),
+            configuration.recover_threshold,
+        ) {
+            Ok(salt) => Salt::try_from(salt).map_err(|_| RecoverError::Assertion)?,
+            Err(_) => {
+                return Err(RecoverError::Assertion);
+            }
+        };
+
+        let (_, realms): (Vec<SaltShare>, Vec<Realm>) = salt_shares_and_realms.into_iter().unzip();
 
         let (access_key, encryption_key) = pin
             .hash(configuration.pin_hashing_mode, &salt, info)
@@ -137,14 +141,15 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let recover2_requests = realms
             .iter()
-            .map(|realm| self.recover2_on_realm(realm, &version, &access_key));
+            .map(|realm| self.recover2_on_realm(realm, configuration, &version, &access_key));
 
-        let unlock_key_shares: Vec<UnlockKeyShare> =
+        let unlock_key_shares: Vec<secret_sharing::Share> =
             join_until_threshold(recover2_requests, configuration.recover_threshold).await?;
 
-        let unlock_key = match Sharks(configuration.recover_threshold)
-            .recover(unlock_key_shares.iter().map(|share| &share.0))
-        {
+        let unlock_key = match secret_sharing::reconstruct(
+            unlock_key_shares.iter(),
+            configuration.recover_threshold,
+        ) {
             Ok(unlock_key) => {
                 UnlockKey::try_from(unlock_key).map_err(|_| RecoverError::Assertion)?
             }
@@ -153,17 +158,14 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             }
         };
 
-        let recover3_requests = realms.iter().map(|realm| async {
-            let share: UserSecretShare = self
-                .recover3_on_realm(realm, &version, unlock_key.tag(&realm.id))
-                .await?;
-            sharks::Share::try_from(share.expose_secret()).map_err(|_| RecoverError::Assertion)
+        let recover3_requests = realms.iter().map(|realm| {
+            self.recover3_on_realm(realm, configuration, &version, unlock_key.tag(&realm.id))
         });
 
-        let secret_shares: Vec<sharks::Share> =
+        let secret_shares: Vec<secret_sharing::Share> =
             join_at_least_threshold(recover3_requests, configuration.recover_threshold).await?;
 
-        match Sharks(configuration.recover_threshold).recover(&secret_shares) {
+        match secret_sharing::reconstruct(secret_shares.iter(), configuration.recover_threshold) {
             Ok(secret) => Ok(EncryptedUserSecret::try_from(secret)
                 .map_err(|_| RecoverError::Assertion)?
                 .decrypt(&encryption_key)),
@@ -200,9 +202,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     async fn recover2_on_realm(
         &self,
         realm: &Realm,
+        configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
-    ) -> Result<UnlockKeyShare, RecoverError> {
+    ) -> Result<secret_sharing::Share, RecoverError> {
         let blinded_oprf_input = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
             .expect("failed to blind access_key");
 
@@ -252,9 +255,17 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .expect("failed to unblind blinded_oprf_input")
             .into();
 
-        let unlock_key_share =
+        let share_bytes = secret_sharing::ShareBytes::from(
             UnlockKeyShare::try_from_masked(&masked_unlock_key_share, &oprf_result)
-                .expect("failed to unmask unlock_key_share");
+                .expect("failed to unmask unlock_key_share")
+                .expose_secret(),
+        );
+
+        let share_position = configuration
+            .share_position(&realm.id)
+            .ok_or(RecoverError::Assertion)?;
+        let unlock_key_share = secret_sharing::Share::try_from(&share_position, &share_bytes)
+            .map_err(|_| RecoverError::Assertion)?;
 
         Ok(unlock_key_share)
     }
@@ -264,9 +275,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     async fn recover3_on_realm(
         &self,
         realm: &Realm,
+        configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
         tag: UnlockTag,
-    ) -> Result<UserSecretShare, RecoverError> {
+    ) -> Result<secret_sharing::Share, RecoverError> {
         let recover3_request = self.make_request(
             realm,
             SecretsRequest::Recover3(Recover3Request {
@@ -281,7 +293,17 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
 
             Ok(SecretsResponse::Recover3(rr)) => match rr {
-                Recover3Response::Ok { secret_share } => Ok(secret_share),
+                Recover3Response::Ok { secret_share } => {
+                    let share_bytes =
+                        secret_sharing::ShareBytes::from(secret_share.expose_secret());
+                    let share_position = configuration
+                        .share_position(&realm.id)
+                        .ok_or(RecoverError::Assertion)?;
+                    let secret_share =
+                        secret_sharing::Share::try_from(&share_position, &share_bytes)
+                            .map_err(|_| RecoverError::Assertion)?;
+                    Ok(secret_share)
+                }
                 Recover3Response::NotRegistered => Err(RecoverError::NotRegistered),
                 Recover3Response::NoGuesses => Err(RecoverError::InvalidPin {
                     guesses_remaining: 0,

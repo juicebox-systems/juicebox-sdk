@@ -341,16 +341,14 @@ pub(crate) struct LengthMismatchError;
 ///
 /// The version of this that is XORed with `OPRF(PIN)` is
 /// [`MaskedUnlockKeyShare`](super::types::MaskedUnlockKeyShare).
-#[derive(Clone)]
-pub(crate) struct UnlockKeyShare(pub sharks::Share);
-
-impl Debug for UnlockKeyShare {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("UnlockKeyShare(REDACTED)")
-    }
-}
+#[derive(Clone, Debug)]
+pub(crate) struct UnlockKeyShare(SecretBytesArray<32>);
 
 impl UnlockKeyShare {
+    pub fn expose_secret(&self) -> &[u8] {
+        self.0.expose_secret()
+    }
+
     pub fn try_from_masked(
         masked_share: &MaskedUnlockKeyShare,
         oprf_result: &OprfResult,
@@ -359,22 +357,26 @@ impl UnlockKeyShare {
             let share: Vec<u8> = zip(oprf_result.expose_secret(), masked_share.expose_secret())
                 .map(|(a, b)| a ^ b)
                 .collect();
-            match sharks::Share::try_from(share.as_slice()) {
-                Ok(share) => Ok(Self(share)),
-                Err(_) => Err(LengthMismatchError),
-            }
+            Ok(Self::try_from(share).map_err(|_| LengthMismatchError)?)
         } else {
             Err(LengthMismatchError)
         }
     }
 
     pub fn mask(&self, oprf_result: &OprfResult) -> MaskedUnlockKeyShare {
-        let share = Vec::from(&self.0);
-        assert!(oprf_result.expose_secret().len() >= share.len());
-        let vec: Vec<u8> = zip(oprf_result.expose_secret(), share)
+        assert!(oprf_result.expose_secret().len() >= self.expose_secret().len());
+        let vec: Vec<u8> = zip(oprf_result.expose_secret(), self.expose_secret())
             .map(|(a, b)| a ^ b)
             .collect();
         MaskedUnlockKeyShare::try_from(vec).expect("incorrect masked unlock key share length")
+    }
+}
+
+impl TryFrom<Vec<u8>> for UnlockKeyShare {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
@@ -403,19 +405,18 @@ mod tests {
     fn test_unlock_key_share_masking() {
         let oprf_result = OprfResult::from([10u8; 64]);
 
-        // TODO: We should not be including / masking the first byte (the X)
         let unmasked_share = vec![
-            1u8, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-            5, 5, 5, 5, 5,
+            5u8, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+            5, 5, 5, 5,
         ];
 
         let masked_share = MaskedUnlockKeyShare::from([
-            11u8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+            15u8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
         ]);
 
         let s = UnlockKeyShare::try_from_masked(&masked_share, &oprf_result).unwrap();
-        assert_eq!(Vec::from(&s.0), unmasked_share);
+        assert_eq!(s.expose_secret(), unmasked_share);
 
         let m = s.mask(&oprf_result);
         assert_eq!(m.expose_secret(), masked_share.expose_secret());

@@ -11,6 +11,7 @@ mod pin;
 mod recover;
 mod register;
 mod request;
+mod secret_sharing;
 mod sleeper;
 mod types;
 

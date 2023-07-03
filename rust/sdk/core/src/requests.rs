@@ -256,11 +256,11 @@ mod tests {
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            salt_share: SaltShare::from([0xff; 17]),
+            salt_share: SaltShare::from([0xff; 16]),
             oprf_seed: OprfSeed::from([0xff; 32]),
             tag: UnlockTag::from([0xff; 32]),
-            masked_unlock_key_share: MaskedUnlockKeyShare::try_from(vec![0xff; 33]).unwrap(),
-            secret_share: UserSecretShare::try_from(vec![0xff; 146]).unwrap(),
+            masked_unlock_key_share: MaskedUnlockKeyShare::try_from(vec![0xff; 32]).unwrap(),
+            secret_share: UserSecretShare::try_from(vec![0xff; 145]).unwrap(),
             policy: Policy {
                 num_guesses: u16::MAX,
             },

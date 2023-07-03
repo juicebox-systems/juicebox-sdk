@@ -1,5 +1,6 @@
-use crate::{PinHashingMode, Realm};
+use crate::{secret_sharing::SharePosition, PinHashingMode, Realm};
 
+use juicebox_sdk_core::types::RealmId;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, ops::Deref};
 
@@ -99,7 +100,27 @@ impl CheckedConfiguration {
             "Configuration register_threshold cannot exceed number of realms"
         );
 
-        Self(c)
+        // perform a fixed sorting of realms based on their id, so that shares
+        // are produced in a consistent ordering for a given configuration.
+        let mut sorted_realms = c.realms.clone();
+        sorted_realms.sort_by(|lhs, rhs| lhs.id.cmp(&rhs.id));
+
+        Self(Configuration {
+            realms: sorted_realms,
+            register_threshold: c.register_threshold,
+            recover_threshold: c.recover_threshold,
+            pin_hashing_mode: c.pin_hashing_mode,
+        })
+    }
+}
+
+impl CheckedConfiguration {
+    pub fn share_position(&self, realm: &RealmId) -> Option<SharePosition> {
+        if let Some(position) = self.0.realms.iter().position(|r| r.id == *realm) {
+            (position + 1).try_into().map(SharePosition).ok()
+        } else {
+            None
+        }
     }
 }
 
