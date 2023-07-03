@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::time::Duration;
+use tracing::warn;
 
 use crate::{http, rpc};
 
@@ -65,7 +66,10 @@ impl<F: rpc::Service> http::Client for Client<F> {
         }
 
         match request_builder.send().await {
-            Err(_) => None,
+            Err(err) => {
+                warn!(%err, "error sending HTTP request");
+                None
+            }
             Ok(response) => {
                 let status = response.status().as_u16();
                 let mut headers = HashMap::new();
@@ -75,7 +79,10 @@ impl<F: rpc::Service> http::Client for Client<F> {
                     }
                 }
                 match response.bytes().await {
-                    Err(_) => None,
+                    Err(err) => {
+                        warn!(%err, "error receiving HTTP response");
+                        None
+                    }
                     Ok(bytes) => Some(http::Response {
                         status_code: status,
                         headers,

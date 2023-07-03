@@ -46,7 +46,6 @@ pub struct ClientBuilder<S, Http, Atm> {
     auth_token_manager: Option<Atm>,
     http: Option<Http>,
     sleeper: Option<S>,
-    sessions: HashMap<RealmId, Mutex<Option<Session>>>,
 }
 
 impl<S, Http, Atm> Default for ClientBuilder<S, Http, Atm>
@@ -74,19 +73,12 @@ where
             auth_token_manager: None,
             http: None,
             sleeper: None,
-            sessions: HashMap::new(),
         }
     }
 
     /// Sets the current configuration. The configuration provided must include at least one [`Realm`]
     pub fn configuration(mut self, configuration: Configuration) -> Self {
-        let checked_configuration = CheckedConfiguration::from(configuration);
-        self.sessions = checked_configuration
-            .realms
-            .iter()
-            .map(|realm| (realm.id, Mutex::new(None)))
-            .collect();
-        self.configuration = Some(checked_configuration);
+        self.configuration = Some(CheckedConfiguration::from(configuration));
         self
     }
 
@@ -128,6 +120,11 @@ where
             .expect("auth_token_manager is required");
         let http = self.http.expect("http_client is required");
         let sleeper = self.sleeper.expect("sleeper is required");
+        let sessions = configuration
+            .realms
+            .iter()
+            .map(|realm| (realm.id, Mutex::new(None)))
+            .collect();
 
         Client {
             configuration,
@@ -135,7 +132,7 @@ where
             auth_token_manager,
             http,
             sleeper,
-            sessions: self.sessions,
+            sessions,
         }
     }
 }
