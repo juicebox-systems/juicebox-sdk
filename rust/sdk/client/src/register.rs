@@ -181,3 +181,24 @@ where
     let iter = a.into_iter().zip(b).zip(c).zip(d).zip(e);
     iter.map(|((((a, b), c), d), e)| (a, b, c, d, e))
 }
+
+mod tests {
+    #[test]
+    fn test_zip5() {
+        let a = vec![1, 2, 3];
+        let b = vec!['a', 'b', 'c'];
+        let c = vec![true, false, true];
+        let d = vec!["x", "y", "z"];
+        let e = vec![0.1, 0.2, 0.3];
+
+        let zipped: Vec<_> = super::zip5(a, b, c, d, e).collect();
+
+        let expected = vec![
+            (1, 'a', true, "x", 0.1),
+            (2, 'b', false, "y", 0.2),
+            (3, 'c', true, "z", 0.3),
+        ];
+
+        assert_eq!(zipped, expected);
+    }
+}
