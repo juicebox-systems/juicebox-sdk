@@ -1171,6 +1171,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "juicebox-sdk-tokens"
+version = "0.1.0"
+dependencies = [
+ "clap 4.3.10",
+ "hex",
+ "jsonwebtoken",
+ "juicebox-sdk-core",
+ "juicebox-sdk-realm-auth",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "juicebox-sdk-wasm"
 version = "0.1.0"
 dependencies = [

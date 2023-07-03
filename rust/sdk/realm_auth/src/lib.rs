@@ -7,7 +7,7 @@ pub mod validation;
 /// An integer version for an [`AuthKey`] secret.
 pub struct AuthKeyVersion(pub u64);
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 /// A symmetric key used for creating and validating JWT tokens
 /// for clients (see [`AuthToken`]).
 pub struct AuthKey(pub SecretBytesVec);

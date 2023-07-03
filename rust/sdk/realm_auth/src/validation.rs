@@ -27,6 +27,8 @@ pub struct Validator {
     pub max_lifetime_seconds: Option<u64>,
 }
 
+pub const MAX_LIFETIME_SECONDS: u64 = 60 * 60 * 24;
+
 impl Validator {
     pub fn new(realm_id: RealmId) -> Self {
         let mut validation = Validation::new(Algorithm::HS256);
@@ -34,7 +36,7 @@ impl Validator {
         validation.set_required_spec_claims(&["exp", "nbf", "aud", "iss", "sub"]);
         Self {
             validation,
-            max_lifetime_seconds: Some(60 * 60 * 24),
+            max_lifetime_seconds: Some(MAX_LIFETIME_SECONDS),
         }
     }
 
