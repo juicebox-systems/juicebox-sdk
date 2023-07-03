@@ -54,8 +54,7 @@ enum Command {
     },
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = Args::parse();
 
     match args.command {

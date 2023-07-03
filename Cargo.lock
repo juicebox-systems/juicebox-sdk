@@ -1180,7 +1180,6 @@ dependencies = [
  "juicebox-sdk-core",
  "juicebox-sdk-realm-auth",
  "thiserror",
- "tokio",
 ]
 
 [[package]]

@@ -8,7 +8,7 @@ cargo build -p juicebox-sdk-tokens
 ```
 
 ```
-Usage: juicebox_sdk_tokens <COMMAND>
+Usage: tokens <COMMAND>
 
 Commands:
   create    Create an auth token for a tenant
@@ -24,7 +24,7 @@ Options:
 Create an auth token for a given tenant.
 
 ```
-Usage: juicebox_sdk_tokens create <USER> <TENANT> <REALM> <KEY> <VERSION>
+Usage: tokens create <USER> <TENANT> <REALM> <KEY> <VERSION>
 
 Arguments:
   <USER>     An alphanumeric user ID that this token should be valid for
@@ -42,7 +42,7 @@ Options:
 Validate an auth token for a tenant. Specific errors and warnings will be printed to help you diagnose any issues with your token creation code.
 
 ```
-Usage: juicebox_sdk_tokens validate <TOKEN> <USER> <TENANT> <REALM> <KEY> <VERSION>
+Usage: tokens validate <TOKEN> <USER> <TENANT> <REALM> <KEY> <VERSION>
 
 Arguments:
   <TOKEN>    The token to validate

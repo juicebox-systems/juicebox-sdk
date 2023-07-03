@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "juicebox_sdk_tokens"
+name = "tokens"
 path = "src/main.rs"
 
 [dependencies]
@@ -14,4 +14,3 @@ jsonwebtoken = { workspace = true }
 juicebox-sdk-core = { path = "../core" }
 juicebox-sdk-realm-auth = { path = "../realm_auth" }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
