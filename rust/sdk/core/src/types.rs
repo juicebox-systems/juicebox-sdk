@@ -225,6 +225,15 @@ impl From<[u8; 32]> for OprfSeed {
 #[derive(Copy, Clone, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RealmId(#[serde(with = "bytes")] pub [u8; 16]);
 
+impl RealmId {
+    /// Generates a new id with random data.
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
+        let mut id = [0; 16];
+        rng.fill_bytes(&mut id);
+        Self(id)
+    }
+}
+
 impl Debug for RealmId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in self.0 {

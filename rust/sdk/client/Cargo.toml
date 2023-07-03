@@ -35,6 +35,12 @@ voprf = { workspace = true }
 x25519-dalek = { workspace = true }
 zeroize = { workspace = true }
 
+[dev-dependencies]
+juicebox-sdk-process-group = { path = "../process_group" }
+juicebox-sdk-realm-auth = { path = "../realm_auth" }
+juicebox-sdk-software-realm = { path = "../software_realm" }
+
 [features]
 tokio = []
 reqwest = ["juicebox-sdk-networking/reqwest"]
+software_realm_tests = ["tokio", "reqwest", "tokio/macros", "tokio/rt-multi-thread"]

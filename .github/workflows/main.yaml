@@ -81,7 +81,6 @@ jobs:
     name: Rust
     runs-on: ubuntu-20.04
     steps:
-
       - uses: actions/checkout@v3
 
       - name: Install Rust stable toolchain
@@ -130,6 +129,25 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: audit
+
+      - name: Clone Software Realm
+        uses: actions/checkout@v3
+        with:
+          repository: 'juicebox-systems/juicebox-software-realm'
+          token: ${{ secrets.ACCESS_TOKEN }}
+          path: 'juicebox-software-realm'
+
+      - name: Build jb-sw-realm
+        run: |
+          cd juicebox-software-realm
+          go build -o jb-sw-realm
+          mv jb-sw-realm /usr/local/bin
+
+      - name: Run software realm integration tests
+        uses: actions-rs/cargo@v1
+        with:
+          args: -p juicebox-sdk software_realm --features software_realm_tests
+          command: test
 
       - name: Install nightly
         uses: actions-rs/toolchain@v1
