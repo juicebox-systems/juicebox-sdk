@@ -1,0 +1,16 @@
+[package]
+name = "juicebox-sdk-tokens"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tokens"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+hex = { workspace = true, features = ["std"] }
+jsonwebtoken = { workspace = true }
+juicebox-sdk-core = { path = "../core" }
+juicebox-sdk-realm-auth = { path = "../realm_auth" }
+thiserror = { workspace = true }

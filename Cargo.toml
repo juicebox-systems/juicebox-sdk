@@ -9,6 +9,7 @@ members = [
     "rust/sdk/process_group",
     "rust/sdk/realm_auth",
     "rust/sdk/software_realm",
+    "rust/sdk/tokens",
     "rust/bridge/ffi",
     "rust/bridge/jni",
     "rust/bridge/wasm",
