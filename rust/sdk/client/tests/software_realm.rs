@@ -3,9 +3,9 @@ mod software_realm {
     use juicebox_sdk::{AuthToken, RealmId, RecoverError, TokioSleeper, *};
     use juicebox_sdk_networking::reqwest;
     use juicebox_sdk_networking::rpc::LoadBalancerService;
-    use juicebox_sdk_util::process_group::ProcessGroup;
-    use juicebox_sdk_util::realm_auth::{creation::create_token, AuthKey, AuthKeyVersion, Claims};
-    use juicebox_sdk_util::software_realm::{Runner, RunnerArgs};
+    use juicebox_sdk_process_group::ProcessGroup;
+    use juicebox_sdk_realm_auth::{creation::create_token, AuthKey, AuthKeyVersion, Claims};
+    use juicebox_sdk_software_realm::{Runner, RunnerArgs};
     use rand::distributions::Alphanumeric;
     use rand::rngs::OsRng;
     use rand::Rng;
@@ -102,7 +102,7 @@ mod software_realm {
     }
 
     #[tokio::test]
-    async fn simple_register() {
+    async fn register() {
         let mut process_group = ProcessGroup::new();
         let client = create_client(1, &mut process_group).await;
 
@@ -117,7 +117,7 @@ mod software_realm {
     }
 
     #[tokio::test]
-    async fn simple_recover() {
+    async fn recover_not_registered() {
         let mut process_group = ProcessGroup::new();
         let client = create_client(1, &mut process_group).await;
 
@@ -131,7 +131,7 @@ mod software_realm {
     }
 
     #[tokio::test]
-    async fn simple_delete() {
+    async fn delete() {
         let mut process_group = ProcessGroup::new();
         let client = create_client(1, &mut process_group).await;
 

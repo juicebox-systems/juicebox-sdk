@@ -36,7 +36,9 @@ x25519-dalek = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]
-juicebox-sdk-util = { path = "../util", features = ["process_group", "software_realm_runner", "realm_auth"] }
+juicebox-sdk-process-group = { path = "../process_group" }
+juicebox-sdk-realm-auth = { path = "../realm_auth" }
+juicebox-sdk-software-realm = { path = "../software_realm" }
 
 [features]
 tokio = []

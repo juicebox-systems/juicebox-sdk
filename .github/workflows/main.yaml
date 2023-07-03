@@ -107,14 +107,6 @@ jobs:
         env:
           RUST_BACKTRACE: '1'
 
-      - name: Run util tests
-        uses: actions-rs/cargo@v1
-        with:
-          args: -p juicebox-sdk-util --all-features
-          command: test
-        env:
-          RUST_BACKTRACE: '1'
-
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:

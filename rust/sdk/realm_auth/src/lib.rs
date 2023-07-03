@@ -1,5 +1,4 @@
 use juicebox_sdk_core::types::{AuthToken, RealmId, SecretBytesVec};
-use rand_core::{CryptoRng, RngCore};
 
 pub mod creation;
 pub mod validation;
@@ -14,13 +13,6 @@ pub struct AuthKeyVersion(pub u64);
 pub struct AuthKey(pub SecretBytesVec);
 
 impl AuthKey {
-    /// Generates a new key with random data.
-    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
-        let mut key = Vec::with_capacity(32);
-        rng.fill_bytes(&mut key);
-        Self::from(key)
-    }
-
     pub fn expose_secret(&self) -> &[u8] {
         self.0.expose_secret()
     }

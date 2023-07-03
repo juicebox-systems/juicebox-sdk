@@ -1010,7 +1010,9 @@ dependencies = [
  "juicebox-sdk-marshalling",
  "juicebox-sdk-networking",
  "juicebox-sdk-noise",
- "juicebox-sdk-util",
+ "juicebox-sdk-process-group",
+ "juicebox-sdk-realm-auth",
+ "juicebox-sdk-software-realm",
  "rand",
  "serde",
  "serde_json",
@@ -1137,21 +1139,35 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-util"
+name = "juicebox-sdk-process-group"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "nix",
+ "tracing 0.2.0",
+]
+
+[[package]]
+name = "juicebox-sdk-realm-auth"
 version = "0.1.0"
 dependencies = [
  "hex",
  "jsonwebtoken",
  "juicebox-sdk-core",
- "libc",
- "nix",
- "rand_core",
  "regex",
- "reqwest",
  "serde",
+]
+
+[[package]]
+name = "juicebox-sdk-software-realm"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "juicebox-sdk-core",
+ "juicebox-sdk-process-group",
+ "reqwest",
  "serde_json",
  "tokio",
- "tracing 0.2.0",
 ]
 
 [[package]]
