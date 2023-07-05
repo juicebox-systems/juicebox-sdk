@@ -53,20 +53,7 @@ impl Response {
 /// A trait representing an HTTP Client that can asynchronously
 /// make requests and return responses. It should be implemented
 /// using the `async_trait` crate.
-#[cfg(feature = "threadsafe-futures")]
 #[async_trait]
-pub trait Client: Sync {
-    /// Called when the HTTP [`Client`] should perform a [`Request`]
-    /// and return the [`Response`] or [`None`] if unable to
-    /// perform the request.
-    async fn send(&self, request: Request) -> Option<Response>;
-}
-
-/// A trait representing an HTTP Client that can asynchronously
-/// make requests and return responses. It should be implemented
-/// using the `async_trait` crate.
-#[cfg(not(feature = "threadsafe-futures"))]
-#[async_trait(?Send)]
 pub trait Client: Sync {
     /// Called when the HTTP [`Client`] should perform a [`Request`]
     /// and return the [`Response`] or [`None`] if unable to

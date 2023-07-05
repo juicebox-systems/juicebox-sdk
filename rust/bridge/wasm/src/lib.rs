@@ -246,57 +246,65 @@ impl Client {
 
 struct HttpClient();
 
-#[async_trait(?Send)]
+#[async_trait]
 impl sdk::http::Client for HttpClient {
     async fn send(&self, request: sdk::http::Request) -> Option<sdk::http::Response> {
-        let mut opts = RequestInit::new();
-        opts.method(request.method.as_str());
-        opts.mode(RequestMode::Cors);
+        let (tx, rx) = oneshot::channel();
 
-        if let Some(body) = &request.body {
-            opts.body(Some(&Uint8Array::from(body.as_slice())));
-        }
+        spawn_local(async move {
+            let mut opts = RequestInit::new();
+            opts.method(request.method.as_str());
+            opts.mode(RequestMode::Cors);
 
-        let js_request = Request::new_with_str_and_init(request.url.as_str(), &opts)
-            .expect("Failed to initialze request");
+            if let Some(body) = &request.body {
+                opts.body(Some(&Uint8Array::from(body.as_slice())));
+            }
 
-        request.headers.iter().for_each(|(name, value)| {
-            js_request.headers().set(name, value).unwrap();
+            let js_request = Request::new_with_str_and_init(request.url.as_str(), &opts)
+                .expect("Failed to initialze request");
+
+            request.headers.iter().for_each(|(name, value)| {
+                js_request.headers().set(name, value).unwrap();
+            });
+
+            match JsFuture::from(fetch_with_request(&js_request)).await {
+                Ok(value) => {
+                    let response: Response = value.dyn_into().unwrap();
+
+                    let headers = try_iter(&response.headers())
+                        .unwrap()
+                        .unwrap()
+                        .map(|entry| Array::from(&entry.unwrap()))
+                        .map(|entry| {
+                            (
+                                entry.get(0).as_string().unwrap(),
+                                entry.get(1).as_string().unwrap(),
+                            )
+                        })
+                        .collect();
+
+                    let body = match JsFuture::from(response.blob().unwrap()).await {
+                        Ok(value) => {
+                            let blob: Blob = value.into();
+                            let array_buffer = JsFuture::from(blob.array_buffer()).await.unwrap();
+                            Uint8Array::new(&array_buffer).to_vec()
+                        }
+                        Err(_) => vec![],
+                    };
+
+                    _ = tx.send(Some(sdk::http::Response {
+                        status_code: response.status(),
+                        headers,
+                        body,
+                    }));
+                }
+                Err(_) => {
+                    _ = tx.send(None);
+                }
+            };
         });
 
-        match JsFuture::from(fetch_with_request(&js_request)).await {
-            Ok(value) => {
-                let response: Response = value.dyn_into().unwrap();
-
-                let headers = try_iter(&response.headers())
-                    .unwrap()
-                    .unwrap()
-                    .map(|entry| Array::from(&entry.unwrap()))
-                    .map(|entry| {
-                        (
-                            entry.get(0).as_string().unwrap(),
-                            entry.get(1).as_string().unwrap(),
-                        )
-                    })
-                    .collect();
-
-                let body = match JsFuture::from(response.blob().unwrap()).await {
-                    Ok(value) => {
-                        let blob: Blob = value.into();
-                        let array_buffer = JsFuture::from(blob.array_buffer()).await.unwrap();
-                        Uint8Array::new(&array_buffer).to_vec()
-                    }
-                    Err(_) => vec![],
-                };
-
-                Some(sdk::http::Response {
-                    status_code: response.status(),
-                    headers,
-                    body,
-                })
-            }
-            Err(_) => None,
-        }
+        rx.await.unwrap()
     }
 }
 

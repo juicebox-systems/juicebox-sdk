@@ -23,5 +23,4 @@ url = { workspace = true }
 
 [features]
 "distributed-tracing" = ["tracing-opentelemetry", "opentelemetry"]
-"threadsafe-futures" = []
-"reqwest" = ["dep:reqwest", "threadsafe-futures"]
+"reqwest" = ["dep:reqwest"]
