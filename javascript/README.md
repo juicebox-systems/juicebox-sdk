@@ -2,7 +2,11 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
+[Documentation](https://docs:JU1C380X@docs.juicebox.xyz/javascript/)
+
 ### Install
+
+**_Note:_** This repo is pre-production and has not yet been published to NPM. It must be installed manually.
 
 ```
 npm install -s juicebox-sdk

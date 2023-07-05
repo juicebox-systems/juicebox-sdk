@@ -1,0 +1,10 @@
+{
+    "typedocOptions": {
+        "name": "Juicebox SDK",
+        "entryPoints": [
+            "juicebox-sdk.d.ts"
+        ],
+        "readme": "../README.md",
+        "out": "docs"
+    }
+}

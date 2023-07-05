@@ -8,9 +8,24 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * Error returned during `Client.delete`
+ */
 typedef enum {
+  /**
+   * A realm rejected the `Client`'s auth token.
+   */
   JuiceboxDeleteErrorInvalidAuth = 0,
+  /**
+   * A software error has occurred. This request should not be retried
+   * with the same parameters. Verify your inputs, check for software
+   * updates and try again.
+   */
   JuiceboxDeleteErrorAssertion = 1,
+  /**
+   * A transient error in sending or receiving requests to a realm.
+   * This request may succeed by trying again with the same parameters.
+   */
   JuiceboxDeleteErrorTransient = 2,
 } JuiceboxDeleteError;
 
@@ -32,17 +47,56 @@ typedef enum {
   JuiceboxPinHashingModeFastInsecure = 1,
 } JuiceboxPinHashingMode;
 
+/**
+ * Error returned during `Client.recover`
+ */
 typedef enum {
+  /**
+   * The secret could not be unlocked, but you can try again
+   * with a different PIN if you have guesses remaining. If no
+   * guesses remain, this secret is locked and inaccessible.
+   */
   JuiceboxRecoverErrorReasonInvalidPin = 0,
+  /**
+   * The secret was not registered or not fully registered with the
+   * provided realms.
+   */
   JuiceboxRecoverErrorReasonNotRegistered = 1,
+  /**
+   * A realm rejected the `Client`'s auth token.
+   */
   JuiceboxRecoverErrorReasonInvalidAuth = 2,
+  /**
+   * A software error has occurred. This request should not be retried
+   * with the same parameters. Verify your inputs, check for software
+   * updates and try again.
+   */
   JuiceboxRecoverErrorReasonAssertion = 3,
+  /**
+   * A transient error in sending or receiving requests to a realm.
+   * This request may succeed by trying again with the same parameters.
+   */
   JuiceboxRecoverErrorReasonTransient = 4,
 } JuiceboxRecoverErrorReason;
 
+/**
+ * Error returned during `Client.register`
+ */
 typedef enum {
+  /**
+   * A realm rejected the `Client`'s auth token.
+   */
   JuiceboxRegisterErrorInvalidAuth = 0,
+  /**
+   * A software error has occurred. This request should not be retried
+   * with the same parameters. Verify your inputs, check for software
+   * updates and try again.
+   */
   JuiceboxRegisterErrorAssertion = 1,
+  /**
+   * A transient error in sending or receiving requests to a realm.
+   * This request may succeed by trying again with the same parameters.
+   */
   JuiceboxRegisterErrorTransient = 2,
 } JuiceboxRegisterError;
 

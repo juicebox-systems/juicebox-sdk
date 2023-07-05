@@ -22,6 +22,7 @@ extern "C" {
     pub fn fetch_with_request(input: &Request) -> Promise;
 }
 
+/// The parameters used to configure a `Client`.
 #[wasm_bindgen]
 pub struct Configuration(sdk::Configuration);
 
@@ -31,7 +32,7 @@ pub struct Configuration(sdk::Configuration);
 pub struct RecoverError {
     /// The reason recovery failed.
     pub reason: RecoverErrorReason,
-    /// Guesses remaining is only valid if `reason` is `Unsuccessful`
+    /// Guesses remaining is only valid if `reason` is `InvalidPin`
     pub guesses_remaining: Option<u16>,
 }
 
@@ -64,6 +65,55 @@ impl From<sdk::RecoverError> for RecoverError {
 
 #[wasm_bindgen]
 impl Configuration {
+    /// Constructs a new configuration from an Object.
+    ///
+    /// The provided Object must contain the following parameters:
+    ///
+    /// - `realms`: An array of remote services that the client interacts with.
+    ///
+    /// Each `realm` is itself an Object containing an: id, address, and optionally a public_key.
+    ///
+    /// There must be between `registerThreshold` and 255
+    /// realms, inclusive.
+    /// - `registerThreshold`: A registration will be considered successful if it's successful
+    /// on at least this many realms.
+    ///
+    /// Must be between `recoverThreshold` and `realms.count`, inclusive.
+    /// - `recoverThreshold`: A recovery (or an adversary) will need the cooperation of this
+    /// many realms to retrieve the secret.
+    ///
+    /// Must be between `ceil(realms.count / 2)` and `realms.count`, inclusive.
+    /// - `pinHashingMode`: Defines how the provided PIN will be hashed before register and
+    /// recover operations. Changing modes will make previous secrets stored on the realms
+    /// inaccessible with the same PIN and should not be done without re-registering secrets.
+    ///
+    /// Possible pinHashingModes are:
+    /// - `Standard2019` - A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
+    /// - `FastInsecure` - A fast hash used for testing. Do not use in production.
+    ///
+    /// An example configuration looks like:
+    /// ```js
+    /// const configuration = new Configuration({
+    ///     realms: [
+    ///         {
+    ///             "address": "https://juicebox.hsm.realm.address",
+    ///             "id": "0102030405060708090a0b0c0d0e0f10",
+    ///             "public_key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+    ///         },
+    ///         {
+    ///             "address": "https://your.software.realm.address",
+    ///             "id": "2102030405060708090a0b0c0d0e0f10"
+    ///         },
+    ///         {
+    ///             "address": "https://juicebox.software.realm.address",
+    ///             "id": "3102030405060708090a0b0c0d0e0f10"
+    ///         }
+    ///     ],
+    ///     register_threshold: 3,
+    ///     recover_threshold: 3,
+    ///     pin_hashing_mode: "Standard2019"
+    /// });
+    /// ```
     #[wasm_bindgen(constructor)]
     pub fn new(value: JsValue) -> Self {
         console_error_panic_hook::set_once();
@@ -91,20 +141,20 @@ pub struct Client(sdk::Client<WasmSleeper, HttpClient, WasmAuthTokenManager>);
 
 #[wasm_bindgen]
 impl Client {
-    /// Constructs a new `Client`.
+    /// Initializes a new client with the provided configuration.
     ///
-    /// # Arguments
+    /// A `Client` requires authentication, which is acquired through
+    /// a `JuiceboxGetAuthToken(realmId: Uint8Array): Promise<string>`
+    /// that you must define globally.
     ///
-    /// * `configuration` – Represents the current configuration. The configuration
-    /// provided must include at least one `Realm`.
-    /// * `previous_configurations` – Represents any other configurations you have
-    /// previously registered with that you may not yet have migrated the data from.
-    /// During `Client.recover`, they will be tried if the current user has not yet
-    /// registered on the current configuration. These should be ordered from most recently
-    /// to least recently used.
-    /// * `auth_token` – Represents the authority to act as a particular user
-    /// and should be valid for the lifetime of the `Client`.
-    #[wasm_bindgen(constructor)]
+    /// @param {Configuration} configuration - Represents the current configuration.
+    /// The configuration provided must include at least one `Realm`.
+    /// @param {Configuration[]} previous_configurations - Represents any other
+    /// configurations you have previously registered with that you may not yet
+    /// have migrated the data from. During {@link Client#recover}, they will be
+    /// tried if the current user has not yet registered on the current configuration.
+    /// These should be ordered from most recently to least recently used.
+    #[wasm_bindgen(constructor, skip_jsdoc)]
     pub fn new(configuration: Configuration, previous_configurations: ConfigurationArray) -> Self {
         console_error_panic_hook::set_once();
         let sdk = sdk::ClientBuilder::new()
@@ -124,11 +174,22 @@ impl Client {
 
     /// Stores a new PIN-protected secret on the configured realms.
     ///
-    /// # Note
+    /// @param {Uint8Array} pin - A user provided PIN. If using a strong
+    /// `PinHashingMode`, this can safely be a low-entropy value.
+    /// @param {Uint8Array} secret - A user provided secret with a maximum
+    /// length of 128-bytes.
+    /// @param {Uint8Array} info - Additional data added to the salt for the
+    /// configured `PinHashingMode`.
+    /// The chosen data must be consistent between registration and recovery or
+    /// recovery will fail. This data does not need to be a well-kept secret. A
+    /// user's ID is a reasonable choice, but even the name of the company or
+    /// service could be viable if nothing else is available.
+    /// @param {number} num_guesses - The number of guesses allowed before the
+    /// secret can no longer be accessed.
     ///
-    /// The provided secret must have a maximum length of 128-bytes.
-    ///
-    /// Upon failure, a `RegisterError` will be provided.
+    /// @returns {Promise<void>} – If registration could not be completed successfully,
+    /// the promise will be rejected with a {@link RegisterError}.
+    #[wasm_bindgen(skip_jsdoc)]
     pub async fn register(
         &self,
         pin: Vec<u8>,
@@ -147,11 +208,21 @@ impl Client {
             .map_err(RegisterError::from)
     }
 
-    /// Retrieves a PIN-protected secret from the configured realms, or falls
-    /// back to the previous realms if the current realms do not have a secret
-    /// registered.
+    /// Retrieves a PIN-protected secret from the configured realms, or falls back to the
+    /// previous realms if the current realms do not have any secret registered.
     ///
-    /// Upon failure, a `RecoverError` will be provided.
+    /// @param {Uint8Array} pin - A user provided PIN. If using a strong `PinHashingMode`,
+    /// this can safely be a low-entropy value.
+    /// @param {Uint8Array} info - Additional data added to the salt for the configured
+    /// `PinHashingMode`.
+    /// The chosen data must be consistent between registration and recovery or recovery
+    /// will fail. This data does not need to be a well-kept secret. A user's ID is a reasonable
+    /// choice, but even the name of the company or service could be viable if nothing else
+    /// is available.
+    ///
+    /// @returns {Promise<Uint8Array>} - The recovered user provided secret. If recovery could not
+    /// be completed successfully, the promise will be rejected with a {@link RecoverError}.
+    #[wasm_bindgen(skip_jsdoc)]
     pub async fn recover(&self, pin: Vec<u8>, info: Vec<u8>) -> Result<Uint8Array, RecoverError> {
         match self
             .0
@@ -165,7 +236,9 @@ impl Client {
 
     /// Deletes the registered secret for this user, if any.
     ///
-    /// Upon failure, a `DeleteError` will be provided.
+    /// @returns {Promise<void>} - If delete could not be completed successfully, the promise will
+    /// be rejected with a {@link DeleteError}.
+    #[wasm_bindgen(skip_jsdoc)]
     pub async fn delete(&self) -> Result<(), DeleteError> {
         self.0.delete().await.map_err(DeleteError::from)
     }

@@ -2,11 +2,13 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](https://docs.juicebox.xyz/rust/juicebox_sdk/)
+[Documentation](https://docs:JU1C380X@docs.juicebox.xyz/rust/juicebox_sdk/)
 
 ### Install
 
 Run the following Cargo command in your project directory:
+
+**_Note:_** This repo is pre-production and has not yet been published to crates.io. It must be installed manually.
 
 ```
 cargo add juicebox-sdk

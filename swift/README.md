@@ -2,9 +2,11 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](https://docs.juicebox.xyz/swift/documentation/juiceboxsdk/)
+[Documentation](https://docs:JU1C380X@docs.juicebox.xyz/swift/documentation/juiceboxsdk/)
 
 ### Install
+
+**_Note:_** This repo is pre-production and has not yet been published to Cocoa Pods. It must be installed manually.
 
 #### Cocoa Pods
 
