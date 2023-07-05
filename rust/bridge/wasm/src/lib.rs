@@ -22,6 +22,7 @@ extern "C" {
     pub fn fetch_with_request(input: &Request) -> Promise;
 }
 
+/// The parameters used to configure a `Client`.
 #[wasm_bindgen]
 pub struct Configuration(sdk::Configuration);
 
@@ -64,6 +65,55 @@ impl From<sdk::RecoverError> for RecoverError {
 
 #[wasm_bindgen]
 impl Configuration {
+    /// Constructs a new configuration from an Object.
+    ///
+    /// The provided Object must contain the following parameters:
+    ///
+    /// - `realms`: An array of remote services that the client interacts with.
+    ///
+    /// Each `realm` is itself an Object containing an: id, address, and optionally a public_key.
+    ///
+    /// There must be between `registerThreshold` and 255
+    /// realms, inclusive.
+    /// - `registerThreshold`: A registration will be considered successful if it's successful
+    /// on at least this many realms.
+    ///
+    /// Must be between `recoverThreshold` and `realms.count`, inclusive.
+    /// - `recoverThreshold`: A recovery (or an adversary) will need the cooperation of this
+    /// many realms to retrieve the secret.
+    ///
+    /// Must be between `ceil(realms.count / 2)` and `realms.count`, inclusive.
+    /// - `pinHashingMode`: Defines how the provided PIN will be hashed before register and
+    /// recover operations. Changing modes will make previous secrets stored on the realms
+    /// inaccessible with the same PIN and should not be done without re-registering secrets.
+    ///
+    /// Possible pinHashingModes are:
+    /// - `Standard2019` - A tuned hash, secure for use on modern devices as of 2019 with low-entropy PINs.
+    /// - `FastInsecure` - A fast hash used for testing. Do not use in production.
+    ///
+    /// An example configuration looks like:
+    /// ```js
+    /// const configuration = new Configuration({
+    ///     realms: [
+    ///         {
+    ///             "address": "https://juicebox.hsm.realm.address",
+    ///             "id": "0102030405060708090a0b0c0d0e0f10",
+    ///             "public_key": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+    ///         },
+    ///         {
+    ///             "address": "https://your.software.realm.address",
+    ///             "id": "2102030405060708090a0b0c0d0e0f10"
+    ///         },
+    ///         {
+    ///             "address": "https://juicebox.software.realm.address",
+    ///             "id": "3102030405060708090a0b0c0d0e0f10"
+    ///         }
+    ///     ],
+    ///     register_threshold: 3,
+    ///     recover_threshold: 3,
+    ///     pin_hashing_mode: "Standard2019"
+    /// });
+    /// ```
     #[wasm_bindgen(constructor)]
     pub fn new(value: JsValue) -> Self {
         console_error_panic_hook::set_once();
