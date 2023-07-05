@@ -40,85 +40,87 @@ impl HttpClient {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl sdk::http::Client for HttpClient {
     async fn send(&self, request: sdk::http::Request) -> Option<sdk::http::Response> {
         let (tx, rx) = channel();
 
-        let mut env = self.jvm.attach_current_thread().unwrap();
-
-        let java_request_class = env.find_class(JUICEBOX_JNI_HTTP_REQUEST_TYPE).unwrap();
-        let java_request = env
-            .new_object(java_request_class, jni_signature!(() => JNI_VOID_TYPE), &[])
-            .unwrap();
-
-        let id = *Uuid::new_v4().as_bytes();
-
         {
-            let mut request_map = self.request_map.lock().unwrap();
-            request_map.insert(id, tx);
-        }
+            let mut env = self.jvm.attach_current_thread().unwrap();
 
-        set_byte_array(&mut env, &java_request, "id", &id);
-
-        set_string(&mut env, &java_request, "method", request.method.as_str());
-
-        set_string(&mut env, &java_request, "url", request.url.as_str());
-
-        if let Some(body) = request.body {
-            set_byte_array(&mut env, &java_request, "body", &body);
-        }
-
-        let java_header_class = env.find_class(JUICEBOX_JNI_HTTP_HEADER_TYPE).unwrap();
-
-        let mut headers_array: Option<JObjectArray> = None;
-
-        for (index, (name, value)) in request.headers.iter().enumerate() {
-            let java_header = env
-                .new_object(&java_header_class, jni_signature!(() => JNI_VOID_TYPE), &[])
+            let java_request_class = env.find_class(JUICEBOX_JNI_HTTP_REQUEST_TYPE).unwrap();
+            let java_request = env
+                .new_object(java_request_class, jni_signature!(() => JNI_VOID_TYPE), &[])
                 .unwrap();
 
-            set_string(&mut env, &java_header, "name", name);
-            set_string(&mut env, &java_header, "value", value);
+            let id = *Uuid::new_v4().as_bytes();
 
-            match &headers_array {
-                Some(array) => {
-                    env.set_object_array_element(array, index.try_into().unwrap(), java_header)
-                        .unwrap();
-                }
-                None => {
-                    headers_array = Some(
-                        env.new_object_array(
-                            request.headers.len().try_into().unwrap(),
-                            JUICEBOX_JNI_HTTP_HEADER_TYPE,
-                            java_header,
-                        )
-                        .unwrap(),
-                    );
-                }
-            };
-        }
+            {
+                let mut request_map = self.request_map.lock().unwrap();
+                request_map.insert(id, tx);
+            }
 
-        if let Some(array) = headers_array {
-            env.set_field(
-                &java_request,
-                "headers",
-                jni_array!(jni_object!(JUICEBOX_JNI_HTTP_HEADER_TYPE)),
-                JValue::Object(&array),
+            set_byte_array(&mut env, &java_request, "id", &id);
+
+            set_string(&mut env, &java_request, "method", request.method.as_str());
+
+            set_string(&mut env, &java_request, "url", request.url.as_str());
+
+            if let Some(body) = request.body {
+                set_byte_array(&mut env, &java_request, "body", &body);
+            }
+
+            let java_header_class = env.find_class(JUICEBOX_JNI_HTTP_HEADER_TYPE).unwrap();
+
+            let mut headers_array: Option<JObjectArray> = None;
+
+            for (index, (name, value)) in request.headers.iter().enumerate() {
+                let java_header = env
+                    .new_object(&java_header_class, jni_signature!(() => JNI_VOID_TYPE), &[])
+                    .unwrap();
+
+                set_string(&mut env, &java_header, "name", name);
+                set_string(&mut env, &java_header, "value", value);
+
+                match &headers_array {
+                    Some(array) => {
+                        env.set_object_array_element(array, index.try_into().unwrap(), java_header)
+                            .unwrap();
+                    }
+                    None => {
+                        headers_array = Some(
+                            env.new_object_array(
+                                request.headers.len().try_into().unwrap(),
+                                JUICEBOX_JNI_HTTP_HEADER_TYPE,
+                                java_header,
+                            )
+                            .unwrap(),
+                        );
+                    }
+                };
+            }
+
+            if let Some(array) = headers_array {
+                env.set_field(
+                    &java_request,
+                    "headers",
+                    jni_array!(jni_object!(JUICEBOX_JNI_HTTP_HEADER_TYPE)),
+                    JValue::Object(&array),
+                )
+                .unwrap();
+            }
+
+            env.call_method(
+                &self.send_function,
+                "send",
+                jni_signature!((JNI_LONG_TYPE, jni_object!(JUICEBOX_JNI_HTTP_REQUEST_TYPE)) => JNI_VOID_TYPE),
+                &[
+                    (self as *const HttpClient as jlong).into(),
+                    JValue::Object(&java_request),
+                ],
             )
             .unwrap();
         }
-
-        env.call_method(
-            &self.send_function,
-            "send",
-            jni_signature!((JNI_LONG_TYPE, jni_object!(JUICEBOX_JNI_HTTP_REQUEST_TYPE)) => JNI_VOID_TYPE),
-            &[
-                (self as *const HttpClient as jlong).into(),
-                JValue::Object(&java_request),
-            ],
-        )
-        .unwrap();
 
         rx.await.unwrap()
     }

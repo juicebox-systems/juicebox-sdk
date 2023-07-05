@@ -102,7 +102,7 @@ jobs:
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
-          args: --workspace --exclude juicebox-sdk-demo
+          args: --workspace
           command: test
         env:
           RUST_BACKTRACE: '1'
@@ -116,7 +116,7 @@ jobs:
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
-          args: --workspace --exclude juicebox-sdk-demo --tests -- -D warnings
+          args: --workspace --tests -- -D warnings
           command: clippy
 
       - name: Install cargo audit
