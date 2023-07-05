@@ -157,3 +157,51 @@ jobs:
           gsutil -m rsync -r \
           -d android/build/dokka/html \
           gs://e2d3e242bbd420b1f977a1f84684a45f1803a5b4/android
+
+  js:
+    name: JavaScript
+    runs-on: ubuntu-20.04
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rustfmt, clippy
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Create JavaScript package
+        run: wasm-pack build rust/bridge/wasm --out-dir ../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
+
+      - name: Install TypeDoc
+        run: npm install --global typedoc
+
+      - name: Generate Documentation
+        run: typedoc
+        working-directory: javascript/juicebox-sdk
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: '${{ secrets.GCP_DOCUMENTATION_CREDENTIALS }}'
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Sync Docs to Google Cloud Storage
+        run: |
+          gsutil -m rsync -r \
+          -d javascript/juicebox-sdk/docs \
+          gs://e2d3e242bbd420b1f977a1f84684a45f1803a5b4/javascript

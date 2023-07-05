@@ -125,11 +125,11 @@ impl Client {
     /// Stores a new PIN-protected secret on the configured realms.
     ///
     /// @param {Uint8Array} pin - A user provided PIN. If using a strong
-    /// {@link PinHashingMode}, this can safely be a low-entropy value.
+    /// `PinHashingMode`, this can safely be a low-entropy value.
     /// @param {Uint8Array} secret - A user provided secret with a maximum
     /// length of 128-bytes.
     /// @param {Uint8Array} info - Additional data added to the salt for the
-    /// configured {@link PinHashingMode}.
+    /// configured `PinHashingMode`.
     /// The chosen data must be consistent between registration and recovery or
     /// recovery will fail. This data does not need to be a well-kept secret. A
     /// user's ID is a reasonable choice, but even the name of the company or
@@ -161,10 +161,10 @@ impl Client {
     /// Retrieves a PIN-protected secret from the configured realms, or falls back to the
     /// previous realms if the current realms do not have any secret registered.
     ///
-    /// @param {Uint8Array} pin - A user provided PIN. If using a strong {@link PinHashingMode},
+    /// @param {Uint8Array} pin - A user provided PIN. If using a strong `PinHashingMode`,
     /// this can safely be a low-entropy value.
     /// @param {Uint8Array} info - Additional data added to the salt for the configured
-    /// {@link PinHashingMode}.
+    /// `PinHashingMode`.
     /// The chosen data must be consistent between registration and recovery or recovery
     /// will fail. This data does not need to be a well-kept secret. A user's ID is a reasonable
     /// choice, but even the name of the company or service could be viable if nothing else
