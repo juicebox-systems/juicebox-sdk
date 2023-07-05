@@ -12,9 +12,16 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 #[derive(Debug)]
+/// Error returned during `Client.register`
 pub enum RegisterError {
+    /// A realm rejected the `Client`'s auth token.
     InvalidAuth = 0,
+    /// A software error has occurred. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software
+    /// updates and try again.
     Assertion = 1,
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
     Transient = 2,
 }
 
@@ -38,11 +45,23 @@ impl From<RegisterError> for JsValue {
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 #[derive(Clone, Copy, Debug)]
+/// Error returned during `Client.recover`
 pub enum RecoverErrorReason {
+    /// The secret could not be unlocked, but you can try again
+    /// with a different PIN if you have guesses remaining. If no
+    /// guesses remain, this secret is locked and inaccessible.
     InvalidPin = 0,
+    /// The secret was not registered or not fully registered with the
+    /// provided realms.
     NotRegistered = 1,
+    /// A realm rejected the `Client`'s auth token.
     InvalidAuth = 2,
+    /// A software error has occurred. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software
+    /// updates and try again.
     Assertion = 3,
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
     Transient = 4,
 }
 
@@ -99,9 +118,16 @@ impl Drop for RecoverError {
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 #[derive(Debug)]
+/// Error returned during `Client.delete`
 pub enum DeleteError {
+    /// A realm rejected the `Client`'s auth token.
     InvalidAuth = 0,
+    /// A software error has occurred. This request should not be retried
+    /// with the same parameters. Verify your inputs, check for software
+    /// updates and try again.
     Assertion = 1,
+    /// A transient error in sending or receiving requests to a realm.
+    /// This request may succeed by trying again with the same parameters.
     Transient = 2,
 }
 
