@@ -339,7 +339,7 @@ impl TryFrom<Vec<u8>> for Salt {
 ///
 /// The client needs a threshold number of such shares to recover the salt.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct SaltShare(SecretBytesArray<17>);
+pub struct SaltShare(SecretBytesArray<16>);
 
 impl SaltShare {
     pub fn expose_secret(&self) -> &[u8] {
@@ -347,8 +347,8 @@ impl SaltShare {
     }
 }
 
-impl From<[u8; 17]> for SaltShare {
-    fn from(value: [u8; 17]) -> Self {
+impl From<[u8; 16]> for SaltShare {
+    fn from(value: [u8; 16]) -> Self {
         Self(SecretBytesArray::from(value))
     }
 }
@@ -377,7 +377,7 @@ pub struct SessionId(pub u32);
 /// The client needs a threshold number of such shares to recover the user's
 /// secret.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct UserSecretShare(SecretBytesArray<146>);
+pub struct UserSecretShare(SecretBytesArray<145>);
 
 impl UserSecretShare {
     /// Access the underlying secret bytes.
@@ -415,7 +415,7 @@ pub struct Policy {
 /// The client needs the correct PIN and a threshold number of such shares and
 /// OPRF results to recover the unlock key.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct MaskedUnlockKeyShare(SecretBytesArray<33>);
+pub struct MaskedUnlockKeyShare(SecretBytesArray<32>);
 
 impl MaskedUnlockKeyShare {
     pub fn expose_secret(&self) -> &[u8] {
@@ -431,8 +431,8 @@ impl TryFrom<Vec<u8>> for MaskedUnlockKeyShare {
     }
 }
 
-impl From<[u8; 33]> for MaskedUnlockKeyShare {
-    fn from(value: [u8; 33]) -> Self {
+impl From<[u8; 32]> for MaskedUnlockKeyShare {
+    fn from(value: [u8; 32]) -> Self {
         MaskedUnlockKeyShare(SecretBytesArray::from(value))
     }
 }

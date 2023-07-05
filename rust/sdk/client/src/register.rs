@@ -1,5 +1,4 @@
 use rand::rngs::OsRng;
-use sharks::Sharks;
 use std::iter::zip;
 use tracing::instrument;
 
@@ -16,6 +15,7 @@ use juicebox_sdk_core::{
 use crate::{
     auth, http,
     request::{join_at_least_threshold, RequestError},
+    secret_sharing,
     types::{UnlockKey, UnlockKeyShare},
     Client, Pin, Policy, Realm, Sleeper, UserInfo, UserSecret,
 };
@@ -58,14 +58,13 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(self.configuration.pin_hashing_mode, &salt, info)
             .expect("pin hashing failed");
 
-        let salt_shares: Vec<SaltShare> = Sharks(self.configuration.recover_threshold)
-            .dealer_rng(salt.expose_secret(), &mut OsRng)
-            .take(self.configuration.realms.len())
-            .map(|share| {
-                SaltShare::try_from(Vec::<u8>::from(&share))
-                    .expect("unexpected secret share length")
-            })
-            .collect();
+        let salt_shares: Vec<SaltShare> = secret_sharing::generate(
+            salt.expose_secret(),
+            self.configuration.recover_threshold,
+            self.configuration.realms.len(),
+        )
+        .map(|share| SaltShare::try_from(share.as_bytes()).expect("unexpected salt share length"))
+        .collect();
 
         let encrypted_user_secret = secret.encrypt(&encryption_key);
 
@@ -75,11 +74,15 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let unlock_key = UnlockKey::new_random();
 
-        let unlock_key_shares: Vec<UnlockKeyShare> = Sharks(self.configuration.recover_threshold)
-            .dealer_rng(unlock_key.expose_secret(), &mut OsRng)
-            .take(self.configuration.realms.len())
-            .map(UnlockKeyShare)
-            .collect();
+        let unlock_key_shares: Vec<UnlockKeyShare> = secret_sharing::generate(
+            unlock_key.expose_secret(),
+            self.configuration.recover_threshold,
+            self.configuration.realms.len(),
+        )
+        .map(|share| {
+            UnlockKeyShare::try_from(share.as_bytes()).expect("unexpected unlock key share length")
+        })
+        .collect();
 
         let masked_unlock_key_shares: Vec<MaskedUnlockKeyShare> =
             zip(unlock_key_shares, &oprf_seeds)
@@ -94,14 +97,15 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 })
                 .collect();
 
-        let secret_shares: Vec<UserSecretShare> = Sharks(self.configuration.recover_threshold)
-            .dealer_rng(encrypted_user_secret.expose_secret(), &mut OsRng)
-            .take(self.configuration.realms.len())
-            .map(|share| {
-                UserSecretShare::try_from(Vec::<u8>::from(&share))
-                    .expect("unexpected secret share length")
-            })
-            .collect();
+        let secret_shares: Vec<UserSecretShare> = secret_sharing::generate(
+            encrypted_user_secret.expose_secret(),
+            self.configuration.recover_threshold,
+            self.configuration.realms.len(),
+        )
+        .map(|share| {
+            UserSecretShare::try_from(share.as_bytes()).expect("unexpected secret share length")
+        })
+        .collect();
 
         let register2_requests = zip5(
             &self.configuration.realms,
