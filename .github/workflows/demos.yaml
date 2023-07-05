@@ -1,0 +1,124 @@
+name: Demos
+
+on:
+  pull_request: {}
+  push:
+    branches:
+    - main
+  workflow_dispatch: {}
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Rust Demo
+        uses: actions-rs/cargo@v1
+        with:
+          args: -p juicebox-sdk-demo
+          command: build
+
+      - name: Software Realm
+        id: software-realm
+        uses: ./.github/actions/software-realm
+        with:
+          start-realm-count: 25
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: Run Rust Demo
+        run: target/debug/juicebox_sdk_demo --configuration ${{ steps.software-realm.outputs.configuration }} --auth-tokens ${{ steps.software-realm.outputs.auth-tokens }}
+
+  swift:
+    name: Swift
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build FFI
+        run: swift/ffi.sh
+
+      - name: Use Swift Cache
+        uses: actions/cache@v3
+        with:
+          path: swift/demo/.build
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Build Swift Demo
+        run: cd swift/demo && swift build --verbose
+
+      - name: Software Realm
+        id: software-realm
+        uses: ./.github/actions/software-realm
+        with:
+          start-realm-count: 25
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: Run Swift Demo
+        run: swift/demo/.build/debug/demo -c ${{ steps.software-realm.outputs.configuration }} -a ${{ steps.software-realm.outputs.auth-tokens }}
+
+  wasm:
+    name: WASM
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v3
+        with:
+          # it's not possible to pin certs yet with the experimental fetch in node 18,
+          # and our polyfill doesn't work well in 18. stick with 16 for now.
+          node-version: 16
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Build WASM
+        run: wasm-pack build rust/bridge/wasm --out-dir ../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
+
+      - name: NPM Install
+        run: |
+          cd javascript/demo
+          npm install
+          npm install -g ts-node
+
+      - name: Software Realm
+        id: software-realm
+        uses: ./.github/actions/software-realm
+        with:
+          start-realm-count: 25
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: Run WASM Demo
+        run: javascript/demo/demo.ts -c ${{ steps.software-realm.outputs.configuration }} -a ${{ steps.software-realm.outputs.auth-tokens }}

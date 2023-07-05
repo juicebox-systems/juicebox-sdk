@@ -1,0 +1,59 @@
+name: "Software Realm"
+description: "A GitHub Action that clones and optionally runs a Juicebox Software Realm"
+author: "Nora Trapp <nora@juicebox.me>"
+inputs:
+  start-realm-count:
+    description: How many jb-sw-realm should be started after the binary is installed. By default, no realms are started.
+    default: "0"
+  token:
+    description: The authorization token for accessing private git repos.
+outputs:
+  configuration:
+    description: "A JSON string representing the configuration for the started realms."
+    value: ${{ steps.run-software-realm.outputs.CONFIGURATION }}
+  auth-tokens:
+    description: "A JSON string representing the auth tokens for the started realms."
+    value: ${{ steps.run-software-realm.outputs.AUTH_TOKENS }}
+runs:
+  using: "composite"
+  steps:
+    - name: Clone Software Realm
+      uses: actions/checkout@v3
+      with:
+        repository: 'juicebox-systems/juicebox-software-realm'
+        token: ${{ inputs.token }}
+        path: 'juicebox-software-realm'
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.20'
+        check-latest: true
+
+    - name: Build and Install jb-sw-realm
+      shell: bash
+      run: |
+        cd juicebox-software-realm
+        go build -o jb-sw-realm
+        mv jb-sw-realm /usr/local/bin
+
+    - name: Use Rust Cache
+      uses: Swatinem/rust-cache@v2
+      if: ${{ inputs.start-realm-count > 0 }}
+
+    - name: Build Tokens
+      uses: actions-rs/cargo@v1
+      if: ${{ inputs.start-realm-count > 0 }}
+      with:
+        args: -p juicebox-sdk-tokens
+        command: build
+
+    - name: Run Software Realm
+      id: run-software-realm
+      uses: pyTooling/Actions/with-post-step@v0.4.5
+      if: ${{ inputs.start-realm-count > 0 }}
+      with:
+        main: |
+          COUNT=${{ inputs.start-realm-count }} .github/actions/software-realm/start.sh
+          cat .github/actions/software-realm/outputs >> $GITHUB_OUTPUT
+        post: .github/actions/software-realm/stop.sh
