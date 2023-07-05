@@ -1,8 +1,8 @@
-use crate::{secret_sharing::SharePosition, PinHashingMode, Realm};
-
-use juicebox_sdk_core::types::RealmId;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, ops::Deref};
+
+use crate::{secret_sharing::SharePosition, PinHashingMode, Realm};
+use juicebox_sdk_core::types::RealmId;
 
 /// The parameters used to configure a [`Client`](crate::Client).
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

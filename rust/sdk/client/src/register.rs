@@ -63,7 +63,6 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             self.configuration.recover_threshold,
             self.configuration.realms.len(),
         )
-        .iter()
         .map(|share| SaltShare::try_from(share.as_bytes()).expect("unexpected salt share length"))
         .collect();
 
@@ -80,7 +79,6 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             self.configuration.recover_threshold,
             self.configuration.realms.len(),
         )
-        .iter()
         .map(|share| {
             UnlockKeyShare::try_from(share.as_bytes()).expect("unexpected unlock key share length")
         })
@@ -104,7 +102,6 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             self.configuration.recover_threshold,
             self.configuration.realms.len(),
         )
-        .iter()
         .map(|share| {
             UserSecretShare::try_from(share.as_bytes()).expect("unexpected secret share length")
         })

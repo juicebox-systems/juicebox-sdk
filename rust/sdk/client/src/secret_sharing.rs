@@ -1,7 +1,7 @@
+use rand::rngs::OsRng;
 use std::fmt::Debug;
 
 use juicebox_sdk_core::types::SecretBytesVec;
-use rand::rngs::OsRng;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct SharePosition(pub u8);
@@ -53,12 +53,11 @@ pub enum SecretSharingError {
     Assertion,
 }
 
-pub(crate) fn generate(secret: &[u8], threshold: u8, shares: usize) -> Vec<Share> {
+pub(crate) fn generate(secret: &[u8], threshold: u8, shares: usize) -> impl Iterator<Item = Share> {
     sharks::Sharks(threshold)
         .dealer_rng(secret, &mut OsRng)
         .take(shares)
         .map(Share)
-        .collect()
 }
 
 pub(crate) fn reconstruct<'a, T>(shares: T, threshold: u8) -> Result<Vec<u8>, SecretSharingError>
@@ -110,7 +109,7 @@ mod tests {
         let threshold = 2;
         let shares = 5;
 
-        let generated_shares = generate(secret, threshold, shares);
+        let generated_shares: Vec<_> = generate(secret, threshold, shares).collect();
         assert_eq!(generated_shares.len(), shares);
 
         for share in &generated_shares {
