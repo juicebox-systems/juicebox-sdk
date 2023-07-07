@@ -1,26 +1,48 @@
+use curve25519_dalek::scalar::Scalar;
+use itertools::Itertools;
 use rand::rngs::OsRng;
-use std::fmt::Debug;
+use std::{fmt::Debug, iter::zip};
 
-use juicebox_sdk_core::types::SecretBytesVec;
+use juicebox_sdk_core::types::SecretBytesArray;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct SharePosition(pub u8);
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub(crate) struct ShareIndex(pub u32);
+
+impl ShareIndex {
+    pub(crate) fn as_scalar(&self) -> Scalar {
+        Scalar::from(self.0 as u64)
+    }
+}
 
 #[derive(Clone, Debug)]
-pub(crate) struct ShareBytes(SecretBytesVec);
-impl ShareBytes {
-    pub fn expose_secret(&self) -> &[u8] {
+pub(crate) struct ShareValue(SecretBytesArray<32>);
+impl ShareValue {
+    pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
-}
 
-impl From<&[u8]> for ShareBytes {
-    fn from(value: &[u8]) -> Self {
-        Self(SecretBytesVec::from(value.to_vec()))
+    pub fn as_scalar(&self) -> Scalar {
+        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
     }
 }
 
-pub(crate) struct Share(sharks::Share);
+impl From<[u8; 32]> for ShareValue {
+    fn from(value: [u8; 32]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
+
+impl From<Scalar> for ShareValue {
+    fn from(value: Scalar) -> Self {
+        Self(SecretBytesArray::from(value.to_bytes()))
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct Share {
+    pub index: ShareIndex,
+    pub value: ShareValue,
+}
 
 impl Debug for Share {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -28,96 +50,210 @@ impl Debug for Share {
     }
 }
 
-impl Share {
-    pub fn try_from(
-        position: &SharePosition,
-        bytes: &ShareBytes,
-    ) -> Result<Share, SecretSharingError> {
-        sharks::Share::try_from(
-            std::iter::once(position.0)
-                .chain(bytes.expose_secret().iter().copied())
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
-        .map(Share)
-        .map_err(|_| SecretSharingError::Assertion)
-    }
-
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.0.y.iter().map(|y| y.0).collect()
-    }
-}
-
 #[derive(Debug)]
 pub enum SecretSharingError {
-    Assertion,
+    DuplicateShares,
+    NoValidCombinations,
 }
 
-pub(crate) fn generate(secret: &[u8], threshold: u8, shares: usize) -> impl Iterator<Item = Share> {
-    sharks::Sharks(threshold)
-        .dealer_rng(secret, &mut OsRng)
-        .take(shares)
-        .map(Share)
+/// Distributes secret into `count` shares that can be recovered when at
+/// least `threshold` are provided.
+pub(crate) fn create(
+    secret: &Scalar,
+    threshold: u32,
+    count: u32,
+) -> impl Iterator<Item = Share> + '_ {
+    assert!(threshold > 0);
+    assert!(count > 0);
+    assert!(threshold <= count);
+
+    let random_coefficients = std::iter::repeat_with(|| Scalar::random(&mut OsRng))
+        .take((threshold - 1) as usize)
+        .collect::<Vec<_>>();
+
+    (1..=count).map(ShareIndex).map(move |index| {
+        let value_scalar = random_coefficients
+            .iter()
+            .fold(Scalar::ZERO, |acc, coefficient| {
+                (acc + coefficient) * index.as_scalar()
+            })
+            + secret;
+        Share {
+            index,
+            value: ShareValue::from(value_scalar),
+        }
+    })
 }
 
-pub(crate) fn reconstruct<'a, T>(shares: T, threshold: u8) -> Result<Vec<u8>, SecretSharingError>
+/// Attempts to recover a secret from a provided set of shares.
+///
+/// If at least `threshold` created shares are provided, the `secret`
+/// used in creation will be recovered.
+///
+/// Less than `threshold` shares or shares that don't all originate
+/// from the same `create` operation will result in a `secret` being
+/// recovered that does not match the original.
+pub(crate) fn recover(shares: &[Share]) -> Result<Scalar, SecretSharingError> {
+    let lagrange_coefficients: Vec<Scalar> = shares
+        .iter()
+        .enumerate()
+        .map(|(i, share)| {
+            let numerator = shares
+                .iter()
+                .enumerate()
+                .filter(|&(j, _)| j != i)
+                .fold(Scalar::ONE, |acc, (_, other_share)| {
+                    acc * other_share.index.as_scalar()
+                });
+            let denominator = shares.iter().enumerate().filter(|&(j, _)| j != i).fold(
+                Scalar::ONE,
+                |acc, (_, other_share)| {
+                    acc * (other_share.index.as_scalar() - share.index.as_scalar())
+                },
+            );
+
+            if denominator == Scalar::ZERO {
+                return Err(SecretSharingError::DuplicateShares);
+            }
+
+            Ok(numerator * denominator.invert())
+        })
+        .collect::<Result<Vec<_>, SecretSharingError>>()?;
+
+    Ok(
+        zip(lagrange_coefficients, shares).fold(Scalar::ZERO, |secret, (coefficient, share)| {
+            secret + (coefficient * share.value.as_scalar())
+        }),
+    )
+}
+
+/// Attempts to recover from each `threshold` combination of shares, giving
+/// the caller an attempt to validate the resulting secret after each recovery,
+/// e.g. by comparing it to a known MAC computed before the original shares
+/// were produced. This allows recovery from a set of shares that may potentially
+/// contain invalid shares, but still have enough material to recover the secret.
+pub(crate) fn recover_combinatorially<Validator>(
+    shares: &[Share],
+    threshold: u32,
+    validator: Validator,
+) -> Result<Scalar, SecretSharingError>
 where
-    T: IntoIterator<Item = &'a Share>,
-    T::IntoIter: Iterator<Item = &'a Share>,
+    Validator: Fn(Scalar) -> bool,
 {
-    sharks::Sharks(threshold)
-        .recover(shares.into_iter().map(|s| &s.0))
-        .map_err(|_| SecretSharingError::Assertion)
+    if shares.len() < threshold as usize {
+        return Err(SecretSharingError::NoValidCombinations);
+    }
+
+    for shares in shares.iter().cloned().combinations(threshold as usize) {
+        match recover(&shares) {
+            Ok(secret) if validator(secret) => return Ok(secret),
+            _ => {}
+        };
+    }
+    Err(SecretSharingError::NoValidCombinations)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use itertools::Itertools;
 
     #[test]
-    fn test_share_try_from_valid() {
-        let position = SharePosition(1);
-        let bytes: &[u8] = &[1, 2, 3];
-        let share_bytes = ShareBytes::from(bytes);
-        let result = Share::try_from(&position, &share_bytes);
-        assert!(result.is_ok());
-        let share = result.unwrap();
-        assert_eq!(share.0.x.0, position.0);
-        assert_eq!(share.0.y.iter().map(|y| y.0).collect::<Vec<_>>(), bytes);
-    }
+    fn test_all_shares() {
+        let secret = Scalar::random(&mut OsRng);
+        let threshold = 6;
+        let shares = 10;
 
-    #[test]
-    fn test_share_try_from_invalid() {
-        let position = SharePosition(0);
-        let bytes: &[u8] = &[];
-        let share_bytes = ShareBytes::from(bytes);
-        let result = Share::try_from(&position, &share_bytes);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_share_as_bytes() {
-        let bytes: &[u8] = &[1, 2, 3];
-        let raw_share: &[u8] = &[1, 1, 2, 3];
-        let share = Share(sharks::Share::try_from(raw_share).unwrap());
-        assert_eq!(share.as_bytes(), bytes);
-    }
-
-    #[test]
-    fn test_generate_and_reconstruct() {
-        let secret: &[u8] = &[1, 2, 3, 4, 5];
-        let threshold = 2;
-        let shares = 5;
-
-        let generated_shares: Vec<_> = generate(secret, threshold, shares).collect();
-        assert_eq!(generated_shares.len(), shares);
+        let generated_shares: Vec<_> = create(&secret, threshold, shares).collect();
+        assert_eq!(generated_shares.len(), shares as usize);
 
         for share in &generated_shares {
-            assert_eq!(secret.len(), share.as_bytes().len());
-            assert_ne!(secret, share.as_bytes());
+            assert_ne!(secret.as_bytes(), share.value.expose_secret());
         }
 
-        let reconstructed_secret = reconstruct(&generated_shares, threshold);
+        let reconstructed_secret = recover(&generated_shares);
+        assert!(reconstructed_secret.is_ok());
+        assert_eq!(reconstructed_secret.unwrap(), secret);
+    }
+
+    #[test]
+    fn test_threshold_recreation() {
+        let secret = Scalar::random(&mut OsRng);
+        let threshold = 6;
+        let shares = 10;
+
+        let generated_shares: Vec<_> = create(&secret, threshold, shares).collect();
+
+        for shares in generated_shares
+            .into_iter()
+            .combinations(threshold as usize)
+        {
+            let reconstructed_secret = recover(&shares);
+            assert!(reconstructed_secret.is_ok());
+            assert_eq!(reconstructed_secret.unwrap(), secret);
+        }
+    }
+
+    #[test]
+    fn test_less_than_threshold_recreation() {
+        let secret = Scalar::random(&mut OsRng);
+        let threshold = 6;
+        let shares = 10;
+
+        let generated_shares: Vec<_> = create(&secret, threshold, shares).collect();
+
+        for shares in generated_shares
+            .into_iter()
+            .combinations((threshold - 1) as usize)
+        {
+            let reconstructed_secret = recover(&shares);
+            assert!(reconstructed_secret.is_ok());
+            assert_ne!(reconstructed_secret.unwrap(), secret);
+        }
+    }
+
+    #[test]
+    fn test_more_than_threshold_recreation() {
+        let secret = Scalar::random(&mut OsRng);
+        let threshold = 6;
+        let shares = 10;
+
+        let generated_shares: Vec<_> = create(&secret, threshold, shares).collect();
+
+        for shares in generated_shares
+            .into_iter()
+            .combinations((threshold + 1) as usize)
+        {
+            let reconstructed_secret = recover(&shares);
+            assert!(reconstructed_secret.is_ok());
+            assert_eq!(reconstructed_secret.unwrap(), secret);
+        }
+    }
+
+    #[test]
+    fn test_recover_combinatorially() {
+        let secret = Scalar::random(&mut OsRng);
+        let threshold = 6;
+        let shares = 10;
+
+        let generated_shares: Vec<_> = create(&secret, threshold, shares).collect();
+
+        let recover_shares: Vec<_> = generated_shares
+            .into_iter()
+            .enumerate()
+            .map(|(i, s)| {
+                if i < 4 {
+                    return Share {
+                        index: s.index,
+                        value: ShareValue::from(Scalar::random(&mut OsRng)),
+                    };
+                }
+                s
+            })
+            .collect();
+
+        let reconstructed_secret =
+            recover_combinatorially(&recover_shares, threshold, |s| s == secret);
         assert!(reconstructed_secret.is_ok());
         assert_eq!(reconstructed_secret.unwrap(), secret);
     }

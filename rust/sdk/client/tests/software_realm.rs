@@ -64,7 +64,7 @@ mod software_realm {
     }
 
     async fn create_realms(
-        count: u8,
+        count: u32,
         pg: &mut ProcessGroup,
     ) -> (Vec<Realm>, HashMap<RealmId, AuthToken>) {
         let mut realms: Vec<Realm> = vec![];
@@ -80,7 +80,7 @@ mod software_realm {
     }
 
     async fn create_client(
-        realm_count: u8,
+        realm_count: u32,
         pg: &mut ProcessGroup,
     ) -> Client<TokioSleeper, reqwest::Client<LoadBalancerService>, HashMap<RealmId, AuthToken>>
     {

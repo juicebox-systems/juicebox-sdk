@@ -107,8 +107,8 @@ pub unsafe extern "C" fn juicebox_client_destroy(
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn juicebox_configuration_create(
     realms: UnmanagedArray<Realm>,
-    register_threshold: u8,
-    recover_threshold: u8,
+    register_threshold: u32,
+    recover_threshold: u32,
     pin_hashing_mode: PinHashingMode,
 ) -> *mut Configuration {
     Box::into_raw(Box::new(Configuration(sdk::Configuration {

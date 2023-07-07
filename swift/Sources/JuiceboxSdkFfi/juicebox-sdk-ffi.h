@@ -202,8 +202,8 @@ JuiceboxClient *juicebox_client_create(JuiceboxConfiguration *configuration,
 void juicebox_client_destroy(JuiceboxClient *client);
 
 JuiceboxConfiguration *juicebox_configuration_create(JuiceboxUnmanagedRealmArray realms,
-                                                     uint8_t register_threshold,
-                                                     uint8_t recover_threshold,
+                                                     uint32_t register_threshold,
+                                                     uint32_t recover_threshold,
                                                      JuiceboxPinHashingMode pin_hashing_mode);
 
 JuiceboxConfiguration *juicebox_configuration_create_from_json(const char *json);

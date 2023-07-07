@@ -1,5 +1,4 @@
 use rand::rngs::OsRng;
-use std::iter::zip;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
@@ -7,8 +6,9 @@ use juicebox_sdk_core::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
     types::{
-        MaskedUnlockKeyShare, OprfSeed, OprfServer, RegistrationVersion, Salt, SaltShare,
-        UserSecretShare, OPRF_KEY_INFO,
+        EncryptedUserSecretCommitment, MaskedUnlockKeyScalarShare, OprfRootSeed, OprfSeed,
+        OprfServer, RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyScalar,
+        UnlockKeyTag, UserSecretEncryptionKeyScalarShare, OPRF_KEY_INFO,
     },
 };
 
@@ -16,7 +16,7 @@ use crate::{
     auth, http,
     request::{join_at_least_threshold, RequestError},
     secret_sharing,
-    types::{UnlockKey, UnlockKeyShare},
+    types::{UnlockKeyScalarShare, UserSecretEncryptionKey, UserSecretEncryptionKeyScalar},
     Client, Pin, Policy, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -53,78 +53,86 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let version = RegistrationVersion::new_random(&mut OsRng);
 
-        let salt = Salt::new_random(&mut OsRng);
-        let (access_key, encryption_key) = pin
-            .hash(self.configuration.pin_hashing_mode, &salt, info)
+        let (access_key, encryption_key_seed) = pin
+            .hash(self.configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let salt_shares: Vec<SaltShare> = secret_sharing::generate(
-            salt.expose_secret(),
-            self.configuration.recover_threshold,
-            self.configuration.realms.len(),
-        )
-        .map(|share| SaltShare::try_from(share.as_bytes()).expect("unexpected salt share length"))
-        .collect();
-
-        let encrypted_user_secret = secret.encrypt(&encryption_key);
-
-        let oprf_seeds: Vec<OprfSeed> = std::iter::repeat_with(|| OprfSeed::new_random(&mut OsRng))
-            .take(self.configuration.realms.len())
+        let encryption_key_scalar = UserSecretEncryptionKeyScalar::new_random();
+        let encryption_key_scalar_shares: Vec<UserSecretEncryptionKeyScalarShare> =
+            secret_sharing::create(
+                &encryption_key_scalar.0,
+                self.configuration.recover_threshold,
+                self.configuration.share_count(),
+            )
+            .map(|share| UserSecretEncryptionKeyScalarShare::from(*share.value.expose_secret()))
             .collect();
 
-        let unlock_key = UnlockKey::new_random();
+        let encryption_key =
+            UserSecretEncryptionKey::derive(&encryption_key_seed, &encryption_key_scalar);
+        let encrypted_secret = secret.encrypt(&encryption_key);
 
-        let unlock_key_shares: Vec<UnlockKeyShare> = secret_sharing::generate(
-            unlock_key.expose_secret(),
-            self.configuration.recover_threshold,
-            self.configuration.realms.len(),
-        )
-        .map(|share| {
-            UnlockKeyShare::try_from(share.as_bytes()).expect("unexpected unlock key share length")
-        })
-        .collect();
+        let unlock_key_scalar = UnlockKeyScalar::new_random(&mut OsRng);
+        let unlock_key_scalar_hash = unlock_key_scalar.as_hash();
 
-        let masked_unlock_key_shares: Vec<MaskedUnlockKeyShare> =
-            zip(unlock_key_shares, &oprf_seeds)
-                .map(|(share, key)| {
-                    let oprf_server = OprfServer::new_from_seed(key.expose_secret(), OPRF_KEY_INFO)
+        let oprf_root_seed = OprfRootSeed::derive(&unlock_key_scalar_hash, &access_key);
+
+        let oprf_seeds: Vec<OprfSeed> = self
+            .configuration
+            .realms
+            .iter()
+            .map(|realm| OprfSeed::derive(&oprf_root_seed, &realm.id))
+            .collect();
+
+        let masked_unlock_key_scalar_shares: Vec<MaskedUnlockKeyScalarShare> =
+            secret_sharing::create(
+                &unlock_key_scalar.0,
+                self.configuration.recover_threshold,
+                self.configuration.share_count(),
+            )
+            .zip(&oprf_seeds)
+            .map(|(share, oprf_seed)| {
+                let oprf_server =
+                    OprfServer::new_from_seed(oprf_seed.expose_secret(), OPRF_KEY_INFO)
                         .expect("oprf key derivation failed");
-                    let oprf_result = oprf_server
-                        .evaluate(access_key.expose_secret())
-                        .expect("oprf pin evaluation failed")
-                        .into();
-                    share.mask(&oprf_result)
-                })
-                .collect();
+                let oprf_result = oprf_server
+                    .evaluate(access_key.expose_secret())
+                    .expect("oprf pin evaluation failed")
+                    .into();
 
-        let secret_shares: Vec<UserSecretShare> = secret_sharing::generate(
-            encrypted_user_secret.expose_secret(),
-            self.configuration.recover_threshold,
-            self.configuration.realms.len(),
-        )
-        .map(|share| {
-            UserSecretShare::try_from(share.as_bytes()).expect("unexpected secret share length")
-        })
-        .collect();
+                let unmasked_share = UnlockKeyScalarShare::from(*share.value.expose_secret());
+                unmasked_share.mask(&oprf_result)
+            })
+            .collect();
 
-        let register2_requests = zip5(
+        let unlock_key = UnlockKey::derive(&unlock_key_scalar_hash);
+        let unlock_key_commitment =
+            UnlockKeyCommitment::derive(&unlock_key_scalar_hash, &access_key);
+
+        let register2_requests = zip4(
             &self.configuration.realms,
             oprf_seeds,
-            salt_shares,
-            masked_unlock_key_shares,
-            secret_shares,
+            encryption_key_scalar_shares,
+            masked_unlock_key_scalar_shares,
         )
         .map(
-            |(realm, oprf_seed, salt_share, masked_unlock_key_share, secret_share)| {
+            |(realm, oprf_seed, encryption_key_scalar_share, masked_unlock_key_scalar_share)| {
                 self.register2_on_realm(
                     realm,
                     Register2Request {
                         version: version.to_owned(),
-                        salt_share,
                         oprf_seed,
-                        tag: unlock_key.tag(&realm.id),
-                        masked_unlock_key_share,
-                        secret_share,
+                        unlock_key_tag: UnlockKeyTag::derive(&unlock_key, &realm.id),
+                        unlock_key_commitment: unlock_key_commitment.to_owned(),
+                        masked_unlock_key_scalar_share,
+                        user_secret_encryption_key_scalar_share: encryption_key_scalar_share
+                            .to_owned(),
+                        encrypted_user_secret: encrypted_secret.to_owned(),
+                        encrypted_user_secret_commitment: EncryptedUserSecretCommitment::derive(
+                            &unlock_key,
+                            &realm.id,
+                            &encryption_key_scalar_share,
+                            &encrypted_secret,
+                        ),
                         policy: policy.to_owned(),
                     },
                 )
@@ -168,39 +176,36 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 }
 
-fn zip5<A, B, C, D, E>(
+fn zip4<A, B, C, D>(
     a: A,
     b: B,
     c: C,
     d: D,
-    e: E,
-) -> impl Iterator<Item = (A::Item, B::Item, C::Item, D::Item, E::Item)>
+) -> impl Iterator<Item = (A::Item, B::Item, C::Item, D::Item)>
 where
     A: IntoIterator,
     B: IntoIterator,
     C: IntoIterator,
     D: IntoIterator,
-    E: IntoIterator,
 {
-    let iter = a.into_iter().zip(b).zip(c).zip(d).zip(e);
-    iter.map(|((((a, b), c), d), e)| (a, b, c, d, e))
+    let iter = a.into_iter().zip(b).zip(c).zip(d);
+    iter.map(|(((a, b), c), d)| (a, b, c, d))
 }
 
 mod tests {
     #[test]
-    fn test_zip5() {
+    fn test_zip4() {
         let a = vec![1, 2, 3];
         let b = vec!['a', 'b', 'c'];
         let c = vec![true, false, true];
         let d = vec!["x", "y", "z"];
-        let e = vec![0.1, 0.2, 0.3];
 
-        let zipped: Vec<_> = super::zip5(a, b, c, d, e).collect();
+        let zipped: Vec<_> = super::zip4(a, b, c, d).collect();
 
         let expected = vec![
-            (1, 'a', true, "x", 0.1),
-            (2, 'b', false, "y", 0.2),
-            (3, 'c', true, "z", 0.3),
+            (1, 'a', true, "x"),
+            (2, 'b', false, "y"),
+            (3, 'c', true, "z"),
         ];
 
         assert_eq!(zipped, expected);

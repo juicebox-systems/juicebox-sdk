@@ -345,7 +345,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 /// will be the smallest error seen (using `Ord`).
 pub(crate) async fn join_at_least_threshold<I, F, T, E>(
     futures: I,
-    threshold: u8,
+    threshold: u32,
 ) -> Result<Vec<T>, E>
 where
     I: IntoIterator<Item = F>,
@@ -354,7 +354,7 @@ where
 {
     let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
     let total = futures.len();
-    let threshold = usize::from(threshold);
+    let threshold = threshold as usize;
     assert!(total >= threshold);
     assert!(threshold > 0);
     let mut oks = Vec::with_capacity(total);
@@ -379,50 +379,6 @@ where
     Ok(oks)
 }
 
-/// Waits for a threshold of futures to succeed, unless enough fail that there
-/// is no way for the threshold to be met.
-///
-/// Panics if the total number of `futures` given is less than the threshold,
-/// or if the threshold is 0.
-///
-/// The results and errors are returned in no particular order. An `Ok` return
-/// value will contain exactly `threshold` results. An `Error` return value
-/// will be the smallest error seen (using `Ord`).
-pub(crate) async fn join_until_threshold<I, F, T, E>(futures: I, threshold: u8) -> Result<Vec<T>, E>
-where
-    I: IntoIterator<Item = F>,
-    F: Future<Output = Result<T, E>>,
-    E: Ord,
-{
-    let mut futures: FuturesUnordered<F> = futures.into_iter().collect();
-    let total = futures.len();
-    let threshold = usize::from(threshold);
-    assert!(total >= threshold);
-    assert!(threshold > 0);
-    let mut oks = Vec::with_capacity(threshold);
-    let mut errors = Vec::new();
-
-    while let Some(result) = futures.next().await {
-        match result {
-            Ok(ok) => {
-                oks.push(ok);
-                if oks.len() >= threshold {
-                    return Ok(oks);
-                }
-            }
-
-            Err(error) => {
-                errors.push(error);
-                if errors.len() > total - threshold {
-                    return Err(min(errors));
-                }
-            }
-        }
-    }
-
-    unreachable!();
-}
-
 /// Consumes a `Vec` and returns its minimum value.
 ///
 /// This is used for selecting the "best" error out of a set of errors.
@@ -432,36 +388,8 @@ fn min<T: Ord>(values: Vec<T>) -> T {
 
 #[cfg(test)]
 mod tests {
-    use crate::request::{join_at_least_threshold, join_until_threshold};
+    use crate::request::join_at_least_threshold;
     use futures::future::{err, ready};
-
-    #[tokio::test]
-    async fn test_join_until_threshold() {
-        let futures = vec![
-            ready(Ok("Result 1")),
-            ready(Ok("Result 2")),
-            ready(Ok("Result 3")),
-            ready(Err(Box::new(TestError))),
-            ready(Ok("Result 4")),
-        ];
-
-        let result: Result<Vec<&str>, Box<TestError>> = join_until_threshold(futures, 3).await;
-
-        assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 3);
-        assert_eq!(results, vec!["Result 1", "Result 2", "Result 3"]);
-
-        let futures = vec![
-            ready(Ok("Result 1")),
-            ready(Ok("Result 2")),
-            ready(Ok("Result 3")),
-            ready(Err(Box::new(TestError))),
-        ];
-
-        let result: Result<Vec<&str>, Box<TestError>> = join_until_threshold(futures, 4).await;
-        assert!(result.is_err());
-    }
 
     #[tokio::test]
     async fn test_join_at_least_threshold() {

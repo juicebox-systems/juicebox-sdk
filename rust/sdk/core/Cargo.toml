@@ -9,6 +9,8 @@ authors = [
 edition = "2021"
 
 [dependencies]
+blake2 = { workspace = true }
+curve25519-dalek = { workspace = true }
 digest = { workspace = true }
 hex = { workspace = true }
 juicebox-sdk-marshalling = { path = "../marshalling" }

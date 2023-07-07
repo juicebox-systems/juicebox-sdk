@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, ops::Deref};
 
-use crate::{secret_sharing::SharePosition, PinHashingMode, Realm};
+use crate::{secret_sharing::ShareIndex, PinHashingMode, Realm};
 use juicebox_sdk_core::types::RealmId;
 
 /// The parameters used to configure a [`Client`](crate::Client).
@@ -16,13 +16,13 @@ pub struct Configuration {
     /// least this many realms.
     ///
     /// Must be between `recover_threshold` and `realms.len()`, inclusive.
-    pub register_threshold: u8,
+    pub register_threshold: u32,
 
     /// A recovery (or an adversary) will need the cooperation of this many
     /// realms to retrieve the secret.
     ///
     /// Must be between `(realms.len() / 2).ceil()` and `realms.len()`, inclusive.
-    pub recover_threshold: u8,
+    pub recover_threshold: u32,
 
     /// Defines how the provided PIN will be hashed before register and recover
     /// operations. Changing modes will make previous secrets stored on the realms
@@ -61,10 +61,8 @@ impl CheckedConfiguration {
             "realm IDs must be unique in Configuration"
         );
 
-        // The secret sharing implementation (`sharks`) doesn't support more
-        // than 255 shares.
         assert!(
-            u8::try_from(c.realms.len()).is_ok(),
+            u32::try_from(c.realms.len()).is_ok(),
             "too many realms in Client configuration"
         );
 
@@ -83,11 +81,11 @@ impl CheckedConfiguration {
             "Configuration recover_threshold must be at least 1"
         );
         assert!(
-            usize::from(c.recover_threshold) <= c.realms.len(),
+            c.recover_threshold <= c.realms.len() as u32,
             "Configuration recover_threshold cannot exceed number of realms"
         );
         assert!(
-            usize::from(c.recover_threshold) > c.realms.len() / 2,
+            c.recover_threshold > c.realms.len() as u32 / 2,
             "Configuration recover_threshold must contain a majority of realms"
         );
 
@@ -96,7 +94,7 @@ impl CheckedConfiguration {
             "Configuration register_threshold must be at least recover_threshold"
         );
         assert!(
-            usize::from(c.register_threshold) <= c.realms.len(),
+            c.register_threshold <= c.realms.len() as u32,
             "Configuration register_threshold cannot exceed number of realms"
         );
 
@@ -115,12 +113,16 @@ impl CheckedConfiguration {
 }
 
 impl CheckedConfiguration {
-    pub fn share_position(&self, realm: &RealmId) -> Option<SharePosition> {
-        if let Some(position) = self.0.realms.iter().position(|r| r.id == *realm) {
-            (position + 1).try_into().map(SharePosition).ok()
+    pub fn share_index(&self, realm: &RealmId) -> Option<ShareIndex> {
+        if let Some(index) = self.realms.iter().position(|r| r.id == *realm) {
+            (index + 1).try_into().map(ShareIndex).ok()
         } else {
             None
         }
+    }
+
+    pub fn share_count(&self) -> u32 {
+        self.realms.len().try_into().unwrap()
     }
 }
 
