@@ -10,9 +10,12 @@ use juicebox_sdk_core::{
     },
     types::{
         EncryptedUserSecret, EncryptedUserSecretCommitment, OprfClient, OprfResult,
-        RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyScalar, UnlockKeyTag,
-        UserSecretAccessKey, UserSecretEncryptionKeyScalarShare,
+        RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey,
+        UserSecretEncryptionKeyScalarShare,
     },
+};
+use juicebox_sdk_secret_sharing::{
+    recover_secret, recover_secret_combinatorially, Secret, SecretSharingError, Share,
 };
 
 use crate::{
@@ -20,8 +23,10 @@ use crate::{
     configuration::CheckedConfiguration,
     http,
     request::{join_at_least_threshold, RequestError},
-    secret_sharing::{self, SecretSharingError},
-    types::{UnlockKeyScalarShare, UserSecretEncryptionKey, UserSecretEncryptionKeyScalar},
+    types::{
+        UnlockKeyScalar, UnlockKeyScalarShare, UserSecretEncryptionKey,
+        UserSecretEncryptionKeyScalar,
+    },
     Client, Pin, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -118,10 +123,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .iter()
             .map(|realm| self.recover2_on_realm(realm, configuration, &version, &access_key));
 
-        let mut unlock_key_scalar_shares_by_commitment: HashMap<
-            UnlockKeyCommitment,
-            Vec<secret_sharing::Share>,
-        > = HashMap::new();
+        let mut unlock_key_scalar_shares_by_commitment: HashMap<UnlockKeyCommitment, Vec<Share>> =
+            HashMap::new();
 
         for (share, commitment) in
             join_at_least_threshold(recover2_requests, configuration.recover_threshold).await?
@@ -143,16 +146,18 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             return Err(RecoverError::Assertion);
         };
 
-        let unlock_key = match secret_sharing::recover_combinatorially(
+        let unlock_key = match recover_secret_combinatorially(
             &unlock_key_scalar_shares,
             configuration.recover_threshold,
             |secret| {
-                let our_commitment =
-                    UnlockKeyCommitment::derive(&UnlockKeyScalar(secret).as_hash(), &access_key);
+                let our_commitment = UnlockKeyCommitment::derive(
+                    &UnlockKeyScalar::new(secret.to_owned()).as_hash(),
+                    &access_key,
+                );
                 bool::from(unlock_key_commitment.ct_eq(&our_commitment))
             },
         ) {
-            Ok(scalar) => UnlockKey::derive(&UnlockKeyScalar(scalar).as_hash()),
+            Ok(secret) => UnlockKey::derive(&UnlockKeyScalar::new(secret).as_hash()),
             Err(SecretSharingError::NoValidCombinations) => {
                 // We couldn't validate the unlock key commitment with any
                 // share combination so we either have the wrong PIN or the
@@ -177,7 +182,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let mut encryption_key_scalar_shares_by_encrypted_secret: HashMap<
             EncryptedUserSecret,
-            Vec<secret_sharing::Share>,
+            Vec<Share>,
         > = HashMap::new();
 
         for (share, encrypted_secret, commitment, realm) in
@@ -186,7 +191,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             let our_commitment = EncryptedUserSecretCommitment::derive(
                 &unlock_key,
                 &realm.id,
-                &UserSecretEncryptionKeyScalarShare::from(*share.value.expose_secret()),
+                &UserSecretEncryptionKeyScalarShare::from(*share.secret.expose_secret()),
                 &encrypted_secret,
             );
 
@@ -213,9 +218,9 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             return Err(RecoverError::Assertion);
         };
 
-        match secret_sharing::recover(&encryption_key_scalar_shares) {
-            Ok(scalar) => {
-                let scalar = UserSecretEncryptionKeyScalar(scalar);
+        match recover_secret(&encryption_key_scalar_shares) {
+            Ok(secret) => {
+                let scalar = UserSecretEncryptionKeyScalar::new(secret);
                 let encryption_key = UserSecretEncryptionKey::derive(&encryption_key_seed, &scalar);
 
                 Ok(UserSecret::decrypt(&encrypted_secret, &encryption_key))
@@ -253,7 +258,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
-    ) -> Result<(secret_sharing::Share, UnlockKeyCommitment), RecoverError> {
+    ) -> Result<(Share, UnlockKeyCommitment), RecoverError> {
         let oprf_blinded_input = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
             .expect("failed to blind access_key");
 
@@ -309,16 +314,17 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .expect("failed to unblind blinded_oprf_input")
             .into();
 
-        let value = secret_sharing::ShareValue::from(
-            *UnlockKeyScalarShare::unmask(&masked_unlock_key_share, &oprf_result).expose_secret(),
-        );
+        let unlock_key_scalar_share = Share {
+            index: configuration
+                .share_index(&realm.id)
+                .ok_or(RecoverError::Assertion)?,
+            secret: Secret::from(
+                *UnlockKeyScalarShare::unmask(&masked_unlock_key_share, &oprf_result)
+                    .expose_secret(),
+            ),
+        };
 
-        let index = configuration
-            .share_index(&realm.id)
-            .ok_or(RecoverError::Assertion)?;
-        let unlock_key_share = secret_sharing::Share { index, value };
-
-        Ok((unlock_key_share, unlock_key_commitment))
+        Ok((unlock_key_scalar_share, unlock_key_commitment))
     }
 
     /// Performs phase 3 of recovery on a particular realm.
@@ -331,7 +337,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         unlock_key_tag: UnlockKeyTag,
     ) -> Result<
         (
-            secret_sharing::Share,
+            Share,
             EncryptedUserSecret,
             EncryptedUserSecretCommitment,
             Realm,
@@ -357,13 +363,14 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                     encrypted_user_secret,
                     encrypted_user_secret_commitment,
                 } => {
-                    let value = secret_sharing::ShareValue::from(
-                        *user_secret_encryption_key_scalar_share.expose_secret(),
-                    );
-                    let index = configuration
-                        .share_index(&realm.id)
-                        .ok_or(RecoverError::Assertion)?;
-                    let secret_share = secret_sharing::Share { index, value };
+                    let secret_share = Share {
+                        index: configuration
+                            .share_index(&realm.id)
+                            .ok_or(RecoverError::Assertion)?,
+                        secret: Secret::from(
+                            *user_secret_encryption_key_scalar_share.expose_secret(),
+                        ),
+                    };
                     Ok((
                         secret_share,
                         encrypted_user_secret,

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, ops::Deref};
 
-use crate::{secret_sharing::ShareIndex, PinHashingMode, Realm};
+use crate::{PinHashingMode, Realm};
 use juicebox_sdk_core::types::RealmId;
+use juicebox_sdk_secret_sharing::Index;
 
 /// The parameters used to configure a [`Client`](crate::Client).
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -113,9 +114,9 @@ impl CheckedConfiguration {
 }
 
 impl CheckedConfiguration {
-    pub fn share_index(&self, realm: &RealmId) -> Option<ShareIndex> {
+    pub fn share_index(&self, realm: &RealmId) -> Option<Index> {
         if let Some(index) = self.realms.iter().position(|r| r.id == *realm) {
-            (index + 1).try_into().map(ShareIndex).ok()
+            (index + 1).try_into().map(Index).ok()
         } else {
             None
         }

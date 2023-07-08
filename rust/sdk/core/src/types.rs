@@ -368,11 +368,21 @@ impl UserSecretEncryptionKeyScalarShare {
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
+
+    pub fn as_scalar(&self) -> Scalar {
+        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
+    }
 }
 
 impl From<[u8; 32]> for UserSecretEncryptionKeyScalarShare {
     fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
+        Self::from(Scalar::from_canonical_bytes(value).unwrap())
+    }
+}
+
+impl From<Scalar> for UserSecretEncryptionKeyScalarShare {
+    fn from(value: Scalar) -> Self {
+        Self(SecretBytesArray::from(value.to_bytes()))
     }
 }
 
@@ -484,22 +494,13 @@ impl MaskedUnlockKeyScalarShare {
 
 impl From<[u8; 32]> for MaskedUnlockKeyScalarShare {
     fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
+        Self::from(Scalar::from_canonical_bytes(value).unwrap())
     }
 }
 
-/// A random scalar used to derived the [`UnlockKey`] and prove
-/// knowledge of the [`UserSecretAccessKey`].
-pub struct UnlockKeyScalar(pub Scalar);
-
-impl UnlockKeyScalar {
-    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
-        Self(Scalar::random(rng))
-    }
-
-    pub fn as_hash(&self) -> UnlockKeyScalarHash {
-        let hash: [u8; 32] = Blake2s256::digest(self.0.as_bytes()).into();
-        UnlockKeyScalarHash(SecretBytesArray::from(hash))
+impl From<Scalar> for MaskedUnlockKeyScalarShare {
+    fn from(value: Scalar) -> Self {
+        Self(SecretBytesArray::from(value.to_bytes()))
     }
 }
 

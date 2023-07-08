@@ -1007,13 +1007,13 @@ dependencies = [
  "futures",
  "hex",
  "instant",
- "itertools",
  "juicebox-sdk-core",
  "juicebox-sdk-marshalling",
  "juicebox-sdk-networking",
  "juicebox-sdk-noise",
  "juicebox-sdk-process-group",
  "juicebox-sdk-realm-auth",
+ "juicebox-sdk-secret-sharing",
  "juicebox-sdk-software-realm",
  "rand",
  "serde",
@@ -1160,6 +1160,17 @@ dependencies = [
  "juicebox-sdk-core",
  "regex",
  "serde",
+]
+
+[[package]]
+name = "juicebox-sdk-secret-sharing"
+version = "0.1.0"
+dependencies = [
+ "curve25519-dalek",
+ "itertools",
+ "juicebox-sdk-core",
+ "rand",
+ "rand_core",
 ]
 
 [[package]]

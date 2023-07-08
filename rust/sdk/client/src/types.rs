@@ -1,9 +1,10 @@
-use blake2::Blake2sMac256;
+use blake2::{Blake2s256, Blake2sMac256, Digest};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
 use curve25519_dalek::Scalar;
 use digest::{KeyInit, Mac};
 use instant::{Duration, Instant};
+use juicebox_sdk_secret_sharing::Secret;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ use url::Url;
 
 use juicebox_sdk_core::types::{
     EncryptedUserSecret, MaskedUnlockKeyScalarShare, OprfResult, RealmId, SecretBytesArray,
-    SecretBytesVec, SessionId,
+    SecretBytesVec, SessionId, UnlockKeyScalarHash,
 };
 use juicebox_sdk_noise::client as noise;
 
@@ -228,11 +229,23 @@ impl From<[u8; 32]> for UserSecretEncryptionKeySeed {
 ///
 /// This is the recoverable portion of the [`UserSecretEncryptionKey`].
 #[derive(Clone, Debug)]
-pub(crate) struct UserSecretEncryptionKeyScalar(pub Scalar);
+pub(crate) struct UserSecretEncryptionKeyScalar(Secret);
 
 impl UserSecretEncryptionKeyScalar {
+    pub fn new(secret: Secret) -> Self {
+        Self(secret)
+    }
+
     pub fn new_random() -> Self {
-        Self(Scalar::random(&mut OsRng))
+        Self(Secret::new_random(&mut OsRng))
+    }
+
+    pub fn expose_secret(&self) -> &Secret {
+        &self.0
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        self.0.expose_secret()
     }
 }
 
@@ -252,8 +265,8 @@ impl UserSecretEncryptionKey {
         let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(seed.expose_secret().into())
             .chain_update((label.len() as u32).to_le_bytes())
             .chain_update(label)
-            .chain_update((scalar.0.as_bytes().len() as u32).to_le_bytes())
-            .chain_update(scalar.0.as_bytes())
+            .chain_update((scalar.as_bytes().len() as u32).to_le_bytes())
+            .chain_update(scalar.as_bytes())
             .finalize()
             .into_bytes()
             .into();
@@ -297,7 +310,34 @@ impl From<Vec<u8>> for UserInfo {
     }
 }
 
-/// A share of the [`UnlockKeyScalar`](juicebox_sdk_core::types::UnlockKeyScalar).
+/// A random scalar used to derived the [`UnlockKey`](juicebox_sdk_core::types::UnlockKey) and prove
+/// knowledge of the [`UserSecretAccessKey`](juicebox_sdk_core::types::UserSecretAccessKey).
+pub struct UnlockKeyScalar(Secret);
+
+impl UnlockKeyScalar {
+    pub fn new(secret: Secret) -> Self {
+        Self(secret)
+    }
+
+    pub fn new_random() -> Self {
+        Self(Secret::new_random(&mut OsRng))
+    }
+
+    pub fn expose_secret(&self) -> &Secret {
+        &self.0
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        self.0.expose_secret()
+    }
+
+    pub fn as_hash(&self) -> UnlockKeyScalarHash {
+        let hash: [u8; 32] = Blake2s256::digest(self.as_bytes()).into();
+        UnlockKeyScalarHash::from(hash)
+    }
+}
+
+/// A share of the [`UnlockKeyScalar`].
 #[derive(Clone, Debug)]
 pub(crate) struct UnlockKeyScalarShare(SecretBytesArray<32>);
 
@@ -321,7 +361,13 @@ impl UnlockKeyScalarShare {
 
 impl From<[u8; 32]> for UnlockKeyScalarShare {
     fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
+        Self::from(Scalar::from_canonical_bytes(value).unwrap())
+    }
+}
+
+impl From<Scalar> for UnlockKeyScalarShare {
+    fn from(value: Scalar) -> Self {
+        Self(SecretBytesArray::from(value.to_bytes()))
     }
 }
 

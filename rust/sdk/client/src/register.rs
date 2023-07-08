@@ -7,16 +7,19 @@ use juicebox_sdk_core::{
     },
     types::{
         EncryptedUserSecretCommitment, MaskedUnlockKeyScalarShare, OprfRootSeed, OprfSeed,
-        OprfServer, RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyScalar,
-        UnlockKeyTag, UserSecretEncryptionKeyScalarShare, OPRF_KEY_INFO,
+        OprfServer, RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyTag,
+        UserSecretEncryptionKeyScalarShare, OPRF_KEY_INFO,
     },
 };
+use juicebox_sdk_secret_sharing::create_shares;
 
 use crate::{
     auth, http,
     request::{join_at_least_threshold, RequestError},
-    secret_sharing,
-    types::{UnlockKeyScalarShare, UserSecretEncryptionKey, UserSecretEncryptionKeyScalar},
+    types::{
+        UnlockKeyScalar, UnlockKeyScalarShare, UserSecretEncryptionKey,
+        UserSecretEncryptionKeyScalar,
+    },
     Client, Pin, Policy, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -58,20 +61,20 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .expect("pin hashing failed");
 
         let encryption_key_scalar = UserSecretEncryptionKeyScalar::new_random();
-        let encryption_key_scalar_shares: Vec<UserSecretEncryptionKeyScalarShare> =
-            secret_sharing::create(
-                &encryption_key_scalar.0,
-                self.configuration.recover_threshold,
-                self.configuration.share_count(),
-            )
-            .map(|share| UserSecretEncryptionKeyScalarShare::from(*share.value.expose_secret()))
-            .collect();
+        let encryption_key_scalar_shares: Vec<UserSecretEncryptionKeyScalarShare> = create_shares(
+            encryption_key_scalar.expose_secret(),
+            self.configuration.recover_threshold,
+            self.configuration.share_count(),
+            &mut OsRng,
+        )
+        .map(|share| UserSecretEncryptionKeyScalarShare::from(*share.secret.expose_secret()))
+        .collect();
 
         let encryption_key =
             UserSecretEncryptionKey::derive(&encryption_key_seed, &encryption_key_scalar);
         let encrypted_secret = secret.encrypt(&encryption_key);
 
-        let unlock_key_scalar = UnlockKeyScalar::new_random(&mut OsRng);
+        let unlock_key_scalar = UnlockKeyScalar::new_random();
         let unlock_key_scalar_hash = unlock_key_scalar.as_hash();
 
         let oprf_root_seed = OprfRootSeed::derive(&unlock_key_scalar_hash, &access_key);
@@ -83,26 +86,25 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .map(|realm| OprfSeed::derive(&oprf_root_seed, &realm.id))
             .collect();
 
-        let masked_unlock_key_scalar_shares: Vec<MaskedUnlockKeyScalarShare> =
-            secret_sharing::create(
-                &unlock_key_scalar.0,
-                self.configuration.recover_threshold,
-                self.configuration.share_count(),
-            )
-            .zip(&oprf_seeds)
-            .map(|(share, oprf_seed)| {
-                let oprf_server =
-                    OprfServer::new_from_seed(oprf_seed.expose_secret(), OPRF_KEY_INFO)
-                        .expect("oprf key derivation failed");
-                let oprf_result = oprf_server
-                    .evaluate(access_key.expose_secret())
-                    .expect("oprf pin evaluation failed")
-                    .into();
+        let masked_unlock_key_scalar_shares: Vec<MaskedUnlockKeyScalarShare> = create_shares(
+            unlock_key_scalar.expose_secret(),
+            self.configuration.recover_threshold,
+            self.configuration.share_count(),
+            &mut OsRng,
+        )
+        .zip(&oprf_seeds)
+        .map(|(share, oprf_seed)| {
+            let oprf_server = OprfServer::new_from_seed(oprf_seed.expose_secret(), OPRF_KEY_INFO)
+                .expect("oprf key derivation failed");
+            let oprf_result = oprf_server
+                .evaluate(access_key.expose_secret())
+                .expect("oprf pin evaluation failed")
+                .into();
 
-                let unmasked_share = UnlockKeyScalarShare::from(*share.value.expose_secret());
-                unmasked_share.mask(&oprf_result)
-            })
-            .collect();
+            let unmasked_share = UnlockKeyScalarShare::from(*share.secret.expose_secret());
+            unmasked_share.mask(&oprf_result)
+        })
+        .collect();
 
         let unlock_key = UnlockKey::derive(&unlock_key_scalar_hash);
         let unlock_key_commitment =

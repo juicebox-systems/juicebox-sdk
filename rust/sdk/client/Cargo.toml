@@ -21,11 +21,11 @@ digest = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 instant = { workspace = true }
-itertools = { workspace = true }
 juicebox-sdk-core = { path = "../core" }
 juicebox-sdk-marshalling = { path = "../marshalling" }
 juicebox-sdk-networking = { path = "../networking" }
 juicebox-sdk-noise = { path = "../noise" }
+juicebox-sdk-secret-sharing = { path = "../secret_sharing" }
 rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

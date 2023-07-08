@@ -8,6 +8,7 @@ members = [
     "rust/sdk/noise",
     "rust/sdk/process_group",
     "rust/sdk/realm_auth",
+    "rust/sdk/secret_sharing",
     "rust/sdk/software_realm",
     "rust/sdk/tokens",
     "rust/bridge/ffi",
@@ -40,7 +41,7 @@ hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "0.2.8"
 instant = "0.1.12"
-itertools = "0.11.0"
+itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
 jni = "0.21.1"
 jsonwebtoken = { version = "8.3.0", default-features = false }
 js-sys = "0.3.61"

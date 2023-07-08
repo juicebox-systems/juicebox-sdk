@@ -258,6 +258,7 @@ mod tests {
             UserSecretEncryptionKeyScalarShare,
         },
     };
+    use curve25519_dalek::Scalar;
     use juicebox_sdk_marshalling as marshalling;
 
     #[test]
@@ -265,11 +266,11 @@ mod tests {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
             oprf_seed: OprfSeed::from([0xff; 32]),
-            masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare::from([0xff; 32]),
+            masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare::from(Scalar::ONE),
             unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
             unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
             user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(
-                [0xff; 32],
+                Scalar::ONE,
             ),
             encrypted_user_secret: EncryptedUserSecret::from([0xff; 145]),
             encrypted_user_secret_commitment: EncryptedUserSecretCommitment::from([0xff; 16]),
