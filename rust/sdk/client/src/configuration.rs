@@ -62,10 +62,9 @@ impl CheckedConfiguration {
             "realm IDs must be unique in Configuration"
         );
 
-        assert!(
-            u32::try_from(c.realms.len()).is_ok(),
-            "too many realms in Client configuration"
-        );
+        let Ok(realm_count) = u32::try_from(c.realms.len()) else {
+            panic!("too many realms in Client configuration");
+        };
 
         for realm in &c.realms {
             if let Some(public_key) = realm.public_key.as_ref() {
@@ -82,20 +81,20 @@ impl CheckedConfiguration {
             "Configuration recover_threshold must be at least 1"
         );
         assert!(
-            c.recover_threshold <= c.realms.len() as u32,
+            c.recover_threshold <= realm_count,
             "Configuration recover_threshold cannot exceed number of realms"
         );
         assert!(
-            c.recover_threshold > c.realms.len() as u32 / 2,
+            c.recover_threshold > realm_count / 2,
             "Configuration recover_threshold must contain a majority of realms"
         );
 
         assert!(
-            c.recover_threshold <= c.register_threshold,
+            c.recover_threshold <= realm_count,
             "Configuration register_threshold must be at least recover_threshold"
         );
         assert!(
-            c.register_threshold <= c.realms.len() as u32,
+            c.register_threshold <= realm_count,
             "Configuration register_threshold cannot exceed number of realms"
         );
 

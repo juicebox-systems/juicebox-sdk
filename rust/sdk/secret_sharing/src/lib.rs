@@ -171,106 +171,115 @@ mod tests {
 
     #[test]
     fn test_all_shares() {
-        let secret = Secret::new_random(&mut OsRng);
-        let threshold = 6;
-        let shares = 10;
+        enumerate_counts_and_thresholds(10, |count, threshold| {
+            let secret = Secret::new_random(&mut OsRng);
 
-        let generated_shares: Vec<_> =
-            create_shares(&secret, threshold, shares, &mut OsRng).collect();
-        assert_eq!(generated_shares.len(), shares as usize);
+            let generated_shares: Vec<_> =
+                create_shares(&secret, threshold, count, &mut OsRng).collect();
+            assert_eq!(generated_shares.len(), count as usize);
 
-        for share in &generated_shares {
-            assert_ne!(secret.as_scalar(), share.secret.as_scalar());
-        }
+            for share in &generated_shares {
+                assert_ne!(secret.as_scalar(), share.secret.as_scalar());
+            }
 
-        let reconstructed_secret = recover_secret(&generated_shares);
-        assert!(reconstructed_secret.is_ok());
-        assert_eq!(reconstructed_secret.unwrap(), secret);
+            let reconstructed_secret = recover_secret(&generated_shares);
+            assert!(reconstructed_secret.is_ok());
+            assert_eq!(reconstructed_secret.unwrap(), secret);
+        });
     }
 
     #[test]
     fn test_threshold_recreation() {
-        let secret = Secret::new_random(&mut OsRng);
-        let threshold = 6;
-        let shares = 10;
+        enumerate_counts_and_thresholds(10, |count, threshold| {
+            let secret = Secret::new_random(&mut OsRng);
 
-        let generated_shares: Vec<_> =
-            create_shares(&secret, threshold, shares, &mut OsRng).collect();
+            let generated_shares: Vec<_> =
+                create_shares(&secret, threshold, count, &mut OsRng).collect();
 
-        for shares in generated_shares
-            .into_iter()
-            .combinations(threshold as usize)
-        {
-            let reconstructed_secret = recover_secret(&shares);
-            assert!(reconstructed_secret.is_ok());
-            assert_eq!(reconstructed_secret.unwrap(), secret);
-        }
+            for shares in generated_shares
+                .into_iter()
+                .combinations(threshold as usize)
+            {
+                let reconstructed_secret = recover_secret(&shares);
+                assert!(reconstructed_secret.is_ok());
+                assert_eq!(reconstructed_secret.unwrap(), secret);
+            }
+        });
     }
 
     #[test]
     fn test_less_than_threshold_recreation() {
-        let secret = Secret::new_random(&mut OsRng);
-        let threshold = 6;
-        let shares = 10;
+        enumerate_counts_and_thresholds(10, |count, threshold| {
+            let secret = Secret::new_random(&mut OsRng);
 
-        let generated_shares: Vec<_> =
-            create_shares(&secret, threshold, shares, &mut OsRng).collect();
+            let generated_shares: Vec<_> =
+                create_shares(&secret, threshold, count, &mut OsRng).collect();
 
-        for shares in generated_shares
-            .into_iter()
-            .combinations((threshold - 1) as usize)
-        {
-            let reconstructed_secret = recover_secret(&shares);
-            assert!(reconstructed_secret.is_ok());
-            assert_ne!(reconstructed_secret.unwrap(), secret);
-        }
+            for shares in generated_shares
+                .into_iter()
+                .combinations((threshold - 1) as usize)
+            {
+                let reconstructed_secret = recover_secret(&shares);
+                assert!(reconstructed_secret.is_ok());
+                assert_ne!(reconstructed_secret.unwrap(), secret);
+            }
+        });
     }
 
     #[test]
     fn test_more_than_threshold_recreation() {
-        let secret = Secret::new_random(&mut OsRng);
-        let threshold = 6;
-        let shares = 10;
+        enumerate_counts_and_thresholds(10, |count, threshold| {
+            let secret = Secret::new_random(&mut OsRng);
 
-        let generated_shares: Vec<_> =
-            create_shares(&secret, threshold, shares, &mut OsRng).collect();
+            let generated_shares: Vec<_> =
+                create_shares(&secret, threshold, count, &mut OsRng).collect();
 
-        for shares in generated_shares
-            .into_iter()
-            .combinations((threshold + 1) as usize)
-        {
-            let reconstructed_secret = recover_secret(&shares);
-            assert!(reconstructed_secret.is_ok());
-            assert_eq!(reconstructed_secret.unwrap(), secret);
-        }
+            for shares in generated_shares
+                .into_iter()
+                .combinations((threshold + 1) as usize)
+            {
+                let reconstructed_secret = recover_secret(&shares);
+                assert!(reconstructed_secret.is_ok());
+                assert_eq!(reconstructed_secret.unwrap(), secret);
+            }
+        });
     }
 
     #[test]
     fn test_recover_combinatorially() {
-        let secret = Secret::new_random(&mut OsRng);
-        let threshold = 6;
-        let shares = 10;
+        enumerate_counts_and_thresholds(10, |count, threshold| {
+            let secret = Secret::new_random(&mut OsRng);
 
-        let generated_shares: Vec<_> =
-            create_shares(&secret, threshold, shares, &mut OsRng).collect();
+            let generated_shares: Vec<_> =
+                create_shares(&secret, threshold, count, &mut OsRng).collect();
 
-        let recover_shares: Vec<_> = generated_shares
-            .into_iter()
-            .enumerate()
-            .map(|(i, s)| {
-                if i < (shares - threshold) as usize {
-                    return Share {
-                        index: s.index,
-                        secret: Secret::from(Scalar::random(&mut OsRng)),
-                    };
-                }
-                s
-            })
-            .collect();
+            let recover_shares: Vec<_> = generated_shares
+                .into_iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    if i < (count - threshold) as usize {
+                        return Share {
+                            index: s.index,
+                            secret: Secret::from(Scalar::random(&mut OsRng)),
+                        };
+                    }
+                    s
+                })
+                .collect();
 
-        let reconstructed_secret =
-            recover_secret_combinatorially(&recover_shares, threshold, |s| s == &secret);
-        assert!(reconstructed_secret.is_ok());
-        assert_eq!(reconstructed_secret.unwrap(), secret);
+            let reconstructed_secret =
+                recover_secret_combinatorially(&recover_shares, threshold, |s| s == &secret);
+            assert!(reconstructed_secret.is_ok());
+            assert_eq!(reconstructed_secret.unwrap(), secret);
+        });
+    }
+
+    fn enumerate_counts_and_thresholds(max_count: u32, test: impl Fn(u32, u32)) {
+        assert!(max_count > 1);
+        for i in 2..=max_count {
+            for j in 2..=i {
+                test(i, j)
+            }
+        }
     }
 }
