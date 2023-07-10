@@ -1,20 +1,20 @@
-use blake2::Blake2sMac256;
+use blake2::{Blake2s256, Blake2sMac256, Digest};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
+use curve25519_dalek::Scalar;
 use digest::{KeyInit, Mac};
 use instant::{Duration, Instant};
+use juicebox_sdk_secret_sharing::Secret;
 use rand::rngs::OsRng;
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 
 use std::fmt::{self, Debug};
-use std::iter::zip;
 
 use url::Url;
 
 use juicebox_sdk_core::types::{
-    MaskedUnlockKeyShare, OprfResult, RealmId, SecretBytesArray, SecretBytesVec, SessionId,
-    UnlockTag,
+    EncryptedUserSecret, MaskedUnlockKeyScalarShare, OprfResult, RealmId, SecretBytesArray,
+    SecretBytesVec, SessionId, UnlockKeyScalarHash,
 };
 use juicebox_sdk_noise::client as noise;
 
@@ -132,11 +132,26 @@ impl UserSecret {
         cipher
             .encrypt(
                 &USER_SECRET_ENCRYPTION_NONCE.into(),
-                padded_secret.expose_secret(),
+                padded_secret.expose_secret().as_slice(),
             )
             .map(EncryptedUserSecret::try_from)
             .expect("secret encryption failed")
             .unwrap()
+    }
+
+    pub(crate) fn decrypt(
+        encrypted_secret: &EncryptedUserSecret,
+        encryption_key: &UserSecretEncryptionKey,
+    ) -> Self {
+        let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
+        let padded_secret = cipher
+            .decrypt(
+                &USER_SECRET_ENCRYPTION_NONCE.into(),
+                encrypted_secret.expose_secret().as_slice(),
+            )
+            .map(|s| PaddedUserSecret::try_from(s).expect("incorrectly sized padded secret"))
+            .expect("secret decryption failed");
+        UserSecret::from(&padded_secret)
     }
 }
 
@@ -162,7 +177,7 @@ struct PaddedUserSecret(SecretBytesArray<129>);
 
 impl PaddedUserSecret {
     /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8] {
+    pub fn expose_secret(&self) -> &[u8; 129] {
         self.0.expose_secret()
     }
 }
@@ -191,50 +206,46 @@ impl TryFrom<Vec<u8>> for PaddedUserSecret {
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct EncryptedUserSecret(SecretBytesArray<145>);
+/// A seed value derived from the user's [`Pin`](crate::pin::Pin) with Argon2.
+///
+/// This is the user-known portion of the [`UserSecretEncryptionKey`].
+pub(crate) struct UserSecretEncryptionKeySeed(SecretBytesArray<32>);
 
-impl EncryptedUserSecret {
+impl UserSecretEncryptionKeySeed {
     /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8] {
-        self.0.expose_secret()
-    }
-
-    pub(crate) fn decrypt(&self, encryption_key: &UserSecretEncryptionKey) -> UserSecret {
-        let cipher = ChaCha20Poly1305::new(encryption_key.expose_secret().into());
-        let padded_secret = cipher
-            .decrypt(&USER_SECRET_ENCRYPTION_NONCE.into(), self.expose_secret())
-            .map(|s| PaddedUserSecret::try_from(s).expect("incorrectly sized padded secret"))
-            .expect("secret decryption failed");
-        UserSecret::from(&padded_secret)
-    }
-}
-
-impl TryFrom<Vec<u8>> for EncryptedUserSecret {
-    type Error = &'static str;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(SecretBytesArray::try_from(value)?))
-    }
-}
-
-/// An access key derived from the user's [`PIN`](crate::pin),
-/// used to recover and register the user's [`UserSecret`].
-#[derive(Clone, Debug)]
-pub(crate) struct UserSecretAccessKey(SecretBytesArray<32>);
-
-impl UserSecretAccessKey {
-    /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8] {
+    pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
 }
 
-impl TryFrom<Vec<u8>> for UserSecretAccessKey {
-    type Error = &'static str;
+impl From<[u8; 32]> for UserSecretEncryptionKeySeed {
+    fn from(value: [u8; 32]) -> Self {
+        Self(SecretBytesArray::from(value))
+    }
+}
 
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(SecretBytesArray::try_from(value)?))
+/// A random scalar that is secret shared and distributed to realms
+/// during registration.
+///
+/// This is the recoverable portion of the [`UserSecretEncryptionKey`].
+#[derive(Clone, Debug)]
+pub(crate) struct UserSecretEncryptionKeyScalar(Secret);
+
+impl UserSecretEncryptionKeyScalar {
+    pub fn new(secret: Secret) -> Self {
+        Self(secret)
+    }
+
+    pub fn new_random() -> Self {
+        Self(Secret::new_random(&mut OsRng))
+    }
+
+    pub fn expose_secret(&self) -> &Secret {
+        &self.0
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        self.0.expose_secret()
     }
 }
 
@@ -244,8 +255,26 @@ impl TryFrom<Vec<u8>> for UserSecretAccessKey {
 pub(crate) struct UserSecretEncryptionKey(SecretBytesArray<32>);
 
 impl UserSecretEncryptionKey {
+    /// Derive a key from the user-known seed and the scalar (which
+    /// may have been recovered from the realm).
+    pub fn derive(
+        seed: &UserSecretEncryptionKeySeed,
+        scalar: &UserSecretEncryptionKeyScalar,
+    ) -> Self {
+        let label = b"User Secret Encryption Key";
+        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(seed.expose_secret().into())
+            .chain_update((label.len() as u32).to_le_bytes())
+            .chain_update(label)
+            .chain_update((scalar.as_bytes().len() as u32).to_le_bytes())
+            .chain_update(scalar.as_bytes())
+            .finalize()
+            .into_bytes()
+            .into();
+        UserSecretEncryptionKey(SecretBytesArray::from(mac))
+    }
+
     /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8] {
+    pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
 }
@@ -253,14 +282,6 @@ impl UserSecretEncryptionKey {
 impl From<[u8; 32]> for UserSecretEncryptionKey {
     fn from(value: [u8; 32]) -> Self {
         Self(SecretBytesArray::from(value))
-    }
-}
-
-impl TryFrom<Vec<u8>> for UserSecretEncryptionKey {
-    type Error = &'static str;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(SecretBytesArray::try_from(value)?))
     }
 }
 
@@ -289,94 +310,64 @@ impl From<Vec<u8>> for UserInfo {
     }
 }
 
-/// A random key that is used to derive secret-unlocking tags
-/// ([`UnlockTag`]) for each realm.
-///
-/// # Note
-///
-/// The unlock key should be at least one byte smaller than the OPRF
-/// output (64 bytes) so that the key shares can be masked with the
-/// OPRF output. The `sharks` library adds an extra byte for the
-/// x-coordinate.
-pub(crate) struct UnlockKey(SecretBytesArray<32>);
+/// A random scalar used to derived the [`UnlockKey`](juicebox_sdk_core::types::UnlockKey) and prove
+/// knowledge of the [`UserSecretAccessKey`](juicebox_sdk_core::types::UserSecretAccessKey).
+pub struct UnlockKeyScalar(Secret);
 
-impl UnlockKey {
-    /// Generates a new key with random data.
+impl UnlockKeyScalar {
+    pub fn new(secret: Secret) -> Self {
+        Self(secret)
+    }
+
     pub fn new_random() -> Self {
-        let mut unlock_key = [0u8; 32];
-        OsRng.fill_bytes(&mut unlock_key);
-        Self::from(unlock_key)
+        Self(Secret::new_random(&mut OsRng))
     }
 
-    /// Computes a derived secret-unlocking tag for the realm.
-    pub fn tag(&self, realm_id: &RealmId) -> UnlockTag {
-        let mac = <Blake2sMac256 as Mac>::new(self.expose_secret().into()).chain_update(realm_id.0);
-        UnlockTag::from(Into::<[u8; 32]>::into(mac.finalize().into_bytes()))
+    pub fn expose_secret(&self) -> &Secret {
+        &self.0
     }
 
-    pub fn expose_secret(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
-}
 
-impl From<[u8; 32]> for UnlockKey {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
+    pub fn as_hash(&self) -> UnlockKeyScalarHash {
+        let hash: [u8; 32] = Blake2s256::digest(self.as_bytes()).into();
+        UnlockKeyScalarHash::from(hash)
     }
 }
 
-impl TryFrom<Vec<u8>> for UnlockKey {
-    type Error = &'static str;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(SecretBytesArray::try_from(value)?))
-    }
-}
-
-/// Error return type for [`UnlockKeyShare::try_from_masked`].
-#[derive(Debug)]
-pub(crate) struct LengthMismatchError;
-
-/// A share of the [`UnlockKey`].
-///
-/// The version of this that is XORed with `OPRF(PIN)` is
-/// [`MaskedUnlockKeyShare`](super::types::MaskedUnlockKeyShare).
+/// A share of the [`UnlockKeyScalar`].
 #[derive(Clone, Debug)]
-pub(crate) struct UnlockKeyShare(SecretBytesArray<32>);
+pub(crate) struct UnlockKeyScalarShare(SecretBytesArray<32>);
 
-impl UnlockKeyShare {
-    pub fn expose_secret(&self) -> &[u8] {
+impl UnlockKeyScalarShare {
+    pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
 
-    pub fn try_from_masked(
-        masked_share: &MaskedUnlockKeyShare,
-        oprf_result: &OprfResult,
-    ) -> Result<Self, LengthMismatchError> {
-        if oprf_result.expose_secret().len() >= masked_share.expose_secret().len() {
-            let share: Vec<u8> = zip(oprf_result.expose_secret(), masked_share.expose_secret())
-                .map(|(a, b)| a ^ b)
-                .collect();
-            Ok(Self::try_from(share).map_err(|_| LengthMismatchError)?)
-        } else {
-            Err(LengthMismatchError)
-        }
+    pub fn unmask(masked_share: &MaskedUnlockKeyScalarShare, oprf_result: &OprfResult) -> Self {
+        Self::from((masked_share.as_scalar() - oprf_result.as_scalar()).to_bytes())
     }
 
-    pub fn mask(&self, oprf_result: &OprfResult) -> MaskedUnlockKeyShare {
-        assert!(oprf_result.expose_secret().len() >= self.expose_secret().len());
-        let vec: Vec<u8> = zip(oprf_result.expose_secret(), self.expose_secret())
-            .map(|(a, b)| a ^ b)
-            .collect();
-        MaskedUnlockKeyShare::try_from(vec).expect("incorrect masked unlock key share length")
+    pub fn mask(&self, oprf_result: &OprfResult) -> MaskedUnlockKeyScalarShare {
+        MaskedUnlockKeyScalarShare::from((self.as_scalar() + oprf_result.as_scalar()).to_bytes())
+    }
+
+    pub fn as_scalar(&self) -> Scalar {
+        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
     }
 }
 
-impl TryFrom<Vec<u8>> for UnlockKeyShare {
-    type Error = &'static str;
+impl From<[u8; 32]> for UnlockKeyScalarShare {
+    fn from(value: [u8; 32]) -> Self {
+        Self::from(Scalar::from_canonical_bytes(value).unwrap())
+    }
+}
 
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(SecretBytesArray::try_from(value)?))
+impl From<Scalar> for UnlockKeyScalarShare {
+    fn from(value: Scalar) -> Self {
+        Self(SecretBytesArray::from(value.to_bytes()))
     }
 }
 
@@ -394,11 +385,11 @@ pub(crate) struct Session {
 
 #[cfg(test)]
 mod tests {
-    use juicebox_sdk_core::types::{MaskedUnlockKeyShare, OprfResult};
+    use juicebox_sdk_core::types::{MaskedUnlockKeyScalarShare, OprfResult};
 
     use crate::types::{
-        EncryptedUserSecret, PaddedUserSecret, UnlockKeyShare, UserSecret, UserSecretEncryptionKey,
-        MAX_USER_SECRET_LENGTH,
+        EncryptedUserSecret, PaddedUserSecret, UnlockKeyScalarShare, UserSecret,
+        UserSecretEncryptionKey, MAX_USER_SECRET_LENGTH,
     };
 
     #[test]
@@ -406,17 +397,17 @@ mod tests {
         let oprf_result = OprfResult::from([10u8; 64]);
 
         let unmasked_share = vec![
-            5u8, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-            5, 5, 5, 5,
+            248, 158, 161, 253, 178, 255, 152, 10, 230, 184, 147, 150, 19, 185, 200, 215, 192, 174,
+            12, 126, 85, 68, 178, 163, 25, 140, 26, 245, 221, 126, 133, 15,
         ];
 
-        let masked_share = MaskedUnlockKeyShare::from([
-            15u8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+        let masked_share = MaskedUnlockKeyScalarShare::from([
+            13, 109, 221, 215, 211, 213, 202, 96, 143, 149, 85, 1, 34, 103, 252, 232, 231, 222,
+            141, 70, 178, 169, 96, 89, 148, 205, 20, 130, 246, 70, 74, 7,
         ]);
 
-        let s = UnlockKeyShare::try_from_masked(&masked_share, &oprf_result).unwrap();
-        assert_eq!(s.expose_secret(), unmasked_share);
+        let s = UnlockKeyScalarShare::unmask(&masked_share, &oprf_result);
+        assert_eq!(s.expose_secret().as_slice(), unmasked_share);
 
         let m = s.mask(&oprf_result);
         assert_eq!(m.expose_secret(), masked_share.expose_secret());
@@ -425,11 +416,13 @@ mod tests {
     #[test]
     fn test_secret_padding() {
         let short_secret = UserSecret::from(vec![1, 2, 3, 0, 4, 5, 0]);
-        let mut expected_padded_secret = vec![7, 1, 2, 3, 0, 4, 5, 0];
+        let mut expected_padded_secret = vec![7u8, 1, 2, 3, 0, 4, 5, 0];
         expected_padded_secret.resize(MAX_USER_SECRET_LENGTH + 1, 0);
         assert_eq!(
-            PaddedUserSecret::from(&short_secret).expose_secret(),
-            &expected_padded_secret
+            PaddedUserSecret::from(&short_secret)
+                .expose_secret()
+                .to_vec(),
+            expected_padded_secret
         );
         assert_eq!(
             UserSecret::from(&PaddedUserSecret::from(&short_secret)).expose_secret(),
@@ -440,8 +433,10 @@ mod tests {
         expected_padded_secret = vec![5; MAX_USER_SECRET_LENGTH];
         expected_padded_secret.insert(0, 128);
         assert_eq!(
-            PaddedUserSecret::from(&long_secret).expose_secret(),
-            &expected_padded_secret
+            PaddedUserSecret::from(&long_secret)
+                .expose_secret()
+                .to_vec(),
+            expected_padded_secret
         );
         assert_eq!(
             UserSecret::from(&PaddedUserSecret::from(&long_secret)).expose_secret(),
@@ -451,7 +446,7 @@ mod tests {
         let empty_secret = UserSecret::from(vec![]);
         assert_eq!(
             PaddedUserSecret::from(&empty_secret).expose_secret(),
-            &vec![0; MAX_USER_SECRET_LENGTH + 1]
+            &[0; MAX_USER_SECRET_LENGTH + 1]
         );
         assert_eq!(
             UserSecret::from(&PaddedUserSecret::from(&empty_secret)).expose_secret(),
@@ -491,7 +486,7 @@ mod tests {
             162, 103, 164, 76, 121, 87, 140, 147, 118, 109, 107, 35, 7,
         ])
         .unwrap();
-        let secret = encrypted_secret.decrypt(&key);
+        let secret = UserSecret::decrypt(&encrypted_secret, &key);
         let expected_secret = b"artemis".to_vec();
         assert_eq!(&expected_secret, secret.expose_secret());
     }

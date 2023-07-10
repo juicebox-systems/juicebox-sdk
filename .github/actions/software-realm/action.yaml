@@ -37,10 +37,6 @@ runs:
         go build -o jb-sw-realm
         mv jb-sw-realm /usr/local/bin
 
-    - name: Use Rust Cache
-      uses: Swatinem/rust-cache@v2
-      if: ${{ inputs.start-realm-count > 0 }}
-
     - name: Build Tokens
       uses: actions-rs/cargo@v1
       if: ${{ inputs.start-realm-count > 0 }}

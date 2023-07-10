@@ -8,6 +8,7 @@ members = [
     "rust/sdk/noise",
     "rust/sdk/process_group",
     "rust/sdk/realm_auth",
+    "rust/sdk/secret_sharing",
     "rust/sdk/software_realm",
     "rust/sdk/tokens",
     "rust/bridge/ffi",
@@ -30,6 +31,7 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 ] }
 cbindgen = "0.24.3"
 ciborium = { version = "0.2.0", default-features = false }
+curve25519-dalek = "4.0.0-rc.2"
 digest = { version = "0.10.6" }
 futures = { version = "0.3.25" }
 futures-channel = { version = " 0.3.28" }
@@ -39,6 +41,7 @@ hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "0.2.8"
 instant = "0.1.12"
+itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
 jni = "0.21.1"
 jsonwebtoken = { version = "8.3.0", default-features = false }
 js-sys = "0.3.61"
@@ -57,7 +60,6 @@ serde = { version = "1.0.152", default-features = false, features = [
 ] }
 serde_json = "1.0.94"
 serde-wasm-bindgen = "0.5"
-sharks = "0.5.0"
 subtle = { version = "2.4.1", default-features = false }
 thiserror = "1.0.40"
 tokio = { version = "1.25.0", features = ["sync", "time"] }

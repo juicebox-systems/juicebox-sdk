@@ -32,8 +32,8 @@ public final class Configuration {
      */
     public init(
         realms: [Realm],
-        registerThreshold: UInt8,
-        recoverThreshold: UInt8,
+        registerThreshold: UInt32,
+        recoverThreshold: UInt32,
         pinHashingMode: PinHashingMode
     ) {
         self.opaque = realms.withUnsafeFfiPointer { realmsBuffer in

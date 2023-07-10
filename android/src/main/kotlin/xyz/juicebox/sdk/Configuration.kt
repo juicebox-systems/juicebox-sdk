@@ -30,8 +30,8 @@ class Configuration private constructor(val native: Long) {
      */
     constructor(
         realms: Array<Realm>,
-        registerThreshold: Byte,
-        recoverThreshold: Byte,
+        registerThreshold: Int,
+        recoverThreshold: Int,
         pinHashingMode: PinHashingMode
     ): this(Native.configurationCreate(realms, registerThreshold, recoverThreshold, pinHashingMode))
 

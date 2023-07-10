@@ -26,8 +26,8 @@ public final class Native {
 
     public static native long configurationCreate(
             @NotNull Realm[] realms,
-            byte registerThreshold,
-            byte recoverThreshold,
+            int registerThreshold,
+            int recoverThreshold,
             @NotNull PinHashingMode pinHashingMode);
 
     public static native boolean configurationsAreEqual(long configuration1, long configuration2);

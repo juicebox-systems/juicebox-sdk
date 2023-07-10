@@ -1,0 +1,14 @@
+[package]
+name = "juicebox-sdk-secret-sharing"
+version = "0.1.0"
+authors = ["Nora Trapp <nora@juicebox.me>"]
+edition = "2021"
+
+[dependencies]
+curve25519-dalek = { workspace = true }
+itertools = { workspace = true }
+juicebox-sdk-core = { path = "../core" }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true, features = ["getrandom"] }

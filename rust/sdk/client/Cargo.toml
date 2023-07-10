@@ -16,6 +16,7 @@ argon2 = { workspace = true }
 async-trait = { workspace = true }
 blake2 = { workspace = true }
 chacha20poly1305 = { workspace = true }
+curve25519-dalek = { workspace = true }
 digest = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
@@ -24,10 +25,11 @@ juicebox-sdk-core = { path = "../core" }
 juicebox-sdk-marshalling = { path = "../marshalling" }
 juicebox-sdk-networking = { path = "../networking" }
 juicebox-sdk-noise = { path = "../noise" }
-rand = { workspace = true }
+juicebox-sdk-secret-sharing = { path = "../secret_sharing" }
+rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sharks = { workspace = true }
+subtle = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }

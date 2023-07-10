@@ -7,7 +7,7 @@ mod types;
 use auth::AuthTokenManager;
 use jni::{
     objects::{JByteArray, JClass, JLongArray, JObject, JObjectArray, JString, JThrowable, JValue},
-    sys::{jboolean, jbyte, jlong, jshort},
+    sys::{jboolean, jint, jlong, jshort},
     JNIEnv,
 };
 use juicebox_sdk as sdk;
@@ -84,8 +84,8 @@ pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationCreate(
     mut env: JNIEnv,
     _class: JClass,
     jrealms: JObjectArray,
-    register_threshold: jbyte,
-    recover_threshold: jbyte,
+    register_threshold: jint,
+    recover_threshold: jint,
     pin_hashing_mode: JObject,
 ) -> jlong {
     let pin_hashing_mode: u8 = env

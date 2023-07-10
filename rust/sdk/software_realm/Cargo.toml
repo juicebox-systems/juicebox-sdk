@@ -1,9 +1,8 @@
 [package]
 name = "juicebox-sdk-software-realm"
 version = "0.1.0"
+authors = ["Nora Trapp <nora@juicebox.me>"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 hex = { workspace = true }

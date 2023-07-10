@@ -7,8 +7,9 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AuthToken, MaskedUnlockKeyShare, OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy,
-    RealmId, RegistrationVersion, SaltShare, SessionId, UnlockTag, UserSecretShare,
+    AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, MaskedUnlockKeyScalarShare,
+    OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId, RegistrationVersion, SessionId,
+    UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
 };
 use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
@@ -171,11 +172,13 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub version: RegistrationVersion,
-    pub salt_share: SaltShare,
     pub oprf_seed: OprfSeed,
-    pub tag: UnlockTag,
-    pub masked_unlock_key_share: MaskedUnlockKeyShare,
-    pub secret_share: UserSecretShare,
+    pub masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare,
+    pub unlock_key_commitment: UnlockKeyCommitment,
+    pub unlock_key_tag: UnlockKeyTag,
+    pub user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
+    pub encrypted_user_secret: EncryptedUserSecret,
+    pub encrypted_user_secret_commitment: EncryptedUserSecretCommitment,
     pub policy: Policy,
 }
 
@@ -188,10 +191,7 @@ pub enum Register2Response {
 /// Response message for the first phase of recovery.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover1Response {
-    Ok {
-        version: RegistrationVersion,
-        salt_share: SaltShare,
-    },
+    Ok { version: RegistrationVersion },
     NotRegistered,
     NoGuesses,
 }
@@ -200,15 +200,16 @@ pub enum Recover1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
     pub version: RegistrationVersion,
-    pub blinded_oprf_input: OprfBlindedInput,
+    pub oprf_blinded_input: OprfBlindedInput,
 }
 
 /// Response message for the second phase of recovery.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover2Response {
     Ok {
-        blinded_oprf_result: OprfBlindedResult,
-        masked_unlock_key_share: MaskedUnlockKeyShare,
+        oprf_blinded_result: OprfBlindedResult,
+        masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare,
+        unlock_key_commitment: UnlockKeyCommitment,
     },
     VersionMismatch,
     NotRegistered,
@@ -219,16 +220,22 @@ pub enum Recover2Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover3Request {
     pub version: RegistrationVersion,
-    pub tag: UnlockTag,
+    pub unlock_key_tag: UnlockKeyTag,
 }
 
 /// Response message for the third phase of recovery.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover3Response {
-    Ok { secret_share: UserSecretShare },
+    Ok {
+        user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
+        encrypted_user_secret: EncryptedUserSecret,
+        encrypted_user_secret_commitment: EncryptedUserSecretCommitment,
+    },
     VersionMismatch,
     NotRegistered,
-    BadUnlockTag { guesses_remaining: u16 },
+    BadUnlockKeyTag {
+        guesses_remaining: u16,
+    },
     NoGuesses,
 }
 
@@ -246,21 +253,27 @@ mod tests {
     use crate::{
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
-            MaskedUnlockKeyShare, OprfSeed, Policy, RegistrationVersion, SaltShare, UnlockTag,
-            UserSecretShare,
+            EncryptedUserSecret, EncryptedUserSecretCommitment, MaskedUnlockKeyScalarShare,
+            OprfSeed, Policy, RegistrationVersion, UnlockKeyCommitment, UnlockKeyTag,
+            UserSecretEncryptionKeyScalarShare,
         },
     };
+    use curve25519_dalek::Scalar;
     use juicebox_sdk_marshalling as marshalling;
 
     #[test]
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            salt_share: SaltShare::from([0xff; 16]),
             oprf_seed: OprfSeed::from([0xff; 32]),
-            tag: UnlockTag::from([0xff; 32]),
-            masked_unlock_key_share: MaskedUnlockKeyShare::try_from(vec![0xff; 32]).unwrap(),
-            secret_share: UserSecretShare::try_from(vec![0xff; 145]).unwrap(),
+            masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare::from(Scalar::ONE),
+            unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
+            unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
+            user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(
+                Scalar::ONE,
+            ),
+            encrypted_user_secret: EncryptedUserSecret::from([0xff; 145]),
+            encrypted_user_secret_commitment: EncryptedUserSecretCommitment::from([0xff; 16]),
             policy: Policy {
                 num_guesses: u16::MAX,
             },
