@@ -6,10 +6,25 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 
 ### Install
 
-**_Note:_** This repo is pre-production and has not yet been published to NPM. It must be installed manually.
-
 ```
 npm install -s juicebox-sdk
+```
+
+**_Note:_** This repo is pre-production and has not yet been published to NPM.
+
+It must be installed manually by following the below steps:
+
+1. Install rust: https://www.rust-lang.org/tools/install
+2. Install wasm-pack: https://rustwasm.github.io/wasm-pack/installer/
+3. Compile the `javascript-sdk` package by running the following from the root of this repo:
+```sh
+wasm-pack build rust/bridge/wasm --out-dir ../../../javascript/juicebox-sdk --out-name juicebox-sdk
+```
+4. Link the `javascript-sdk` you compiled in your `package.json` (adjusting the path as appropriate):
+```json
+    "dependencies": {
+        "juicebox-sdk": "file:../juicebox-sdk/javascript/juicebox-sdk"
+    }
 ```
 
 ### Usage

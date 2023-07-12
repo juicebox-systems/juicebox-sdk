@@ -6,14 +6,25 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 
 ### Install
 
-**_Note:_** This repo is pre-production and has not yet been published to Cocoa Pods. It must be installed manually.
-
 #### Cocoa Pods
 
 Run the following command in your project directory:
 
-```
+```sh
 pod install JuiceboxSdk
+```
+
+**_Note:_** This repo is pre-production and has not yet been published to Cocoa Pods.
+
+It must be installed manually by placing the following your `Podfile`:
+
+```Pod
+pod 'JuiceboxSdk', :git => 'git@github.com:juicebox-systems/juicebox-sdk.git'
+```
+
+You will additionally need to [install rust](https://www.rust-lang.org/tools/install) and the appropriate targets for iOS builds:
+```sh
+rustup toolchain install stable --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
 ```
 
 #### Swift Package
