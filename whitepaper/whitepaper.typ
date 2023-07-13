@@ -7,8 +7,8 @@
     (name: "Nora Trapp", affiliation: "Juicebox Systems, Inc"),
     (name: "Diego Ongaro", affiliation: "Juicebox Systems, Inc"),
   ),
-  date: "June 14, 2023",
-  version: "Revision 5",
+  date: "July 13, 2023",
+  version: "Revision 6",
   abstract: [Existing secret management techniques demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have designed a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a short PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudorandom Functions_ (OPRFs) and a _Secret-Sharing Scheme_ (SSS) combined with self-destructing secrets to minimize the trust placed in any singular server. Additionally, our approach allows for servers distributed across organizations, eliminating the need to trust a singular service operator. We have built an open-source implementation of the client and server sides of this new protocol, the latter of which has variants for running on commodity hardware and secure hardware.],
   bibliography-file: "references.bib",
 )
@@ -82,8 +82,9 @@ A secret-sharing scheme is a cryptographic algorithm that allows a secret to be 
 
 For this paper, we will define the following abstract functions for creating and reconstructing shares:
 
-/ $"CreateShares"(n, "threshold", "secret")$: \ Distributes _secret_ into _n_ _shares_ that can be recovered when _threshold_ are provided.
-/ $"RecoverShares"("shares")$: \ Recovers _secret_ from _y_ _shares_ or returns an error if fewer than _threshold_ distinct shares were provided.
+/ $"CreateShares"(n, "threshold", "secret")$: \ Distributes a _secret_ scalar into _n_ scalar _shares_ that can be recovered when _threshold_ are provided.
+/ $"RecoverShares"("shares")$: \ Recovers a _secret_ scalar from _y_ _shares_. If an invalid combination of shares are provided, an incorrect scalar will be returned.
+/ $"RecoverSharesCombinatorially"("shares", "threshold", "validator")$: \ Attempts $"RecoverShares"$ on each _threshold_ combination of _shares_. After each recovery attempt, the recovered _secret_ is passed to the _validator_ function. If the _validator_ returns successfully, recovery is completed and the _secret_ is returned.
 
 == Additional Primitives
 In addition to the previously established _OPRF_ and _SSS_ primitives, the following common primitives are necessary to define the protocol:
@@ -91,8 +92,10 @@ In addition to the previously established _OPRF_ and _SSS_ primitives, the follo
 / $"Encrypt"("encryptionKey", "plaintext", "nonce")$: \ Returns an authenticated encryption of _plaintext_ with _encryptionKey_. The encryption is performed with the given _nonce_.
 / $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: \ Returns the authenticated decryption of _ciphertext_ with _encryptionKey_. The decryption is performed with the given _nonce_.
 / $"KDF"("data", "salt", "info")$: \ Returns a fixed 64-byte value that is unique to the input _data_, _salt_, and _info_.
-/ $"MAC"("key", "input")$: \ Returns a 32-byte tag by combining the _key_ with the provided _input_.
+/ $"MAC"("key", "*inputs")$: \ Returns a 32-byte tag by combining the _key_ with the provided _inputs_. Each provided input is length-separated.
+/ $"Digest"("input")$: \ Returns a 32-byte value that is irreversibly to the _input_.
 / $"Random"(n)$: \ Returns _n_ random bytes. The _Random_ function should ensure the generation of random data with high entropy, suitable for cryptographic purposes.
+/ $"Scalar"("seed")$: \ Returns a scalar created from a 32-byte seed value.
 
 = Protocol
 The _Juicebox Protocol_ can be abstracted to three simple operations — _register_, _recover_, and _delete_.
@@ -117,13 +120,15 @@ A user transitions into the _NoGuesses_ state when the number of _attemptedGuess
 In the _Registered_ state, the following additional information is stored corresponding to the registration:
 
 / version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _Realms_. The version is random so that a malicious realm can't force a client to run out of versions.
+/ oprfSeeds#sub[i]: \ An OPRF seed derived from the user's _accessKey_ and a random root seed during registration for this _Realm#sub[i]_.
+/ maskedUnlockKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the `unlockKeyTag`, masked by the OPRF result such that even if _threshold_ shares were recovered, the _unlockKeyScalar_ cannot be recovered without knowing the user's _PIN_.
+/ unlockKeyCommitment: \ A MAC derived from the _unlockKey_ and _accessKey_ used to validate the _unlockKeyScalar_ was recovered successfuly.
+/ unlockKeyTag#sub[i]: \ A tag unique to this _Realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of the _PIN_ and be granted access to the secret.
+/ encryptionKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the `encryptionKey` for the user's secret. Even if _threshold_ shares were recovered, the _encryptionKey_ cannot be derived without knowing the user's _PIN_.
+/ encryptedSecret: \ A copy of the user's encrypted secret.
+/ encryptedSecretCommitment#sub[i]: \ A MAC derived from the _unlockKey_, _Realm#sub[id]_, encryptionKeyScalarShares#sub[i], and _encryptedSecret_. During recovery, the client can reconstruct this MAC to verify if _Realm#sub[i]_ has returned a valid share and secret.
 / allowedGuesses: \ The maximum number of guesses allowed before the registration is permanently deleted by the _Realm#sub[i]_.
 / attemptedGuesses#sub[i]: \ The number of times recovery has been attempted on _Realm#sub[i]_ without success. Starts at 0 and increases on recovery attempts, then reset to 0 on successful recoveries.
-/ saltShares#sub[i]: \ A single share of the salt the client generated during registration and used to hash their _PIN_.
-/ oprfSeeds#sub[i]: \ A random OPRF seed the client generated during registration for this _Realm#sub[i]_.
-/ maskedUnlockKeyShares#sub[i]: \ A single share of the unlock key masked by the OPRF result such that even if _threshold_ shares were recovered, the _unlockKey_ cannot be recovered without knowing the user's _PIN_.
-/ unlockTags#sub[i]: \ A tag unique to this _Realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of _PIN_ and be granted access to _encryptedSecretShares#sub[i]_.
-/ encryptedSecretShares#sub[i]: \ A single share of the user's encrypted secret. Even if _threshold_ shares were recovered, the _secret_ cannot be decrypted without the user's _PIN_.
 
 == Registration
 Registration is a two-phase operation that a new user takes to store a PIN-protected secret. A registration operation is also performed to change a user's PIN or register a new secret for an existing user.
@@ -156,45 +161,65 @@ The following demonstrates the work a client performs to prepare a new registrat
   def PrepareRegister2(pin, secret, userInfo, realms, threshold):
     version = Random(16)
 
-    salt = Random(16)
-    saltShares = CreateShares(len(realms), threshold, salt)
-
-    stretchedPin = KDF(pin, salt, userInfo)
+    stretchedPin = KDF(pin, version, userInfo)
     accessKey = stretchedPin[0:32]
-    encryptionKey = stretchedPin[32:64]
+    encryptionKeySeed = stretchedPin[32:64]
+
+    encryptionKeyScalar = Scalar(Random(32))
+    encryptionKeyScalarShares = CreateShares(len(realms),
+                                             threshold,
+                                             encryptionKeyScalar)
+    encryptionKey = MAC(encryptionKeySeed,
+                        "Encryption Key",
+                        encryptionKeyScalar)
 
     # A `nonce` of 0 can be used since `encryptionKey` changes with each registration
     encryptedSecret = Encrypt(secret, encryptionKey, 0)
-    encryptedSecretShares = CreateShares(len(realms), threshold, encryptedSecret)
 
-    oprfSeeds = [Random(32) for _ in realms]
+    unlockKeyScalar = Scalar(Random(32))
+    unlockKeySeed = Digest(unlockKeyScalar)
+
+    oprfRootSeed = MAC(unlockKeySeed, "Oprf Root Seed", accessKey)
+    oprfSeeds = [MAC(oprfRootSeed, "Oprf Seed", realm.id) for realm in realms]
     oprfResults = [OprfEvaluate(OprfDeriveKey(seed), accessKey) for seed in oprfSeeds]
 
-    unlockKey = Random(32)
-    unlockKeyShares = CreateShares(len(realms), threshold, unlockKey)
+    unlockKeyScalarShares = CreateShares(len(realms), threshold, unlockKeyScalar)
+    maskedUnlockKeyScalarShares = [x + Scalar(Digest(y))
+                                  for x, y in zip(unlockKeyScalarShares, oprfResults)]
 
-    maskedUnlockKeyShares = [XOR(x, y) for x, y in zip(unlockKeyShares, oprfResults)]
+    unlockKey = MAC(unlockKeySeed, "Unlock Key")
+    unlockKeyCommitment = MAC(unlockKeySeed, "Unlock Key Commitment", accessKey)
 
-    unlockTags = [MAC(unlockKey, realm.id) for realm in realms]
+    unlockKeyTags = [MAC(unlockKey, realm.id)[0:16] for realm in realms]
+    encryptedSecretCommitments = [MAC(unlockKey,
+                                      "Encrypted Secret Commitment",
+                                      realm.id,
+                                      share,
+                                      encryptedSecret)[0:16]
+                                  for realm, share in zip(realms, encryptionKeyScalarShares)]
 
     return (
         version,
-        saltShares,
+        encryptionKeyScalarShares,
+        encryptedSecret,
         oprfSeeds,
-        maskedUnlockKeyShares,
-        unlockTags,
-        encryptedSecretShares
+        maskedUnlockKeyScalarShares,
+        unlockKeyCommitment,
+        unlockKeyTags,
+        encryptedSecretCommitments
     )
 ```
 
 A _register2_ request is then sent from the client to each _Realm#sub[i]_ that contains the prepared:
 - version
-- allowedGuesses
-- saltShares#sub[i]
 - oprfSeeds#sub[i]
-- maskedUnlockKeyShares#sub[i]
-- unlockTags#sub[i]
-- encryptedSecretShares#sub[i]
+- maskedUnlockKeyScalarShares#sub[i]
+- unlockKeyCommitment
+- unlockKeyTags#sub[i]
+- encryptionKeyScalarShares#sub[i]
+- encryptedSecret
+- encryptedSecretCommitments#sub[i]
+- allowedGuesses
 
 Upon receipt of a _register2_ request, _Realm#sub[i]_ creates or overwrites the user's registration state with the corresponding values from the request and resets the _attemptedGuesses_ to 0.
 
@@ -215,7 +240,7 @@ $ "secret", "error" = "recover"("pin", "userInfo") $
 / error: \ An error in recovery, such as an invalid _PIN_ or the _allowedGuesses_ having been exceeded.
 
 === Phase 1 Recovery
-The purpose of Phase 1 is to recover the _version_ and _saltShares#sub[i]_ from each _Realm#sub[i]_ and determine a set of realms to recover from.
+The purpose of Phase 1 is to recover the _version_ from each _Realm#sub[i]_ and determine a set of realms to recover from.
 
 An empty _recover1_ request is sent from the client to each _Realm#sub[i]_.
 
@@ -228,7 +253,7 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
         state.transitionToNoGuesses()
         return Error.NoGuesses()
 
-      return Ok(state.version, state.saltShare)
+      return Ok(state.version)
     elif state.isNoGuesses():
       return Error.NoGuesses():
     elif state.isNotRegistered():
@@ -237,12 +262,11 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 
 An _OK_ response from this phase should always be expected to return the following information from the user's registration:
 - version
-- saltShares#sub[i]
 
-Once a client has completed Phase 1 on at least _threshold_ _Realm#sub[i]_ that agree on _version_, it will reconstruct the salt from the saltShares#sub[i] and proceed to Phase 2 for those realms. If no realms are in agreement, the client will assume that the user is _NotRegistered_ on any realm.
+Once a client has completed Phase 1 on at least _threshold_ _Realm#sub[i]_ that agree on _version_, it will proceed to Phase 2 for those realms. If no realms are in agreement, the client will assume that the user is _NotRegistered_ on any realm.
 
-=== Phase 2 Recovery
-The purpose of Phase 2 is to increment the _attemptedGuesses_ for the user and recover the _maskedUnlockKeyShares_ stored during registration, along with the _OPRF_ result required to unmask them and reconstruct the _unlockKey_.
+=== Phase 2 Recovery <Recovery_Phase_2>
+The purpose of Phase 2 is to increment the _attemptedGuesses_ for the user and recover the _maskedUnlockKeyScalarShares_ stored during registration, along with the _OPRF_ result required to unmask them and reconstruct the _unlockKey_.
 
 By design, a client cannot recover the user's secret by performing Phase 2 alone. This ensures that each realm has an opportunity to audit the recovery attempt in Phase 2, before the client may gain access to the user's secret in Phase 3.
 
@@ -252,7 +276,7 @@ The following demonstrates the work a client performs to prepare for Phase 2:
   def PrepareRecovery2(pin, userInfo, realms, version, salt):
     stretchedPin = KDF(pin, salt, userInfo)
     accessKey = stretchedPin[0:32]
-    encryptionKey = stretchedPin[32:64]
+    encryptionKeySeed = stretchedPin[32:64]
 
     blindOutputs = [OprfBlind(accessKey) for _ in realms]
     blindedAccessKeys = [k for k, _ in blindOutputs]
@@ -260,7 +284,7 @@ The following demonstrates the work a client performs to prepare for Phase 2:
 
     return (
       accessKey,
-      encryptionKey,
+      encryptionKeySeed,
       blindedAccessKeys,
       blindingFactors
     )
@@ -286,7 +310,9 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 
       state.attemptedGuesses += 1
 
-      return Ok(blindedResult, state.maskedUnlockKeyShare)
+      return Ok(blindedResult,
+                state.maskedUnlockKeyScalarShare,
+                state.unlockKeyCommitment)
     elif state.isNoGuesses():
       return Error.NoGuesses():
     elif state.isNotRegistered():
@@ -296,11 +322,31 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 An _OK_ response from this phase should always be expected to return the following information:
 - blindedResult
 - maskedUnlockKeyShares#sub[i]
+- unlockKeyCommitment
 
-Once _threshold_ _OK_ responses have been received from Phase 2, the client will proceed to Phase 3. It is unnecessary to wait for additional responses, as this is sufficient material to recover the _unlockKey_.
+Once a client has completed Phase 2 on at least _threshold_ _Realm#sub[i]_ that agree on an _unlockKeyCommitment_, it will attempt to reconstruct the _unlockKey_ that matches the commitment.
+
+The following demonstrates the work the client performs to reconstruct the _unlockKey_:
+
+```python
+  def RecoverUnlockKey(maskedUnlockKeyShares, unlockKeyCommitment, threshold, accessKey):
+    try:
+      unlockKeyScalar = RecoverSharesCombinatorially(
+        maskedUnlockKeyShares,
+        threshold,
+        lambda scalar:
+          ourUnlockKeyCommitment = MAC(Digest(scalar), "Unlock Key Commitment", accessKey)
+          ConstantTimeEquals(ourUnlockKeyCommitment, unlockKeyCommitment)
+      )
+      return MAC(Digest(unlockKeyScalar), "Unlock Key")
+    except NoValidCombination:
+      return bytearray(b'\x00' * 32)
+```
+
+Regardless of if the _unlockKey_ could be recovered successfully, the client will proceed to Phase 3. A null _unlockKey_ will be used if one could not be recovered.
 
 === Phase 3 Recovery
-The purpose of Phase 3 is to recover the _encryptedSecretShares_, allowing decryption and reconstruction of the user's _secret_. Additionally, this phase tells each _Realm#sub[i]_ the result of the operation so it can be audited appropriately.
+The purpose of Phase 3 is to recover the _encryptionKey_, allowing decryption and reconstruction of the user's _secret_. Additionally, this phase tells each _Realm#sub[i]_ the result of the operation so it can be audited appropriately.
 
 Upon success this phase resets the _attemptedGuesses_ on each _Realm#sub[i]_ to 0. For this reason, the client completes this process on _all_ realms that Phase 2 was performed on, even if sufficient material has been received to recover the user's _secret_. Otherwise, secret material may prematurely self-destruct.
 
@@ -312,21 +358,18 @@ The following demonstrates the work a client performs to prepare for Phase 3:
     accessKey,
     blindingFactors,
     blindedResults,
-    maskedUnlockKeyShares
+    unlockKey
   ):
     oprfResults = [OprfFinalize(x, y, accessKey)
                    for x, y in zip(blindedResults, blindingFactors)]
+    unlockKeyTags = [MAC(unlockKey, realm.id) for realm in realms]
 
-    unlockKeyShares = [XOR(x, y) for x, y in zip(maskedUnlockKeyShares, oprfResults)]
-    unlockKey = RecoverShares(unlockKeyShares)
-    unlockTags = [MAC(unlockKey, realm.id) for realm in realms]
-
-    return unlockTags
+    return unlockKeyTags
 ```
 
 A _recover3_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
 - version
-- unlockTags#sub[i]
+- unlockKeyTags#sub[i]
 
 The following demonstrates the work a _Realm#sub[i]_ performs to process the request:
 
@@ -336,17 +379,19 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
       if request.version != state.version:
         return Error.VersionMismatch()
 
-      if !ConstantTimeEquals(request.unlockTag, state.unlockTag):
+      if !ConstantTimeEquals(request.unlockKeyTags, state.unlockKeyTags):
         guessesRemaining = state.allowedGuesses - state.attemptedGuesses
 
         if guessesRemaining == 0:
           state.transitionToNoGuesses()
 
-        return Error.BadUnlockTag(guessesRemaining)
+        return Error.BadUnlockKeyTag(guessesRemaining)
 
       state.attemptedGuesses = 0
 
-      return Ok(state.encryptedSecretShare)
+      return Ok(state.encryptionKeyScalarShare,
+                state.encryptedSecret,
+                state.encryptedSecretCommitment)
     elif state.isNoGuesses():
       return Error.NoGuesses():
     elif state.isNotRegistered():
@@ -354,9 +399,11 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 ```
 
 An _OK_ response from this phase should always be expected to return the following information from the user's registration state:
-- encryptedSecretShares#sub[i]
+- encryptionKeyScalarShares#sub[i]
+- encryptedSecret
+- encryptedSecretCommitments#sub[i]
 
-A _BadUnlockTag_ response from this phase should always be expected to return the previously determined:
+A _BadUnlockKeyTag_ response from this phase should always be expected to return the previously determined:
 - guessesRemaining
 
 Upon receipt of _threshold_ _OK_ responses, the client can reconstruct the user's _secret_.
@@ -364,8 +411,31 @@ Upon receipt of _threshold_ _OK_ responses, the client can reconstruct the user'
 The following demonstrates the work a client performs to do so:
 
 ```python
-  def RecoverSecret(encryptionKey, encryptedSecretShares):
-    encryptedSecret = RecoverShares(encryptedSecretShares)
+  def RecoverSecret(encryptionKeySeed,
+                    encryptionKeyScalarShares,
+                    encryptedSecret,
+                    encryptedSecretCommitments,
+                    realms,
+                    threshold):
+    validEncryptionKeyScalarShares = []
+
+    for share, commitment, realm in zip(encryptionKeyScalarShares, encryptedSecretCommitments, realms):
+      ourCommitment = MAC(unlockKey,
+                          "Encrypted Secret Commitment",
+                          realm.id,
+                          share,
+                          encryptedSecret)[0:16]
+      if ConstantTimeEquals(ourCommitment, commitment):
+        validEncryptionKeyScalarShares.append(share)
+
+    if len(validEncryptionKeyScalarShares) < threshold:
+      return Error.Assertion()
+
+    encryptionKeyScalar = RecoverShares(validEncryptionKeyScalarShares)
+    encryptionKey = MAC(encryptionKeySeed,
+                        "Encryption Key",
+                        encryptionKeyScalar)
+
     secret = Decrypt(encryptionKey, encryptedSecret, 0)
     return secret
 ```
@@ -411,6 +481,32 @@ A _Realm#sub[i]_ must reject any connections that:
 The operations defined in the prior sections assume all requests contain valid authentication tokens for a given _Realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _Realm_.
 
 = Security Considerations
+== A Deviation from JKKX16
+A subset of the Juicebox protocol can be viewed as a deviation from the PPSS primitive explored by Jarecki _et al._ (JKKX16) @Jarecki_Kiayias_Krawczyk_Xu_2016 where $s = "unlockKeyScalar"$, $K = "unlockKey"$, $C = "unlockKeyCommitment"$ and each OPRF server receives only a single share $e_i = "maskedUnlockKeyScalarShares"_i$. As a result, the calculation of _C_ has also been altered to no longer incorporate $e_*$ and instead look like $C = "COM"("pw", s)$. Without this change, it would be necessary to successfully recover from all OPRF servers in order to verify _C_ which is not viable in real-world environments when $t<n$.
+
+Additionally, we have altered the generation of OPRF keys such that they are deterministically hashed from _s_ and _pw_. This results in an OPRF key this is still effectively random, since _s_ is random per registration.
+
+=== Extending the JKKX16 Game-based Security Proof
+We'll use the name _J_ for the "challenger" in the security game for JKKX16, and the name _J'_ for the similar challenger for our variant of JKKX16 that only stores one share per OPRF server. We'll show that an adversary _A'_ against _J'_ can be converted into an adversary _A_ against _J_. This will suffice for the modified security proof; because JKKX16 shows that no _A_ exists, if _A_ can be implemented using _A'_, then no _A'_ exists.
+
+The challenger _J_ interacts with _A_ (similarly: _J'_ interacts with _A'_) as follows:
++ During registration, _A_ deterministically hashes the OPRF keys that are used by a sub-threshold set of servers, which we model as a random oracle. Then _A_ learns a real-or-random key _K_ output by the user. This models an adversary who controls a sub-threshold set of servers but is not capable of MITM between the user and other servers.
++ During a reconstruction attempt by the honest user, _A_ provides the OPRF keys used by a _threshold_ set of servers (possibly by forwarding answers to honest OPRF servers; possibly not). If the user accepts then _A_ learns the real-or-random key _K_. This models an adversary who is capable of MITM with any servers.
++ _A_ can query passwords to the OPRFs from other honest servers. This models an adversary who can perform reconstruction attempts.
+
+_A_ wins by distinguishing whether it's in the "real" or "random" worlds. (2) and (3) are counted and used to bound _A_'s success probability.
+
+We now show how to implement an adversary _A_ against _J_ using _A'_. _A_ sits between _J_ and _A'_, forwarding interactions between them and emulating _J'_ to _A'_:
++ During registration, _J_ sends $e_*=(e_1, ..., e_n)$ and $C="COM"("pw", e_*, s, r)$ to _A_. _J'_ sends $e_*$ and $C="COM"("pw", s)$ to _A'_. (Technically _A'_ only learns the _e#sub[i]_ for those servers it controls, during registration, but we assume _A'_ can easily make one reconstruction attempt to learn the other _e#sub[i]_).
++ During a reconstruction attempt from the honest user, _A'_ only sends _e#sub[i]_ to _J'_ for each server, but _A_ sends $e_*$ to _J_ for each server. _A_ forwards all other data from _A'_ to _J_, including OPRF keys for OPRF responses forged by _A'_.
++ OPRF queries from _A'_ are forwarded to _A_, to be answered by _J_ from the honest servers.
+
+The real-or-random keys _K_ are forwarded from _J_ to _A'_.
+
+If _A'_ queries $"COM"("pw", s)$ for the correct values then _A_ can recognize the correct query by deterministically recalculating the OPRF keys, $e_*$, and _C_. If _A'_ does not query $"COM"()$ for the correct values then _A'_ can't distinguish the commitment from random, so _A'_ is correctly executed.
+
+Because _K_ is calculated identically in _J_ and _J'_, if _A'_ can distinguish a real-or-random _K_ and "win" the guessing game against _J'_, then _A_ also wins against _J_.
+
 == Threshold Configuration
 While any $"threshold" <= n$ is valid, we recommend a $"threshold" > n/2$ which ensures that there can be only at most one valid secret for a user at a time, avoiding uncertainty during Phase 1 of recovery.
 
@@ -446,7 +542,7 @@ The protocol relies on multiple _OPRF_ functions to ensure a _Realm_ does not ga
 We specifically utilize OPRFs as described in the working draft by Davidson _et al._ @Davidson_Faz-Hernandez_Sullivan_Wood_2023 with the cipher suite _Ristretto255_ @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 Group and SHA-512 @Hansen_Eastlake_2011 Hash. Other cipher suites could also be potentially suitable depending on hardware and software constraints. In particular, certain HSMs may place restrictions on available cipher suites.
 
 == SSS
-The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979.
+The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979 using scalar math over Curve25519.
 
 == KDF
 The protocol relies on a _KDF_ function to add entropy to the user's _PIN_. When an expensive _KDF_ is utilized, this provides an additional layer of protection for low entropy PINs if a _threshold_ of realms were to be compromised. For this reason, we utilize _Argon2_ @Biryukov_Dinu_Khovratovich_2015.
@@ -466,12 +562,14 @@ A client may always re-register utilizing new parameters to provide stronger gua
 == Secret Encryption
 The protocol relies on an authenticated _Encrypt_ and _Decrypt_ function to ensure that the user's PIN is required to access the secret value, even if secret shares are compromised. We utilize _ChaCha20_ and _Poly1305_ @Nir_Langley_2015.
 
-== Tag MAC
-The protocol relies on a _MAC_ function to compute an _unlockTag_ for a given realm. We utilize _BLAKE2s-MAC-256_ @Saarinen_Aumasson_2015.
+== MAC
+The protocol relies on a _MAC_ function to compute various values for future validation. We utilize _BLAKE2s-MAC-256_ @Saarinen_Aumasson_2015.
+
+== Digest
+The protocol relies on a _Digest_ operation to derive fixed-length constants from computed values. We utilize _BLAKE2s-256_ @Saarinen_Aumasson_2015.
 
 = Acknowledgments
 - The protocol is heavily based on design and feedback from Trevor Perrin and Moxie Marlinspike.
-- The protocol builds on concepts closely related to those explored by Jarecki _et al._ in their PPSS @Jarecki_Kiayias_Krawczyk_Xu_2016 primitive and Davies _et al._ in their _PERKS_ @Davies_Pijnenburg_2022 design.
 - Some of the ideas utilized in this design were first suggested by the Signal Foundation in the future-looking portion of their _"Secure Value Recovery"_ blog post @Lund_2019.
 
 = References

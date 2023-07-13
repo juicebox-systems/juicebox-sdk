@@ -4,7 +4,7 @@ An interface for the Juicebox Protocol which provides distributed storage and re
 
 This interface is implemented in [Rust](rust/README.md), but is also bridged to support [Swift](swift/README.md), [Android](android/README.md), and [JavaScript](javascript/README.md).
 
-For a more in-depth explanation of the protocol – including the motivations behind it – read the [whitepaper](https://docs:JU1C380X@docs.juicebox.xyz/whitepapers/juiceboxprotocol_revision5_20230614.pdf).
+For a more in-depth explanation of the protocol – including the motivations behind it – read the [whitepaper](https://docs:JU1C380X@docs.juicebox.xyz/whitepapers/juiceboxprotocol_revision6_20230713.pdf).
 
 The protocol requires authentication, using JSON Web Tokens, the creation of which is delegated away from the operators of the servers that store secrets. Sample Rust code for creating and validating these tokens can be found in the [tokens](rust/sdk/tokens/README.md) CLI tool. Details on Authentication can be found in Section 4.5 of the Whitepaper.
 
