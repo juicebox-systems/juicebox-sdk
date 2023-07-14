@@ -56,6 +56,7 @@ async fn main() {
         .auth_token_manager(auth_tokens)
         .reqwest_with_options(ClientOptions {
             additional_root_certs: lb_certs,
+            ..ClientOptions::default()
         })
         .tokio_sleeper()
         .build();
