@@ -12,9 +12,19 @@ use tracing::warn;
 use crate::{http, rpc};
 
 /// Options for configuring the [`reqwest`] [`Client`].
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct ClientOptions {
     pub additional_root_certs: Vec<Certificate>,
+    pub timeout: Duration,
+}
+
+impl Default for ClientOptions {
+    fn default() -> Self {
+        Self {
+            additional_root_certs: Vec::new(),
+            timeout: Duration::from_secs(30),
+        }
+    }
 }
 
 /// An [`http::Client`] implementation that utilizes [`reqwest`].
@@ -29,7 +39,7 @@ pub struct Client<F: rpc::Service> {
 impl<F: rpc::Service> Client<F> {
     pub fn new(options: ClientOptions) -> Self {
         let mut b = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(options.timeout)
             .use_rustls_tls();
         for c in options.additional_root_certs {
             b = b.add_root_certificate(c);

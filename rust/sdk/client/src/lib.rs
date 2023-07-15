@@ -158,9 +158,7 @@ where
     /// Sets the [`http::Client`] to [`reqwest::Client`].
     pub fn reqwest(self) -> Self {
         self.http(reqwest::Client::<LoadBalancerService>::new(
-            reqwest::ClientOptions {
-                additional_root_certs: vec![],
-            },
+            reqwest::ClientOptions::default(),
         ))
     }
 
