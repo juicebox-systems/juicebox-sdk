@@ -2,6 +2,8 @@ plugins {
     id 'com.android.library' version '7.4.2'
     id 'org.jetbrains.kotlin.android' version '1.8.0'
     id 'org.jetbrains.dokka' version '1.6.0'
+    id 'maven-publish'
+    id 'signing'
 }
 
 repositories {
@@ -61,6 +63,93 @@ dependencies {
 
 preBuild {
     dependsOn 'buildRustJni'
+}
+
+def getVersionName() {
+    try {
+        return hasProperty('version') ? version : 'git describe --tags --exact-match'.execute().text.trim()
+    } catch (Exception e) {
+        throw new GradleException("Git tag not found. Please make sure you have tagged your commit.")
+    }
+}
+
+def isReleaseBuild() {
+    return version.contains("SNAPSHOT") == false
+}
+
+def getRepositoryUrl() {
+    return hasProperty('ossrhRepo') ? ossrhRepo
+            : "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+}
+
+def getRepositoryUsername() {
+    return hasProperty('ossrhUsername') ? ossrhUsername : ''
+}
+
+def getRepositoryPassword() {
+    return hasProperty('ossrhPassword') ? ossrhPassword : ''
+}
+
+def getGpgSigningKey() {
+    return hasProperty('signingKey') ? signingKey : ''
+}
+
+def getGpgSigningPassword() {
+    return hasProperty('signingPassword') ? signingPassword : ''
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.release
+                groupId = 'xyz.juicebox'
+                artifactId = 'sdk'
+                version getVersionName()
+
+                pom {
+                    name = 'sdk'
+                    packaging = 'aar'
+                    description = 'Juicebox SDK for Android'
+                    url = 'https://github.com/juicebox-systems/juicebox-sdk'
+
+                    scm {
+                        url = 'https://github.com/juicebox-systems/juicebox-sdk/'
+                        connection = 'scm:git@github.com:juicebox-systems/juicebox-sdk.git'
+                        developerConnection = 'scm:git@github.com:juicebox-systems/juicebox-sdk.git'
+                    }
+
+                    licenses {
+                        license {
+                            name = 'MIT'
+                            url = "https://github.com/juicebox-systems/juicebox-sdk/blob/$version/LICENSE"
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            name = 'Juicebox Systems, Inc.'
+                        }
+                    }
+                }
+            }
+        }
+        repositories {
+            maven {
+                url = getRepositoryUrl()
+                credentials {
+                    username = getRepositoryUsername()
+                    password = getRepositoryPassword()
+                }
+            }
+        }
+    }
+
+    signing {
+        required { isReleaseBuild() && gradle.taskGraph.hasTask(":android:publish") }
+        useInMemoryPgpKeys(getGpgSigningKey(), getGpgSigningPassword())
+        sign publishing.publications.mavenJava
+    }
 }
 
 task buildRustJni(type:Exec) {
