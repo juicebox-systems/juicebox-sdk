@@ -6,6 +6,12 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 
 ### Install
 
+This library wraps a Rust FFI layer. To use it, you must [install rust](https://www.rust-lang.org/tools/install) and the appropriate targets:
+
+```sh
+rustup +stable target add x86_64-apple-ios aarch64-apple-ios aarch64-apple-ios-sim
+```
+
 #### Cocoa Pods
 
 Run the following command in your project directory:
@@ -14,26 +20,13 @@ Run the following command in your project directory:
 pod install JuiceboxSdk
 ```
 
-**_Note:_** This repo is pre-production and has not yet been published to Cocoa Pods.
-
-It must be installed manually by placing the following your `Podfile`:
-
-```Pod
-pod 'JuiceboxSdk', :git => 'git@github.com:juicebox-systems/juicebox-sdk.git'
-```
-
-You will additionally need to [install rust](https://www.rust-lang.org/tools/install) and the appropriate targets for iOS builds:
-```sh
-rustup toolchain install stable --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
-```
+**_Note:_** You may wish to use [cocoapods-binary](https://guides.cocoapods.org/plugins/pre-compiling-dependencies.html) to persist the compiled Rust artifacts in your `Pods` folder. This allows building your project without requiring Rust be installed after the initial `pod install`.
 
 #### Swift Package
 
-See the [demo](demo) project in this respository for an example.
+See the [demo](demo) project in this repository for an example.
 
-Note: because there are native dependencies, you will need to clone
-this repo, build the dependencies (running `ffi.sh`), and set your
-linker settings appropriately.
+**_Note:_** because there are native dependencies, you will need to clone this repo, build the dependencies (running `swift/ffi.sh`), and set your linker settings appropriately.
 
 ### Usage
 

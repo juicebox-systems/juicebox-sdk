@@ -1,12 +1,12 @@
 Pod::Spec.new do |s|
   s.name             = 'JuiceboxSdk'
-  s.license          = 'proprietary'
+  s.license          = 'MIT'
   s.author           = { 'Nora Trapp' => 'nora@juicebox.me' }
   s.version          = '0.1.0'
   s.summary          = 'A Swift wrapper library for interfacing with the Juicebox service.'
 
   s.homepage         = 'https://github.com/juicebox-systems/juicebox-sdk'
-  s.source           = { :git => 'https://github.com/juicebox-systems/juicebox-sdk.git', :tag => "v#{s.version}" }
+  s.source           = { :git => 'git@github.com:juicebox-systems/juicebox-sdk.git', :tag => "#{s.version}" }
 
   s.swift_version    = '5'
   s.platform         = :ios, '13'
@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
   s.preserve_paths = [
     'target/*/release/libjuicebox_sdk_ffi.a',
     'target/*/release/include',
-    'swift/Sources/JuiceboxSdkFfi'
+    'swift/Sources/JuiceboxSdkFfi',
   ]
 
   s.pod_target_xcconfig = {

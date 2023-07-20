@@ -70,5 +70,25 @@ jobs:
         run: |
           cp ../README.md .
           sed -i '' 's/juicebox-sdk-wasm/juicebox-sdk/' package.json
-          NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}" npm publish
+          npm publish
         working-directory: javascript/juicebox-sdk
+        env:
+          NODE_AUTH_TOKEN: "${{ secrets.NPM_TOKEN }}"
+
+  cocoapods:
+    name: CocoaPods
+    runs-on: macOS-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: >-
+          rustup toolchain install stable --profile minimal --target
+          x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Publish
+        run: pod trunk push --verbose --allow-warnings
+        env:
+          COCOAPODS_TRUNK_TOKEN: "${{ secrets.COCOAPODS_TRUNK_TOKEN }}"
