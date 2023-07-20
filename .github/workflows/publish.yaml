@@ -28,7 +28,7 @@ jobs:
 
       - name: Publish
         run: >-
-          gradlew clean publish
+          ./gradlew clean publish
           -PossrhUsername="${{ secrets.OSSRH_USERNAME }}"
           -PossrhPassword="${{ secrets.OSSRH_PASSWORD }}"
           -PsigningPassword="${{ secrets.ANDROID_SIGNING_PASSWORD }}"
@@ -69,7 +69,7 @@ jobs:
       - name: Publish
         run: |
           cp ../README.md .
-          sed -i '' 's/juicebox-sdk-wasm/juicebox-sdk/' package.json
+          sed -i 's/juicebox-sdk-wasm/juicebox-sdk/' package.json
           npm publish
         working-directory: javascript/juicebox-sdk
         env:
@@ -89,6 +89,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Publish
-        run: pod trunk push --verbose --allow-warnings
+        run: |
+          eval `ssh-agent -s`
+          ssh-add - <<< "${{ secrets.ACCESS_KEY }}"
+          pod trunk push --verbose --allow-warnings
         env:
           COCOAPODS_TRUNK_TOKEN: "${{ secrets.COCOAPODS_TRUNK_TOKEN }}"
