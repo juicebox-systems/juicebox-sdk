@@ -67,7 +67,8 @@ preBuild {
 
 def getVersionName() {
     try {
-        return hasProperty('versionString') ? versionString : 'git describe --tags --exact-match'.execute().text.trim()
+        return hasProperty('versionString') ? versionString
+            : 'git describe --tags --exact-match'.execute().text.trim()
     } catch (Exception e) {
         throw new GradleException("Git tag not found. Please make sure you have tagged your commit.")
     }
