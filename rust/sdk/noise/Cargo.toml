@@ -1,6 +1,7 @@
 [package]
 name = "juicebox-sdk-noise"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = ["Diego Ongaro <diego@juicebox.me>"]
 edition = "2021"
 
@@ -10,7 +11,7 @@ chacha20poly1305 = { workspace = true }
 digest = { workspace = true }
 hkdf = { workspace = true }
 hmac = { workspace = true }
-juicebox-sdk-marshalling = { path = "../marshalling" }
+juicebox-sdk-marshalling = { workspace = true }
 rand_core = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }

@@ -1,6 +1,7 @@
 [package]
 name = "juicebox-sdk-networking"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = [
     "Simon Fell <simon@juicebox.me>",
     "Diego Ongaro <diego@juicebox.me>",
@@ -11,8 +12,8 @@ edition = "2021"
 [dependencies]
 async-trait = { workspace = true }
 http = { workspace = true }
-juicebox-sdk-core = { path = "../core" }
-juicebox-sdk-marshalling = { path = "../marshalling" }
+juicebox-sdk-core = { workspace = true }
+juicebox-sdk-marshalling = { workspace = true }
 opentelemetry = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde = { workspace = true }

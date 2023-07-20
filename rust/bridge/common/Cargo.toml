@@ -1,12 +1,13 @@
 [package]
 name = "juicebox-sdk-bridge"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = ["Nora Trapp <nora@juicebox.me>"]
 edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-juicebox-sdk = { path = "../../sdk/client" }
+juicebox-sdk = { workspace = true }
 tokio = { workspace = true, optional = true }
 url = { workspace = true }
 uuid = { workspace = true }

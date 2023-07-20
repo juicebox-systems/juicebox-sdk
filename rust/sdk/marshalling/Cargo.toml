@@ -1,6 +1,7 @@
 [package]
 name = "juicebox-sdk-marshalling"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = [
     "Simon Fell <simon@juicebox.me>",
     "Diego Ongaro <diego@juicebox.me>",

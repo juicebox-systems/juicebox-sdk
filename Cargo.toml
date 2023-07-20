@@ -19,7 +19,25 @@ members = [
 default-members = ["rust/sdk/client"]
 resolver = "2"
 
+[workspace.package]
+version = "0.1.0"
+license = "MIT"
+
 [workspace.dependencies]
+juicebox-sdk = { path = "rust/sdk/client", version = "0.1.0" }
+juicebox-sdk-core = { path = "rust/sdk/core", version = "0.1.0" }
+juicebox-sdk-marshalling = { path = "rust/sdk/marshalling", version = "0.1.0" }
+juicebox-sdk-networking = { path = "rust/sdk/networking", version = "0.1.0" }
+juicebox-sdk-noise = { path = "rust/sdk/noise", version = "0.1.0" }
+juicebox-sdk-process-group = { path = "rust/sdk/process_group", version = "0.1.0" }
+juicebox-sdk-realm-auth = { path = "rust/sdk/realm_auth", version = "0.1.0" }
+juicebox-sdk-secret-sharing = { path = "rust/sdk/secret_sharing", version = "0.1.0" }
+juicebox-sdk-software-realm = { path = "rust/sdk/software_realm", version = "0.1.0" }
+juicebox-sdk-bridge = { path = "rust/bridge/common", version = "0.1.0" }
+juicebox-sdk-ffi = { path = "rust/bridge/ffi", version = "0.1.0" }
+juicebox-sdk-jni = { path = "rust/bridge/jni", version = "0.1.0" }
+juicebox-sdk-wasm = { path = "rust/bridge/wasm", version = "0.1.0" }
+
 argon2 = "0.5.0"
 async-trait = "0.1.64"
 base64 = "0.21.0"

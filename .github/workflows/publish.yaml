@@ -34,3 +34,41 @@ jobs:
           -PsigningPassword="${{ secrets.ANDROID_SIGNING_PASSWORD }}"
           -PsigningKey="${{ secrets.ANDROID_SIGNING_KEY }}"
         working-directory: android
+
+  javascript:
+    name: JavaScript
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rustfmt, clippy
+          override: 'true'
+          profile: minimal
+          toolchain: stable
+
+      - name: Use Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Build JavaScript Package
+        run: >-
+          wasm-pack build rust/bridge/wasm
+          --out-dir ../../../javascript/juicebox-sdk
+          --out-name juicebox-sdk
+          --target bundler
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish
+        run: |
+          cp ../README.md .
+          sed -i '' 's/juicebox-sdk-wasm/juicebox-sdk/' package.json
+          NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}" npm publish
+        working-directory: javascript/juicebox-sdk
