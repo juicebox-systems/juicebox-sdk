@@ -4,7 +4,6 @@ use chacha20poly1305::ChaCha20Poly1305;
 use curve25519_dalek::Scalar;
 use digest::{KeyInit, Mac};
 use instant::{Duration, Instant};
-use juicebox_sdk_secret_sharing::Secret;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
@@ -229,23 +228,23 @@ impl From<[u8; 32]> for UserSecretEncryptionKeySeed {
 ///
 /// This is the recoverable portion of the [`UserSecretEncryptionKey`].
 #[derive(Clone, Debug)]
-pub(crate) struct UserSecretEncryptionKeyScalar(Secret);
+pub(crate) struct UserSecretEncryptionKeyScalar(Scalar);
 
 impl UserSecretEncryptionKeyScalar {
-    pub fn new(secret: Secret) -> Self {
-        Self(secret)
+    pub fn new(scalar: Scalar) -> Self {
+        Self(scalar)
     }
 
     pub fn new_random() -> Self {
-        Self(Secret::new_random(&mut OsRng))
+        Self(Scalar::random(&mut OsRng))
     }
 
-    pub fn expose_secret(&self) -> &Secret {
+    pub fn expose_secret(&self) -> &Scalar {
         &self.0
     }
 
     pub fn as_bytes(&self) -> &[u8; 32] {
-        self.0.expose_secret()
+        self.0.as_bytes()
     }
 }
 
@@ -312,23 +311,23 @@ impl From<Vec<u8>> for UserInfo {
 
 /// A random scalar used to derived the [`UnlockKey`](juicebox_sdk_core::types::UnlockKey) and prove
 /// knowledge of the [`UserSecretAccessKey`](juicebox_sdk_core::types::UserSecretAccessKey).
-pub struct UnlockKeyScalar(Secret);
+pub struct UnlockKeyScalar(Scalar);
 
 impl UnlockKeyScalar {
-    pub fn new(secret: Secret) -> Self {
-        Self(secret)
+    pub fn new(scalar: Scalar) -> Self {
+        Self(scalar)
     }
 
     pub fn new_random() -> Self {
-        Self(Secret::new_random(&mut OsRng))
+        Self(Scalar::random(&mut OsRng))
     }
 
-    pub fn expose_secret(&self) -> &Secret {
+    pub fn expose_secret(&self) -> &Scalar {
         &self.0
     }
 
     pub fn as_bytes(&self) -> &[u8; 32] {
-        self.0.expose_secret()
+        self.0.as_bytes()
     }
 
     pub fn as_hash(&self) -> UnlockKeyScalarHash {
