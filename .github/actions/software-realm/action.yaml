@@ -7,6 +7,8 @@ inputs:
     default: "0"
   token:
     description: The authorization token for accessing private git repos.
+  ref:
+    description: The ref for the software realm repo
 outputs:
   configuration:
     description: "A JSON string representing the configuration for the started realms."
@@ -23,6 +25,7 @@ runs:
         repository: 'juicebox-systems/juicebox-software-realm'
         token: ${{ inputs.token }}
         path: 'juicebox-software-realm'
+        ref: ${{ inputs.ref }}
 
     - name: Set up Go
       uses: actions/setup-go@v3
