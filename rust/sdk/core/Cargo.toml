@@ -18,5 +18,4 @@ juicebox-sdk-noise = { path = "../noise" }
 rand_core = { workspace = true }
 serde = { workspace = true }
 subtle = { workspace = true }
-voprf = { workspace = true }
 zeroize = { workspace = true }

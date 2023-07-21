@@ -33,7 +33,6 @@ subtle = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-voprf = { workspace = true }
 x25519-dalek = { workspace = true }
 zeroize = { workspace = true }
 

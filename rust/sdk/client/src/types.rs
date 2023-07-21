@@ -1,4 +1,4 @@
-use blake2::{Blake2s256, Blake2sMac256, Digest};
+use blake2::Blake2sMac256;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
 use curve25519_dalek::Scalar;
@@ -12,8 +12,7 @@ use std::fmt::{self, Debug};
 use url::Url;
 
 use juicebox_sdk_core::types::{
-    EncryptedUserSecret, MaskedUnlockKeyScalarShare, OprfResult, RealmId, SecretBytesArray,
-    SecretBytesVec, SessionId, UnlockKeyScalarHash,
+    EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId,
 };
 use juicebox_sdk_noise::client as noise;
 
@@ -309,67 +308,6 @@ impl From<Vec<u8>> for UserInfo {
     }
 }
 
-/// A random scalar used to derived the [`UnlockKey`](juicebox_sdk_core::types::UnlockKey) and prove
-/// knowledge of the [`UserSecretAccessKey`](juicebox_sdk_core::types::UserSecretAccessKey).
-pub struct UnlockKeyScalar(Scalar);
-
-impl UnlockKeyScalar {
-    pub fn new(scalar: Scalar) -> Self {
-        Self(scalar)
-    }
-
-    pub fn new_random() -> Self {
-        Self(Scalar::random(&mut OsRng))
-    }
-
-    pub fn expose_secret(&self) -> &Scalar {
-        &self.0
-    }
-
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        self.0.as_bytes()
-    }
-
-    pub fn as_hash(&self) -> UnlockKeyScalarHash {
-        let hash: [u8; 32] = Blake2s256::digest(self.as_bytes()).into();
-        UnlockKeyScalarHash::from(hash)
-    }
-}
-
-/// A share of the [`UnlockKeyScalar`].
-#[derive(Clone, Debug)]
-pub(crate) struct UnlockKeyScalarShare(SecretBytesArray<32>);
-
-impl UnlockKeyScalarShare {
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn unmask(masked_share: &MaskedUnlockKeyScalarShare, oprf_result: &OprfResult) -> Self {
-        Self::from((masked_share.as_scalar() - oprf_result.as_scalar()).to_bytes())
-    }
-
-    pub fn mask(&self, oprf_result: &OprfResult) -> MaskedUnlockKeyScalarShare {
-        MaskedUnlockKeyScalarShare::from((self.as_scalar() + oprf_result.as_scalar()).to_bytes())
-    }
-
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
-    }
-}
-
-impl From<[u8; 32]> for UnlockKeyScalarShare {
-    fn from(value: [u8; 32]) -> Self {
-        Self::from(Scalar::from_canonical_bytes(value).unwrap())
-    }
-}
-
-impl From<Scalar> for UnlockKeyScalarShare {
-    fn from(value: Scalar) -> Self {
-        Self(SecretBytesArray::from(value.to_bytes()))
-    }
-}
-
 /// An established Noise communication channel.
 ///
 /// After `last_used + lifetime`, the session is considered expired and should
@@ -384,33 +322,10 @@ pub(crate) struct Session {
 
 #[cfg(test)]
 mod tests {
-    use juicebox_sdk_core::types::{MaskedUnlockKeyScalarShare, OprfResult};
-
     use crate::types::{
-        EncryptedUserSecret, PaddedUserSecret, UnlockKeyScalarShare, UserSecret,
-        UserSecretEncryptionKey, MAX_USER_SECRET_LENGTH,
+        EncryptedUserSecret, PaddedUserSecret, UserSecret, UserSecretEncryptionKey,
+        MAX_USER_SECRET_LENGTH,
     };
-
-    #[test]
-    fn test_unlock_key_share_masking() {
-        let oprf_result = OprfResult::from([10u8; 64]);
-
-        let unmasked_share = vec![
-            248, 158, 161, 253, 178, 255, 152, 10, 230, 184, 147, 150, 19, 185, 200, 215, 192, 174,
-            12, 126, 85, 68, 178, 163, 25, 140, 26, 245, 221, 126, 133, 15,
-        ];
-
-        let masked_share = MaskedUnlockKeyScalarShare::from([
-            13, 109, 221, 215, 211, 213, 202, 96, 143, 149, 85, 1, 34, 103, 252, 232, 231, 222,
-            141, 70, 178, 169, 96, 89, 148, 205, 20, 130, 246, 70, 74, 7,
-        ]);
-
-        let s = UnlockKeyScalarShare::unmask(&masked_share, &oprf_result);
-        assert_eq!(s.expose_secret().as_slice(), unmasked_share);
-
-        let m = s.mask(&oprf_result);
-        assert_eq!(m.expose_secret(), masked_share.expose_secret());
-    }
 
     #[test]
     fn test_secret_padding() {

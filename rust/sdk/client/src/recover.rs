@@ -1,4 +1,4 @@
-use curve25519_dalek::Scalar;
+use curve25519_dalek::{RistrettoPoint, Scalar};
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use subtle::ConstantTimeEq;
@@ -10,7 +10,7 @@ use juicebox_sdk_core::{
         SecretsRequest, SecretsResponse,
     },
     types::{
-        EncryptedUserSecret, EncryptedUserSecretCommitment, OprfClient, OprfResult,
+        EncryptedUserSecret, EncryptedUserSecretCommitment, OprfBlindedInput, OprfResult,
         RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey,
         UserSecretEncryptionKeyScalarShare,
     },
@@ -24,10 +24,7 @@ use crate::{
     configuration::CheckedConfiguration,
     http,
     request::{join_at_least_threshold, RequestError},
-    types::{
-        UnlockKeyScalar, UnlockKeyScalarShare, UserSecretEncryptionKey,
-        UserSecretEncryptionKeyScalar,
-    },
+    types::{UserSecretEncryptionKey, UserSecretEncryptionKeyScalar},
     Client, Pin, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -120,56 +117,76 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let recover2_requests = realms
-            .iter()
-            .map(|realm| self.recover2_on_realm(realm, configuration, &version, &access_key));
+        let (oprf_blinded_input, oprf_blinding_factor) =
+            OprfBlindedInput::new(access_key.expose_secret(), &mut OsRng);
 
-        let mut unlock_key_scalar_shares_by_commitment: HashMap<
+        let recover2_requests = realms.iter().map(|realm| {
+            self.recover2_on_realm(
+                realm,
+                configuration,
+                &version,
+                &access_key,
+                &oprf_blinded_input,
+            )
+        });
+
+        let mut oprf_blinded_result_shares_by_commitment: HashMap<
             UnlockKeyCommitment,
-            Vec<Share<Scalar>>,
+            Vec<(Share<RistrettoPoint>, u16)>,
         > = HashMap::new();
 
-        for (share, commitment) in
+        for (share, commitment, guesses_remaining) in
             join_at_least_threshold(recover2_requests, configuration.recover_threshold).await?
         {
-            unlock_key_scalar_shares_by_commitment
+            oprf_blinded_result_shares_by_commitment
                 .entry(commitment)
                 .or_default()
-                .push(share);
+                .push((share, guesses_remaining));
         }
 
-        unlock_key_scalar_shares_by_commitment
+        oprf_blinded_result_shares_by_commitment
             .retain(|_, values| values.len() >= configuration.recover_threshold as usize);
 
         // We enforce a strict majority for the `recover_threshold`, so there should always
         // be one or none realms with consensus on an unlock key commitment to recover from.
-        assert!(unlock_key_scalar_shares_by_commitment.len() <= 1);
+        assert!(oprf_blinded_result_shares_by_commitment.len() <= 1);
 
-        let Some((unlock_key_commitment, unlock_key_scalar_shares)) = unlock_key_scalar_shares_by_commitment.into_iter().next() else {
+        let Some((unlock_key_commitment, oprf_blinded_result_shares_and_guesses_remaining)) = oprf_blinded_result_shares_by_commitment.into_iter().next() else {
             return Err(RecoverError::Assertion);
         };
 
-        let unlock_key = match recover_secret_combinatorially(
-            &unlock_key_scalar_shares,
+        let (oprf_blinded_result_shares, all_guesses_remaining): (
+            Vec<Share<RistrettoPoint>>,
+            Vec<u16>,
+        ) = oprf_blinded_result_shares_and_guesses_remaining
+            .into_iter()
+            .unzip();
+
+        let guesses_remaining = all_guesses_remaining.into_iter().min().unwrap();
+
+        let unlock_key: UnlockKey = recover_secret_combinatorially(
+            &oprf_blinded_result_shares,
             configuration.recover_threshold,
             |secret| {
-                let our_commitment = UnlockKeyCommitment::derive(
-                    &UnlockKeyScalar::new(secret.to_owned()).as_hash(),
-                    &access_key,
+                let oprf_result = OprfResult::blind_evaluate(
+                    &oprf_blinding_factor,
+                    secret,
+                    access_key.expose_secret(),
                 );
-                bool::from(unlock_key_commitment.ct_eq(&our_commitment))
+
+                let (our_commitment, unlock_key) = oprf_result.derive_commitment_and_key();
+                if bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
+                    Some(unlock_key)
+                } else {
+                    None
+                }
             },
-        ) {
-            Ok(secret) => UnlockKey::derive(&UnlockKeyScalar::new(secret).as_hash()),
-            Err(RecoverSecretCombinatoriallyError::NoValidCombinations) => {
-                // We couldn't validate the unlock key commitment with any
-                // share combination so we either have the wrong PIN or the
-                // realms are misbehaving. Use a null unlock key to proceed
-                // to register3 and notify the realms we weren't able to
-                // recover it.
-                UnlockKey::from([0; 32])
+        )
+        .map_err(|err| match err {
+            RecoverSecretCombinatoriallyError::NoValidCombinations => {
+                RecoverError::InvalidPin { guesses_remaining }
             }
-        };
+        })?;
 
         let recover3_requests = realms.iter().map(|realm| {
             self.recover3_on_realm(
@@ -258,19 +275,17 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
-    ) -> Result<(Share<Scalar>, UnlockKeyCommitment), RecoverError> {
-        let oprf_blinded_input = OprfClient::blind(access_key.expose_secret(), &mut OsRng)
-            .expect("failed to blind access_key");
-
+        oprf_blinded_input: &OprfBlindedInput,
+    ) -> Result<(Share<RistrettoPoint>, UnlockKeyCommitment, u16), RecoverError> {
         let recover2_request = self.make_request(
             realm,
             SecretsRequest::Recover2(Recover2Request {
                 version: version.to_owned(),
-                oprf_blinded_input: oprf_blinded_input.message.into(),
+                oprf_blinded_input: oprf_blinded_input.to_owned(),
             }),
         );
 
-        let (oprf_blinded_result, masked_unlock_key_share, unlock_key_commitment) =
+        let (oprf_blinded_result, unlock_key_commitment, guesses_remaining) =
             match recover2_request.await {
                 Err(RequestError::Transient) => return Err(RecoverError::Transient),
                 Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
@@ -279,12 +294,12 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 Ok(SecretsResponse::Recover2(rr)) => match rr {
                     Recover2Response::Ok {
                         oprf_blinded_result,
-                        masked_unlock_key_scalar_share,
                         unlock_key_commitment,
+                        guesses_remaining,
                     } => (
                         oprf_blinded_result,
-                        masked_unlock_key_scalar_share,
                         unlock_key_commitment,
+                        guesses_remaining,
                     ),
 
                     Recover2Response::VersionMismatch => {
@@ -305,24 +320,18 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 Ok(_) => return Err(RecoverError::Assertion),
             };
 
-        let oprf_result: OprfResult = oprf_blinded_input
-            .state
-            .finalize(
-                access_key.expose_secret(),
-                &oprf_blinded_result.expose_secret(),
-            )
-            .expect("failed to unblind blinded_oprf_input")
-            .into();
-
-        let unlock_key_scalar_share = Share {
+        let oprf_blinded_result_share = Share {
             index: configuration
                 .share_index(&realm.id)
                 .ok_or(RecoverError::Assertion)?,
-            secret: UnlockKeyScalarShare::unmask(&masked_unlock_key_share, &oprf_result)
-                .as_scalar(),
+            secret: oprf_blinded_result.as_point(),
         };
 
-        Ok((unlock_key_scalar_share, unlock_key_commitment))
+        Ok((
+            oprf_blinded_result_share,
+            unlock_key_commitment,
+            guesses_remaining,
+        ))
     }
 
     /// Performs phase 3 of recovery on a particular realm.

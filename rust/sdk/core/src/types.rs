@@ -2,8 +2,8 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use blake2::{Blake2s256, Blake2sMac256, Digest};
-use curve25519_dalek::Scalar;
+use blake2::{Blake2b512, Blake2sMac256, Digest};
+use curve25519_dalek::{ristretto::CompressedRistretto, RistrettoPoint, Scalar};
 use digest::Mac;
 
 use core::{
@@ -126,20 +126,35 @@ impl From<String> for SecretString {
     }
 }
 
-pub type OprfCipherSuite = voprf::Ristretto255;
-pub type OprfBlindedElement = voprf::BlindedElement<OprfCipherSuite>;
-pub type OprfEvaluationElement = voprf::EvaluationElement<OprfCipherSuite>;
-pub type OprfClient = voprf::OprfClient<OprfCipherSuite>;
-pub type OprfServer = voprf::OprfServer<OprfCipherSuite>;
-pub type OprfHash = digest::Output<<OprfCipherSuite as voprf::CipherSuite>::Hash>;
-pub const OPRF_KEY_INFO: &[u8] = b"juicebox-oprf";
-
 #[derive(Debug)]
 pub struct OprfResult(SecretBytesArray<64>);
 
-impl From<OprfHash> for OprfResult {
-    fn from(value: OprfHash) -> Self {
-        Self(SecretBytesArray(Into::<[u8; 64]>::into(value)))
+impl OprfResult {
+    pub fn evaluate(key: &OprfKey, input: &[u8]) -> Self {
+        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
+        let input_point = RistrettoPoint::from_uniform_bytes(&input_hash);
+        let result = key.as_scalar() * input_point;
+        let result_hash: [u8; 64] = Blake2b512::new()
+            .chain_update(input_hash)
+            .chain_update(result.compress().as_bytes())
+            .finalize()
+            .into();
+        Self::from(result_hash)
+    }
+
+    pub fn blind_evaluate(
+        blinding_factor: &OprfBlindingFactor,
+        blinded_input: &RistrettoPoint,
+        input: &[u8],
+    ) -> Self {
+        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
+        let result = blinding_factor.as_scalar().invert() * blinded_input;
+        let result_hash: [u8; 64] = Blake2b512::new()
+            .chain_update(input_hash)
+            .chain_update(result.compress().as_bytes())
+            .finalize()
+            .into();
+        Self::from(result_hash)
     }
 }
 
@@ -154,21 +169,42 @@ impl OprfResult {
         self.0.expose_secret()
     }
 
+    pub fn derive_commitment_and_key(&self) -> (UnlockKeyCommitment, UnlockKey) {
+        let digest: [u8; 64] = Blake2b512::digest(self.expose_secret()).into();
+        let commitment_bytes: [u8; 32] = digest[..32].try_into().unwrap();
+        let key_bytes: [u8; 32] = digest[32..].try_into().unwrap();
+        (
+            UnlockKeyCommitment::from(commitment_bytes),
+            UnlockKey::from(key_bytes),
+        )
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct OprfBlindingFactor(SecretBytesArray<32>);
+
+impl OprfBlindingFactor {
+    pub fn new_random<Rng: RngCore + CryptoRng + Send>(rng: &mut Rng) -> Self {
+        Self::from(Scalar::random(rng))
+    }
+
+    pub fn expose_secret(&self) -> &[u8; 32] {
+        self.0.expose_secret()
+    }
+
     pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_bytes_mod_order(Blake2s256::digest(self.expose_secret()).into())
+        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
+    }
+}
+
+impl From<Scalar> for OprfBlindingFactor {
+    fn from(value: Scalar) -> Self {
+        Self(SecretBytesArray::from(value.to_bytes()))
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct OprfBlindedInput(SecretBytesArray<32>);
-
-impl From<OprfBlindedElement> for OprfBlindedInput {
-    fn from(value: OprfBlindedElement) -> Self {
-        Self(SecretBytesArray::from(Into::<[u8; 32]>::into(
-            value.serialize(),
-        )))
-    }
-}
 
 impl From<[u8; 32]> for OprfBlindedInput {
     fn from(value: [u8; 32]) -> Self {
@@ -177,21 +213,37 @@ impl From<[u8; 32]> for OprfBlindedInput {
 }
 
 impl OprfBlindedInput {
-    pub fn expose_secret(&self) -> OprfBlindedElement {
-        OprfBlindedElement::deserialize(self.0.expose_secret()).expect("invalid blinded element")
+    pub fn new<Rng: RngCore + CryptoRng + Send>(
+        input: &[u8],
+        rng: &mut Rng,
+    ) -> (Self, OprfBlindingFactor) {
+        let blinding_factor = OprfBlindingFactor::new_random(rng);
+        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
+        let input_point = RistrettoPoint::from_uniform_bytes(&input_hash);
+        (
+            Self::from(
+                (input_point * blinding_factor.as_scalar())
+                    .compress()
+                    .to_bytes(),
+            ),
+            blinding_factor,
+        )
+    }
+
+    pub fn expose_secret(&self) -> &[u8; 32] {
+        self.0.expose_secret()
+    }
+
+    pub fn as_point(&self) -> RistrettoPoint {
+        CompressedRistretto::from_slice(self.expose_secret())
+            .unwrap()
+            .decompress()
+            .unwrap()
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct OprfBlindedResult(SecretBytesArray<32>);
-
-impl From<OprfEvaluationElement> for OprfBlindedResult {
-    fn from(value: OprfEvaluationElement) -> Self {
-        Self(SecretBytesArray::from(Into::<[u8; 32]>::into(
-            value.serialize(),
-        )))
-    }
-}
 
 impl From<[u8; 32]> for OprfBlindedResult {
     fn from(value: [u8; 32]) -> Self {
@@ -200,66 +252,50 @@ impl From<[u8; 32]> for OprfBlindedResult {
 }
 
 impl OprfBlindedResult {
-    pub fn expose_secret(&self) -> OprfEvaluationElement {
-        OprfEvaluationElement::deserialize(self.0.expose_secret())
-            .expect("invalid evaluation element")
-    }
-}
-
-/// A private root seed derived by the client and used
-/// to derive the per-realm [`OprfSeed`].
-pub struct OprfRootSeed(SecretBytesArray<32>);
-
-impl OprfRootSeed {
-    pub fn derive(
-        unlock_key_scalar_hash: &UnlockKeyScalarHash,
-        user_secret_access_key: &UserSecretAccessKey,
-    ) -> Self {
-        let label = b"Oprf Root Seed";
-        let oprf_root_seed: [u8; 32] =
-            <Blake2sMac256 as Mac>::new(unlock_key_scalar_hash.expose_secret().into())
-                .chain_update((label.len() as u32).to_le_bytes())
-                .chain_update(label)
-                .chain_update((user_secret_access_key.expose_secret().len() as u32).to_le_bytes())
-                .chain_update(user_secret_access_key.expose_secret())
-                .finalize()
-                .into_bytes()
-                .into();
-        Self(SecretBytesArray::from(oprf_root_seed))
+    pub fn new(key: &OprfKey, blinded_input: &OprfBlindedInput) -> Self {
+        let result = key.as_scalar() * blinded_input.as_point();
+        Self::from(result.compress().to_bytes())
     }
 
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
+
+    pub fn as_point(&self) -> RistrettoPoint {
+        CompressedRistretto::from_slice(self.expose_secret())
+            .unwrap()
+            .decompress()
+            .unwrap()
+    }
 }
 
-/// A private per-realm oprf seed derived by the client from
-/// the [`OprfRootSeed`].
+/// A share of the root oprf key scalar, utilized as a per-realm oprf key.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfSeed(SecretBytesArray<32>);
+pub struct OprfKey(SecretBytesArray<32>);
 
-impl OprfSeed {
-    pub fn derive(root_seed: &OprfRootSeed, realm_id: &RealmId) -> Self {
-        let label = b"Oprf Seed";
-        let seed: [u8; 32] = <Blake2sMac256 as Mac>::new(root_seed.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
-            .chain_update(label)
-            .chain_update((realm_id.0.len() as u32).to_le_bytes())
-            .chain_update(realm_id.0)
-            .finalize()
-            .into_bytes()
-            .into();
-        Self::from(seed)
+impl OprfKey {
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
+        Self::from(Scalar::random(rng))
     }
 
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
+
+    pub fn as_scalar(&self) -> Scalar {
+        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
+    }
 }
 
-impl From<[u8; 32]> for OprfSeed {
+impl From<[u8; 32]> for OprfKey {
     fn from(value: [u8; 32]) -> Self {
         Self(SecretBytesArray::from(value))
+    }
+}
+
+impl From<Scalar> for OprfKey {
+    fn from(value: Scalar) -> Self {
+        Self::from(value.to_bytes())
     }
 }
 
@@ -449,17 +485,6 @@ pub struct Policy {
 pub struct UnlockKey(SecretBytesArray<32>);
 
 impl UnlockKey {
-    pub fn derive(hash: &UnlockKeyScalarHash) -> Self {
-        let label = b"Unlock Key";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(hash.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
-            .chain_update(label)
-            .finalize()
-            .into_bytes()
-            .into();
-        Self(SecretBytesArray::from(mac))
-    }
-
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
@@ -468,55 +493,6 @@ impl UnlockKey {
 impl From<[u8; 32]> for UnlockKey {
     fn from(value: [u8; 32]) -> Self {
         Self(SecretBytesArray::from(value))
-    }
-}
-
-/// A share of the [`UnlockKeyScalar`] that has been added to a scalar
-/// derived from an [`OprfResult`].
-///
-/// The client sends this to a realm during registration and gets it back from
-/// the realm during recovery.
-///
-/// The client needs the correct PIN and a threshold number of such shares and
-/// OPRF results to recover the unlock key.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct MaskedUnlockKeyScalarShare(SecretBytesArray<32>);
-
-impl MaskedUnlockKeyScalarShare {
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
-    }
-}
-
-impl From<[u8; 32]> for MaskedUnlockKeyScalarShare {
-    fn from(value: [u8; 32]) -> Self {
-        Self::from(Scalar::from_canonical_bytes(value).unwrap())
-    }
-}
-
-impl From<Scalar> for MaskedUnlockKeyScalarShare {
-    fn from(value: Scalar) -> Self {
-        Self(SecretBytesArray::from(value.to_bytes()))
-    }
-}
-
-/// A hash of the [`UnlockKeyScalar`] used to derive the
-/// [`UnlockKey`] and the [`UnlockKeyCommitment`]
-pub struct UnlockKeyScalarHash(SecretBytesArray<32>);
-
-impl UnlockKeyScalarHash {
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-}
-
-impl From<[u8; 32]> for UnlockKeyScalarHash {
-    fn from(value: [u8; 32]) -> Self {
-        UnlockKeyScalarHash(SecretBytesArray::from(value))
     }
 }
 
@@ -620,19 +596,6 @@ impl ConstantTimeEq for UnlockKeyCommitment {
 }
 
 impl UnlockKeyCommitment {
-    pub fn derive(hash: &UnlockKeyScalarHash, access_key: &UserSecretAccessKey) -> Self {
-        let commitment_label = b"Unlock Key Commitment";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(hash.expose_secret().into())
-            .chain_update((commitment_label.len() as u32).to_le_bytes())
-            .chain_update(commitment_label)
-            .chain_update((access_key.expose_secret().len() as u32).to_le_bytes())
-            .chain_update(access_key.expose_secret())
-            .finalize()
-            .into_bytes()
-            .into();
-        Self(SecretBytesArray::from(mac))
-    }
-
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
