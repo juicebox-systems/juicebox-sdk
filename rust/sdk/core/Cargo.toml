@@ -12,6 +12,7 @@ edition = "2021"
 blake2 = { workspace = true }
 curve25519-dalek = { workspace = true }
 digest = { workspace = true }
+elliptic-curve = { workspace = true }
 hex = { workspace = true }
 juicebox-sdk-marshalling = { path = "../marshalling" }
 juicebox-sdk-noise = { path = "../noise" }
