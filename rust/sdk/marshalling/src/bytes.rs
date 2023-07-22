@@ -141,44 +141,11 @@ impl Bytes for Scalar {
     where
         De: serde::de::Deserializer<'de>,
     {
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = Scalar;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Scalar")
-            }
-
-            fn visit_bytes<E>(self, slice: &[u8]) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                let bytes: [u8; 32] = slice
-                    .try_into()
-                    .map_err(|_| serde::de::Error::invalid_length(slice.len(), &self))?;
-
-                Option::from(Scalar::from_canonical_bytes(bytes)).ok_or(
-                    serde::de::Error::invalid_value(
-                        serde::de::Unexpected::Bytes(slice),
-                        &"a valid scalar",
-                    ),
-                )
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                let mut buf: Vec<u8> = Vec::with_capacity(32);
-                while let Some(x) = seq.next_element()? {
-                    buf.push(x);
-                }
-                self.visit_bytes(&buf)
-            }
-        }
-
-        deserializer.deserialize_any(Visitor)
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        Option::from(Scalar::from_canonical_bytes(bytes)).ok_or(serde::de::Error::invalid_value(
+            serde::de::Unexpected::Bytes(&bytes),
+            &"a valid Scalar",
+        ))
     }
 }
 
@@ -194,41 +161,13 @@ impl Bytes for RistrettoPoint {
     where
         De: serde::de::Deserializer<'de>,
     {
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = RistrettoPoint;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("RistrettoPoint")
-            }
-
-            fn visit_bytes<E>(self, slice: &[u8]) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                CompressedRistretto::from_slice(slice)
-                    .map_err(|_| serde::de::Error::invalid_length(slice.len(), &self))?
-                    .decompress()
-                    .ok_or(serde::de::Error::invalid_value(
-                        serde::de::Unexpected::Bytes(slice),
-                        &"a valid point",
-                    ))
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                let mut buf: Vec<u8> = Vec::with_capacity(32);
-                while let Some(x) = seq.next_element()? {
-                    buf.push(x);
-                }
-                self.visit_bytes(&buf)
-            }
-        }
-
-        deserializer.deserialize_any(Visitor)
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        CompressedRistretto(bytes)
+            .decompress()
+            .ok_or(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Bytes(&bytes),
+                &"a valid RistrettoPoint",
+            ))
     }
 }
 

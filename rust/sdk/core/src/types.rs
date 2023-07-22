@@ -2,12 +2,14 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use blake2::Blake2sMac256;
+use blake2::Blake2sMac;
 use core::{
     fmt::{self, Debug},
+    hash::Hash,
     str::FromStr,
 };
 use curve25519_dalek::Scalar;
+use digest::consts::U16;
 use digest::Mac;
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -332,7 +334,7 @@ impl From<[u8; 32]> for UnlockKey {
 /// A pseudo-random value that the client assigns to a realm when registering a
 /// share of the user's secret and must provide to the realm during recovery to
 /// get back the share.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct UnlockKeyTag(SecretBytesArray<16>);
 
 impl ConstantTimeEq for UnlockKeyTag {
@@ -341,11 +343,17 @@ impl ConstantTimeEq for UnlockKeyTag {
     }
 }
 
+impl PartialEq for UnlockKeyTag {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
+    }
+}
+
 impl UnlockKeyTag {
     /// Computes a derived secret-unlocking tag for the realm.
     pub fn derive(unlock_key: &UnlockKey, realm_id: &RealmId) -> Self {
         let label = b"Unlock Key Tag";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(unlock_key.expose_secret().into())
+        let mac: [u8; 16] = <Blake2sMac<U16> as Mac>::new(unlock_key.expose_secret().into())
             .chain_update((label.len() as u32).to_le_bytes())
             .chain_update(label)
             .chain_update((realm_id.0.len() as u32).to_le_bytes())
@@ -353,8 +361,7 @@ impl UnlockKeyTag {
             .finalize()
             .into_bytes()
             .into();
-        let mac_prefix: [u8; 16] = mac[..16].try_into().unwrap();
-        Self::from(mac_prefix)
+        Self::from(mac)
     }
 
     pub fn expose_secret(&self) -> &[u8; 16] {
@@ -372,12 +379,18 @@ impl From<[u8; 16]> for UnlockKeyTag {
 /// before using its [`UserSecretEncryptionKeyScalarShare`]
 /// in recovery and avoid a Denial-of-Service attack by
 /// a misbheaving realm.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct EncryptedUserSecretCommitment(SecretBytesArray<16>);
 
 impl ConstantTimeEq for EncryptedUserSecretCommitment {
     fn ct_eq(&self, other: &Self) -> subtle::Choice {
         self.expose_secret().ct_eq(other.expose_secret())
+    }
+}
+
+impl PartialEq for EncryptedUserSecretCommitment {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
     }
 }
 
@@ -389,7 +402,7 @@ impl EncryptedUserSecretCommitment {
         encrypted_secret: &EncryptedUserSecret,
     ) -> Self {
         let label = b"Encrypted User Secret Commitment";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(unlock_key.expose_secret().into())
+        let mac: [u8; 16] = <Blake2sMac<U16> as Mac>::new(unlock_key.expose_secret().into())
             .chain_update((label.len() as u32).to_le_bytes())
             .chain_update(label)
             .chain_update((realm_id.0.len() as u32).to_le_bytes())
@@ -401,8 +414,7 @@ impl EncryptedUserSecretCommitment {
             .finalize()
             .into_bytes()
             .into();
-        let mac_prefix: [u8; 16] = mac[..16].try_into().unwrap();
-        Self::from(mac_prefix)
+        Self::from(mac)
     }
 
     pub fn expose_secret(&self) -> &[u8; 16] {
@@ -419,12 +431,24 @@ impl From<[u8; 16]> for EncryptedUserSecretCommitment {
 /// A commitment used to verify recovery of an [`UnlockKey`] and
 /// from a set of realms and avoid a Denial-of-Service attack by
 /// a misbheaving realm.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct UnlockKeyCommitment(SecretBytesArray<32>);
 
 impl ConstantTimeEq for UnlockKeyCommitment {
     fn ct_eq(&self, other: &Self) -> subtle::Choice {
         self.expose_secret().ct_eq(other.expose_secret())
+    }
+}
+
+impl PartialEq for UnlockKeyCommitment {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
+    }
+}
+
+impl Hash for UnlockKeyCommitment {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.expose_secret().hash(state);
     }
 }
 

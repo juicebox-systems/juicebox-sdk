@@ -59,20 +59,6 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(self.configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let encryption_key_scalar = UserSecretEncryptionKeyScalar::new_random();
-        let encryption_key_scalar_shares: Vec<UserSecretEncryptionKeyScalarShare> = create_shares(
-            encryption_key_scalar.expose_secret(),
-            self.configuration.recover_threshold,
-            self.configuration.share_count(),
-            &mut OsRng,
-        )
-        .map(|share| UserSecretEncryptionKeyScalarShare::from(share.secret))
-        .collect();
-
-        let encryption_key =
-            UserSecretEncryptionKey::derive(&encryption_key_seed, &encryption_key_scalar);
-        let encrypted_secret = secret.encrypt(&encryption_key);
-
         let oprf_root_key = OprfKey::new_random(&mut OsRng);
         let oprf_key_shares: Vec<OprfKey> = create_shares(
             oprf_root_key.as_scalar(),
@@ -86,6 +72,20 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         let oprf_result = OprfResult::evaluate(&oprf_root_key, access_key.expose_secret());
 
         let (unlock_key, unlock_key_commitment) = derive_unlock_key_and_commitment(&oprf_result);
+
+        let encryption_key_scalar = UserSecretEncryptionKeyScalar::new_random();
+        let encryption_key_scalar_shares: Vec<UserSecretEncryptionKeyScalarShare> = create_shares(
+            encryption_key_scalar.expose_secret(),
+            self.configuration.recover_threshold,
+            self.configuration.share_count(),
+            &mut OsRng,
+        )
+        .map(|share| UserSecretEncryptionKeyScalarShare::from(share.secret))
+        .collect();
+
+        let encryption_key =
+            UserSecretEncryptionKey::derive(&encryption_key_seed, &encryption_key_scalar);
+        let encrypted_secret = secret.encrypt(&encryption_key);
 
         let register2_requests = zip3(
             &self.configuration.realms,
