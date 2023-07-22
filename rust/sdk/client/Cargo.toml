@@ -29,6 +29,7 @@ juicebox-sdk-secret-sharing = { path = "../secret_sharing" }
 rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 subtle = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

@@ -1,4 +1,4 @@
-use blake2::{Blake2b512, Blake2sMac256, Digest};
+use blake2::Blake2sMac256;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
 use curve25519_dalek::Scalar;
@@ -6,6 +6,7 @@ use digest::{KeyInit, Mac};
 use instant::{Duration, Instant};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha512};
 
 use std::fmt::{self, Debug};
 
@@ -327,7 +328,7 @@ pub(crate) struct Session {
 pub(crate) fn derive_unlock_key_and_commitment(
     result: &OprfResult,
 ) -> (UnlockKey, UnlockKeyCommitment) {
-    let digest: [u8; 64] = Blake2b512::digest(result.expose_secret()).into();
+    let digest: [u8; 64] = Sha512::digest(result.expose_secret()).into();
     let commitment_bytes: [u8; 32] = digest[..32].try_into().unwrap();
     let key_bytes: [u8; 32] = digest[32..].try_into().unwrap();
     (

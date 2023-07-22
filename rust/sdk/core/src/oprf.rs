@@ -1,7 +1,7 @@
-use blake2::{Blake2b512, Digest};
 use curve25519_dalek::{ristretto::CompressedRistretto, RistrettoPoint, Scalar};
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha512};
 
 use juicebox_sdk_marshalling::bytes;
 
@@ -12,9 +12,9 @@ pub struct OprfResult(SecretBytesArray<64>);
 
 impl OprfResult {
     pub fn evaluate(key: &OprfKey, input: &[u8]) -> Self {
-        let input_hash = Blake2b512::digest(input).into();
+        let input_hash = Sha512::digest(input).into();
         let result_point = key.as_scalar() * RistrettoPoint::from_uniform_bytes(&input_hash);
-        let result_hash: [u8; 64] = Blake2b512::new()
+        let result_hash: [u8; 64] = Sha512::new()
             .chain_update(input_hash)
             .chain_update(result_point.compress().as_bytes())
             .finalize()
@@ -28,8 +28,8 @@ impl OprfResult {
         input: &[u8],
     ) -> Self {
         let result_point = blinding_factor.as_scalar().invert() * blinded_result.as_point();
-        let result_hash: [u8; 64] = Blake2b512::new()
-            .chain_update(Blake2b512::digest(input))
+        let result_hash: [u8; 64] = Sha512::new()
+            .chain_update(Sha512::digest(input))
             .chain_update(result_point.compress().as_bytes())
             .finalize()
             .into();
@@ -116,7 +116,7 @@ impl OprfBlindedInput {
     }
 
     pub fn new_deterministic(blinding_factor: &OprfBlindingFactor, input: &[u8]) -> Self {
-        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
+        let input_hash: [u8; 64] = Sha512::digest(input).into();
         let input_point = RistrettoPoint::from_uniform_bytes(&input_hash);
         Self(input_point * blinding_factor.as_scalar())
     }
@@ -222,8 +222,8 @@ mod tests {
         assert_eq!(
             blinded_input.as_point().compress().as_bytes(),
             &[
-                108, 120, 154, 208, 220, 142, 12, 171, 2, 35, 125, 188, 49, 51, 143, 183, 195, 234,
-                98, 143, 46, 97, 2, 207, 245, 135, 32, 112, 121, 209, 141, 126
+                116, 97, 37, 114, 167, 113, 232, 226, 76, 200, 142, 210, 253, 211, 197, 200, 96,
+                217, 79, 195, 192, 3, 215, 24, 215, 88, 11, 23, 88, 187, 37, 78
             ]
         );
 
@@ -231,8 +231,8 @@ mod tests {
         assert_eq!(
             blinded_result.as_point().compress().as_bytes(),
             &[
-                46, 211, 185, 145, 237, 111, 103, 242, 217, 87, 185, 172, 8, 120, 1, 100, 117, 47,
-                199, 213, 213, 17, 17, 244, 124, 154, 101, 215, 247, 232, 130, 119
+                246, 19, 49, 96, 5, 159, 137, 58, 236, 248, 150, 174, 77, 79, 156, 116, 103, 103,
+                4, 188, 140, 8, 190, 17, 79, 143, 205, 140, 121, 35, 79, 120
             ]
         );
 
@@ -241,10 +241,10 @@ mod tests {
         assert_eq!(
             blinded_evaluate_result.expose_secret(),
             &[
-                166, 13, 57, 28, 156, 172, 104, 98, 203, 124, 46, 72, 87, 126, 195, 201, 80, 211,
-                135, 165, 141, 117, 173, 155, 157, 8, 133, 206, 121, 162, 69, 157, 146, 62, 65,
-                109, 255, 12, 38, 39, 10, 52, 186, 48, 46, 96, 57, 40, 203, 73, 167, 134, 146, 1,
-                183, 123, 133, 254, 81, 77, 205, 247, 126, 128
+                11, 50, 119, 87, 118, 83, 26, 193, 165, 194, 90, 59, 10, 9, 249, 10, 34, 86, 26,
+                111, 187, 234, 37, 91, 85, 237, 206, 177, 255, 185, 159, 14, 192, 102, 28, 50, 136,
+                56, 4, 230, 83, 170, 203, 114, 84, 199, 206, 155, 54, 59, 228, 160, 206, 61, 239,
+                65, 238, 235, 30, 98, 16, 89, 95, 240
             ]
         );
 

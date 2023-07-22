@@ -17,5 +17,6 @@ juicebox-sdk-marshalling = { path = "../marshalling" }
 juicebox-sdk-noise = { path = "../noise" }
 rand_core = { workspace = true }
 serde = { workspace = true }
+sha2 = { workspace = true }
 subtle = { workspace = true }
 zeroize = { workspace = true }
