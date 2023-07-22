@@ -1006,6 +1006,7 @@ name = "juicebox-sdk-marshalling"
 version = "0.1.0"
 dependencies = [
  "ciborium",
+ "curve25519-dalek",
  "serde",
 ]
 

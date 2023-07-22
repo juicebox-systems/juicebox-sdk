@@ -1,4 +1,4 @@
-use blake2::Blake2sMac256;
+use blake2::{Blake2b512, Blake2sMac256, Digest};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::ChaCha20Poly1305;
 use curve25519_dalek::Scalar;
@@ -11,8 +11,12 @@ use std::fmt::{self, Debug};
 
 use url::Url;
 
-use juicebox_sdk_core::types::{
-    EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId,
+use juicebox_sdk_core::{
+    oprf::OprfResult,
+    types::{
+        EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockKey,
+        UnlockKeyCommitment,
+    },
 };
 use juicebox_sdk_noise::client as noise;
 
@@ -318,6 +322,18 @@ pub(crate) struct Session {
     pub transport: noise::Transport,
     pub lifetime: Duration,
     pub last_used: Instant,
+}
+
+pub(crate) fn derive_unlock_key_and_commitment(
+    result: &OprfResult,
+) -> (UnlockKey, UnlockKeyCommitment) {
+    let digest: [u8; 64] = Blake2b512::digest(result.expose_secret()).into();
+    let commitment_bytes: [u8; 32] = digest[..32].try_into().unwrap();
+    let key_bytes: [u8; 32] = digest[32..].try_into().unwrap();
+    (
+        UnlockKey::from(key_bytes),
+        UnlockKeyCommitment::from(commitment_bytes),
+    )
 }
 
 #[cfg(test)]

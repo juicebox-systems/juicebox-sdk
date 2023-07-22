@@ -134,7 +134,7 @@ pub fn recover_secret_combinatorially<Validator, S: Secret, T>(
     validator: Validator,
 ) -> Result<T, RecoverSecretCombinatoriallyError>
 where
-    Validator: Fn(&S) -> Option<T>,
+    Validator: Fn(S) -> Option<T>,
 {
     if shares.len() < threshold as usize {
         return Err(RecoverSecretCombinatoriallyError::NoValidCombinations);
@@ -142,7 +142,7 @@ where
 
     for shares in shares.iter().cloned().combinations(threshold as usize) {
         if let Ok(secret) = recover_secret(&shares) {
-            if let Some(result) = validator(&secret) {
+            if let Some(result) = validator(secret) {
                 return Ok(result);
             }
         };
@@ -275,8 +275,8 @@ mod tests {
 
             let reconstructed_secret =
                 recover_secret_combinatorially(&recover_shares, threshold, |s| {
-                    if s == &secret {
-                        Some(s.to_owned())
+                    if s == secret {
+                        Some(s)
                     } else {
                         None
                     }

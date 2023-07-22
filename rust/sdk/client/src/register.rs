@@ -16,7 +16,9 @@ use juicebox_sdk_secret_sharing::create_shares;
 use crate::{
     auth, http,
     request::{join_at_least_threshold, RequestError},
-    types::{UserSecretEncryptionKey, UserSecretEncryptionKeyScalar},
+    types::{
+        derive_unlock_key_and_commitment, UserSecretEncryptionKey, UserSecretEncryptionKeyScalar,
+    },
     Client, Pin, Policy, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -73,7 +75,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let oprf_root_key = OprfKey::new_random(&mut OsRng);
         let oprf_key_shares: Vec<OprfKey> = create_shares(
-            &oprf_root_key.as_scalar(),
+            oprf_root_key.as_scalar(),
             self.configuration.recover_threshold,
             self.configuration.share_count(),
             &mut OsRng,
@@ -83,7 +85,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let oprf_result = OprfResult::evaluate(&oprf_root_key, access_key.expose_secret());
 
-        let (unlock_key_commitment, unlock_key) = oprf_result.derive_commitment_and_key();
+        let (unlock_key, unlock_key_commitment) = derive_unlock_key_and_commitment(&oprf_result);
 
         let register2_requests = zip3(
             &self.configuration.realms,

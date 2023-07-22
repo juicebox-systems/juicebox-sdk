@@ -265,7 +265,7 @@ mod tests {
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            oprf_key: OprfKey::from([0x5; 32]),
+            oprf_key: OprfKey::try_from([0x5; 32]).unwrap(),
             unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
             unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
             user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(

@@ -24,7 +24,9 @@ use crate::{
     configuration::CheckedConfiguration,
     http,
     request::{join_at_least_threshold, RequestError},
-    types::{UserSecretEncryptionKey, UserSecretEncryptionKeyScalar},
+    types::{
+        derive_unlock_key_and_commitment, UserSecretEncryptionKey, UserSecretEncryptionKeyScalar,
+    },
     Client, Pin, Realm, Sleeper, UserInfo, UserSecret,
 };
 
@@ -171,9 +173,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 let oprf_result = OprfResult::blind_evaluate(
                     &oprf_blinding_factor,
                     &OprfBlindedResult::from(secret),
+                    access_key.expose_secret(),
                 );
 
-                let (our_commitment, unlock_key) = oprf_result.derive_commitment_and_key();
+                let (unlock_key, our_commitment) = derive_unlock_key_and_commitment(&oprf_result);
                 if bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
                     Some(unlock_key)
                 } else {
@@ -323,7 +326,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             index: configuration
                 .share_index(&realm.id)
                 .ok_or(RecoverError::Assertion)?,
-            secret: oprf_blinded_result.as_point(),
+            secret: oprf_blinded_result.to_point(),
         };
 
         Ok((
@@ -373,7 +376,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                         index: configuration
                             .share_index(&realm.id)
                             .ok_or(RecoverError::Assertion)?,
-                        secret: user_secret_encryption_key_scalar_share.as_scalar(),
+                        secret: user_secret_encryption_key_scalar_share.to_scalar(),
                     };
                     Ok((
                         secret_share,

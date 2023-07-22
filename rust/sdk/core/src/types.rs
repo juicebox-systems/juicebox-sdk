@@ -223,28 +223,35 @@ pub struct SessionId(pub u32);
 /// The client needs a threshold number of such shares, along with the PIN,
 /// to recover the user's encryption key.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct UserSecretEncryptionKeyScalarShare(SecretBytesArray<32>);
+pub struct UserSecretEncryptionKeyScalarShare(#[serde(with = "bytes")] Scalar);
 
 impl UserSecretEncryptionKeyScalarShare {
-    /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
+    pub fn as_scalar(&self) -> &Scalar {
+        &self.0
     }
 
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
+    pub fn to_scalar(&self) -> Scalar {
+        self.0
     }
-}
 
-impl From<[u8; 32]> for UserSecretEncryptionKeyScalarShare {
-    fn from(value: [u8; 32]) -> Self {
-        Self::from(Scalar::from_canonical_bytes(value).unwrap())
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        self.0.as_bytes()
     }
 }
 
 impl From<Scalar> for UserSecretEncryptionKeyScalarShare {
     fn from(value: Scalar) -> Self {
-        Self(SecretBytesArray::from(value.to_bytes()))
+        Self(value)
+    }
+}
+
+impl TryFrom<[u8; 32]> for UserSecretEncryptionKeyScalarShare {
+    type Error = &'static str;
+
+    fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
+        Ok(Self(
+            Option::from(Scalar::from_canonical_bytes(value)).ok_or("invalid scalar")?,
+        ))
     }
 }
 
@@ -387,8 +394,8 @@ impl EncryptedUserSecretCommitment {
             .chain_update(label)
             .chain_update((realm_id.0.len() as u32).to_le_bytes())
             .chain_update(realm_id.0)
-            .chain_update((encryption_key_scalar_share.expose_secret().len() as u32).to_le_bytes())
-            .chain_update(encryption_key_scalar_share.expose_secret())
+            .chain_update((encryption_key_scalar_share.as_bytes().len() as u32).to_le_bytes())
+            .chain_update(encryption_key_scalar_share.as_bytes())
             .chain_update((encrypted_secret.expose_secret().len() as u32).to_le_bytes())
             .chain_update(encrypted_secret.expose_secret())
             .finalize()
