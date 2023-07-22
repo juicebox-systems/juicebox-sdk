@@ -209,7 +209,8 @@ pub enum Recover2Response {
     Ok {
         oprf_blinded_result: OprfBlindedResult,
         unlock_key_commitment: UnlockKeyCommitment,
-        guesses_remaining: u16,
+        num_guesses: u16,
+        guess_count: u16,
     },
     VersionMismatch,
     NotRegistered,

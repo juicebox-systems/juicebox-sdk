@@ -297,11 +297,12 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                     Recover2Response::Ok {
                         oprf_blinded_result,
                         unlock_key_commitment,
-                        guesses_remaining,
+                        num_guesses,
+                        guess_count,
                     } => (
                         oprf_blinded_result,
                         unlock_key_commitment,
-                        guesses_remaining,
+                        num_guesses - guess_count,
                     ),
 
                     Recover2Response::VersionMismatch => {
