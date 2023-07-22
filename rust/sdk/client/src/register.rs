@@ -2,11 +2,12 @@ use rand::rngs::OsRng;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
+    oprf::{OprfKey, OprfResult},
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
     types::{
-        EncryptedUserSecretCommitment, OprfKey, OprfResult, RegistrationVersion, UnlockKeyTag,
+        EncryptedUserSecretCommitment, RegistrationVersion, UnlockKeyTag,
         UserSecretEncryptionKeyScalarShare,
     },
 };

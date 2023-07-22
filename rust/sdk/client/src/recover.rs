@@ -5,14 +5,14 @@ use subtle::ConstantTimeEq;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
+    oprf::{OprfBlindedInput, OprfBlindedResult, OprfResult},
     requests::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
     },
     types::{
-        EncryptedUserSecret, EncryptedUserSecretCommitment, OprfBlindedInput, OprfResult,
-        RegistrationVersion, UnlockKey, UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey,
-        UserSecretEncryptionKeyScalarShare,
+        EncryptedUserSecret, EncryptedUserSecretCommitment, RegistrationVersion, UnlockKey,
+        UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey, UserSecretEncryptionKeyScalarShare,
     },
 };
 use juicebox_sdk_secret_sharing::{
@@ -170,8 +170,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             |secret| {
                 let oprf_result = OprfResult::blind_evaluate(
                     &oprf_blinding_factor,
-                    secret,
-                    access_key.expose_secret(),
+                    &OprfBlindedResult::from(secret),
                 );
 
                 let (our_commitment, unlock_key) = oprf_result.derive_commitment_and_key();

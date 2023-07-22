@@ -2,14 +2,13 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use blake2::{Blake2b512, Blake2sMac256, Digest};
-use curve25519_dalek::{ristretto::CompressedRistretto, RistrettoPoint, Scalar};
-use digest::Mac;
-
+use blake2::Blake2sMac256;
 use core::{
     fmt::{self, Debug},
     str::FromStr,
 };
+use curve25519_dalek::Scalar;
+use digest::Mac;
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
@@ -123,179 +122,6 @@ impl Debug for SecretString {
 impl From<String> for SecretString {
     fn from(value: String) -> Self {
         Self(value)
-    }
-}
-
-#[derive(Debug)]
-pub struct OprfResult(SecretBytesArray<64>);
-
-impl OprfResult {
-    pub fn evaluate(key: &OprfKey, input: &[u8]) -> Self {
-        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
-        let input_point = RistrettoPoint::from_uniform_bytes(&input_hash);
-        let result = key.as_scalar() * input_point;
-        let result_hash: [u8; 64] = Blake2b512::new()
-            .chain_update(input_hash)
-            .chain_update(result.compress().as_bytes())
-            .finalize()
-            .into();
-        Self::from(result_hash)
-    }
-
-    pub fn blind_evaluate(
-        blinding_factor: &OprfBlindingFactor,
-        blinded_input: &RistrettoPoint,
-        input: &[u8],
-    ) -> Self {
-        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
-        let result = blinding_factor.as_scalar().invert() * blinded_input;
-        let result_hash: [u8; 64] = Blake2b512::new()
-            .chain_update(input_hash)
-            .chain_update(result.compress().as_bytes())
-            .finalize()
-            .into();
-        Self::from(result_hash)
-    }
-}
-
-impl From<[u8; 64]> for OprfResult {
-    fn from(value: [u8; 64]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl OprfResult {
-    pub fn expose_secret(&self) -> &[u8; 64] {
-        self.0.expose_secret()
-    }
-
-    pub fn derive_commitment_and_key(&self) -> (UnlockKeyCommitment, UnlockKey) {
-        let digest: [u8; 64] = Blake2b512::digest(self.expose_secret()).into();
-        let commitment_bytes: [u8; 32] = digest[..32].try_into().unwrap();
-        let key_bytes: [u8; 32] = digest[32..].try_into().unwrap();
-        (
-            UnlockKeyCommitment::from(commitment_bytes),
-            UnlockKey::from(key_bytes),
-        )
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfBlindingFactor(SecretBytesArray<32>);
-
-impl OprfBlindingFactor {
-    pub fn new_random<Rng: RngCore + CryptoRng + Send>(rng: &mut Rng) -> Self {
-        Self::from(Scalar::random(rng))
-    }
-
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
-    }
-}
-
-impl From<Scalar> for OprfBlindingFactor {
-    fn from(value: Scalar) -> Self {
-        Self(SecretBytesArray::from(value.to_bytes()))
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfBlindedInput(SecretBytesArray<32>);
-
-impl From<[u8; 32]> for OprfBlindedInput {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl OprfBlindedInput {
-    pub fn new<Rng: RngCore + CryptoRng + Send>(
-        input: &[u8],
-        rng: &mut Rng,
-    ) -> (Self, OprfBlindingFactor) {
-        let blinding_factor = OprfBlindingFactor::new_random(rng);
-        let input_hash: [u8; 64] = Blake2b512::digest(input).into();
-        let input_point = RistrettoPoint::from_uniform_bytes(&input_hash);
-        (
-            Self::from(
-                (input_point * blinding_factor.as_scalar())
-                    .compress()
-                    .to_bytes(),
-            ),
-            blinding_factor,
-        )
-    }
-
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_point(&self) -> RistrettoPoint {
-        CompressedRistretto::from_slice(self.expose_secret())
-            .unwrap()
-            .decompress()
-            .unwrap()
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfBlindedResult(SecretBytesArray<32>);
-
-impl From<[u8; 32]> for OprfBlindedResult {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl OprfBlindedResult {
-    pub fn new(key: &OprfKey, blinded_input: &OprfBlindedInput) -> Self {
-        let result = key.as_scalar() * blinded_input.as_point();
-        Self::from(result.compress().to_bytes())
-    }
-
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_point(&self) -> RistrettoPoint {
-        CompressedRistretto::from_slice(self.expose_secret())
-            .unwrap()
-            .decompress()
-            .unwrap()
-    }
-}
-
-/// A share of the root oprf key scalar, utilized as a per-realm oprf key.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfKey(SecretBytesArray<32>);
-
-impl OprfKey {
-    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
-        Self::from(Scalar::random(rng))
-    }
-
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
-    }
-}
-
-impl From<[u8; 32]> for OprfKey {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl From<Scalar> for OprfKey {
-    fn from(value: Scalar) -> Self {
-        Self::from(value.to_bytes())
     }
 }
 

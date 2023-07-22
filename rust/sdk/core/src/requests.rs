@@ -6,10 +6,11 @@ use core::fmt;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
+use crate::oprf::{OprfBlindedInput, OprfBlindedResult, OprfKey};
 use crate::types::{
-    AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, OprfBlindedInput,
-    OprfBlindedResult, OprfKey, Policy, RealmId, RegistrationVersion, SessionId,
-    UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
+    AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RealmId,
+    RegistrationVersion, SessionId, UnlockKeyCommitment, UnlockKeyTag,
+    UserSecretEncryptionKeyScalarShare,
 };
 use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
@@ -250,11 +251,11 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
+        oprf::OprfKey,
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
-            EncryptedUserSecret, EncryptedUserSecretCommitment, OprfKey, Policy,
-            RegistrationVersion, UnlockKeyCommitment, UnlockKeyTag,
-            UserSecretEncryptionKeyScalarShare,
+            EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RegistrationVersion,
+            UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
         },
     };
     use curve25519_dalek::Scalar;
@@ -264,7 +265,7 @@ mod tests {
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            oprf_key: OprfKey::from([0xff; 32]),
+            oprf_key: OprfKey::from([0x5; 32]),
             unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
             unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
             user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(
