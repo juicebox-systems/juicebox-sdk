@@ -1,6 +1,6 @@
 use crate::{types::UserSecretEncryptionKeySeed, UserInfo};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
-use juicebox_sdk_core::types::{RegistrationVersion, SecretBytesVec, UserSecretAccessKey};
+use juicebox_sdk_core::types::{i2osp_4, RegistrationVersion, SecretBytesVec, UserSecretAccessKey};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -81,9 +81,9 @@ impl Pin {
             .hash_password_into(
                 self.expose_secret(),
                 [
-                    &(version.expose_secret().len() as u32).to_le_bytes(),
+                    &i2osp_4(version.expose_secret().len()),
                     version.expose_secret().as_slice(),
-                    &(info.expose_secret().len() as u32).to_le_bytes(),
+                    &i2osp_4(info.expose_secret().len()),
                     info.expose_secret(),
                 ]
                 .concat()
@@ -124,12 +124,12 @@ mod tests {
             .hash(PinHashingMode::Standard2019, &salt, &info)
             .unwrap();
         let expected_access_key: [u8; 32] = [
-            219, 189, 174, 194, 242, 53, 30, 101, 138, 242, 120, 255, 220, 150, 60, 46, 176, 40,
-            187, 237, 133, 51, 227, 10, 183, 63, 28, 40, 29, 207, 40, 47,
+            41, 53, 218, 132, 201, 116, 35, 179, 127, 52, 87, 35, 27, 135, 124, 230, 172, 32, 147,
+            80, 29, 114, 85, 219, 238, 29, 235, 9, 165, 216, 130, 27,
         ];
         let expected_encryption_key_seed: [u8; 32] = [
-            92, 89, 67, 194, 238, 53, 33, 114, 249, 151, 69, 130, 14, 236, 130, 129, 134, 136, 49,
-            174, 139, 51, 63, 150, 145, 75, 25, 232, 77, 184, 253, 174,
+            135, 200, 201, 181, 211, 234, 159, 234, 131, 182, 172, 106, 100, 226, 91, 151, 196,
+            114, 44, 164, 228, 11, 234, 37, 35, 239, 234, 38, 33, 37, 226, 42,
         ];
         assert_eq!(*access_key.expose_secret(), expected_access_key);
         assert_eq!(

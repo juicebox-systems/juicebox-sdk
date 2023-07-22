@@ -15,8 +15,8 @@ use url::Url;
 use juicebox_sdk_core::{
     oprf::OprfResult,
     types::{
-        EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockKey,
-        UnlockKeyCommitment,
+        i2osp_4, EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId,
+        UnlockKey, UnlockKeyCommitment,
     },
 };
 use juicebox_sdk_noise::client as noise;
@@ -266,9 +266,9 @@ impl UserSecretEncryptionKey {
     ) -> Self {
         let label = b"User Secret Encryption Key";
         let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(seed.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
+            .chain_update(i2osp_4(label.len()))
             .chain_update(label)
-            .chain_update((scalar.as_bytes().len() as u32).to_le_bytes())
+            .chain_update(i2osp_4(scalar.as_bytes().len()))
             .chain_update(scalar.as_bytes())
             .finalize()
             .into_bytes()
