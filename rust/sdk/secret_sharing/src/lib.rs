@@ -3,52 +3,30 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::iter::{repeat_with, zip};
+use core::iter::{repeat_with, Sum};
 use core::ops::{Add, Mul};
-use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::RistrettoPoint;
 use itertools::Itertools;
-use rand_core::CryptoRngCore;
+use rand_core::{CryptoRng, RngCore};
 
 /// A type that can be transformed into or recovered from
 /// shares using Shamir's secret sharing.
 pub trait Secret:
-    Copy + Default + for<'a> Add<&'a Self, Output = Self> + for<'a> Mul<&'a Scalar, Output = Self>
+    Copy + Default + for<'a> Add<&'a Self, Output = Self> + for<'a> Mul<&'a Scalar, Output = Self> + Sum
 {
-    fn random<R: CryptoRngCore + ?Sized>(rng: &mut R) -> Self;
-    fn to_bytes(&self) -> [u8; 32];
-    fn from_bytes(bytes: [u8; 32]) -> Self;
+    fn random<R: CryptoRng + RngCore + Send>(rng: &mut R) -> Self;
 }
 
 impl Secret for Scalar {
-    fn random<R: CryptoRngCore + ?Sized>(rng: &mut R) -> Self {
+    fn random<R: CryptoRng + RngCore + Send>(rng: &mut R) -> Self {
         Self::random(rng)
-    }
-
-    fn to_bytes(&self) -> [u8; 32] {
-        self.to_bytes()
-    }
-
-    fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_canonical_bytes(bytes).unwrap()
     }
 }
 
 impl Secret for RistrettoPoint {
-    fn random<R: CryptoRngCore + ?Sized>(rng: &mut R) -> Self {
+    fn random<R: CryptoRng + RngCore + Send>(rng: &mut R) -> Self {
         Self::random(rng)
-    }
-
-    fn to_bytes(&self) -> [u8; 32] {
-        self.compress().to_bytes()
-    }
-
-    fn from_bytes(bytes: [u8; 32]) -> Self {
-        CompressedRistretto::from_slice(&bytes)
-            .unwrap()
-            .decompress()
-            .unwrap()
     }
 }
 
@@ -57,7 +35,7 @@ pub struct Index(pub u32);
 
 impl Index {
     pub fn as_scalar(&self) -> Scalar {
-        Scalar::from(self.0 as u64)
+        Scalar::from(self.0)
     }
 }
 
@@ -73,15 +51,9 @@ impl<S: Secret> core::fmt::Debug for Share<S> {
     }
 }
 
-#[derive(Debug)]
-pub enum SecretSharingError {
-    DuplicateShares,
-    NoValidCombinations,
-}
-
 /// Distributes secret into `count` shares that can be recovered when at
 /// least `threshold` are provided.
-pub fn create_shares<'a, Rng: CryptoRngCore + ?Sized, S: Secret>(
+pub fn create_shares<'a, Rng: CryptoRng + RngCore + Send, S: Secret>(
     secret: &'a S,
     threshold: u32,
     count: u32,
@@ -109,6 +81,11 @@ pub fn create_shares<'a, Rng: CryptoRngCore + ?Sized, S: Secret>(
     })
 }
 
+#[derive(Debug)]
+pub enum RecoverSecretError {
+    DuplicateShares,
+}
+
 /// Attempts to recover a secret from a provided set of shares.
 ///
 /// If at least `threshold` created shares are provided, the `secret`
@@ -117,38 +94,33 @@ pub fn create_shares<'a, Rng: CryptoRngCore + ?Sized, S: Secret>(
 /// Less than `threshold` shares or shares that don't all originate
 /// from the same `create` operation will result in a `secret` being
 /// recovered that does not match the original.
-pub fn recover_secret<S: Secret>(shares: &[Share<S>]) -> Result<S, SecretSharingError> {
-    let lagrange_coefficients: Vec<Scalar> = shares
+pub fn recover_secret<S: Secret>(shares: &[Share<S>]) -> Result<S, RecoverSecretError> {
+    shares
         .iter()
         .enumerate()
         .map(|(i, share)| {
-            let numerator = shares
-                .iter()
-                .enumerate()
-                .filter(|&(j, _)| j != i)
-                .fold(Scalar::ONE, |acc, (_, other_share)| {
-                    acc * other_share.index.as_scalar()
-                });
-            let denominator = shares.iter().enumerate().filter(|&(j, _)| j != i).fold(
-                Scalar::ONE,
-                |acc, (_, other_share)| {
-                    acc * (other_share.index.as_scalar() - share.index.as_scalar())
-                },
-            );
+            let others = shares[..i].iter().chain(&shares[i + 1..]);
+            let numerator: Scalar = others
+                .clone()
+                .map(|other_share| other_share.index.as_scalar())
+                .product();
+            let denominator: Scalar = others
+                .map(|other_share| other_share.index.as_scalar() - share.index.as_scalar())
+                .product();
 
             if denominator == Scalar::ZERO {
-                return Err(SecretSharingError::DuplicateShares);
+                Err(RecoverSecretError::DuplicateShares)
+            } else {
+                let lagrange_coefficient = numerator * denominator.invert();
+                Ok(share.secret * &lagrange_coefficient)
             }
-
-            Ok(numerator * denominator.invert())
         })
-        .collect::<Result<Vec<_>, SecretSharingError>>()?;
+        .sum()
+}
 
-    Ok(
-        zip(lagrange_coefficients, shares).fold(S::default(), |secret, (coefficient, share)| {
-            secret + &(share.secret * &coefficient)
-        }),
-    )
+#[derive(Debug)]
+pub enum RecoverSecretCombinatoriallyError {
+    NoValidCombinations,
 }
 
 /// Attempts to recover from each `threshold` combination of shares, giving
@@ -160,12 +132,12 @@ pub fn recover_secret_combinatorially<Validator, S: Secret>(
     shares: &[Share<S>],
     threshold: u32,
     validator: Validator,
-) -> Result<S, SecretSharingError>
+) -> Result<S, RecoverSecretCombinatoriallyError>
 where
     Validator: Fn(&S) -> bool,
 {
     if shares.len() < threshold as usize {
-        return Err(SecretSharingError::NoValidCombinations);
+        return Err(RecoverSecretCombinatoriallyError::NoValidCombinations);
     }
 
     for shares in shares.iter().cloned().combinations(threshold as usize) {
@@ -174,7 +146,7 @@ where
             _ => {}
         };
     }
-    Err(SecretSharingError::NoValidCombinations)
+    Err(RecoverSecretCombinatoriallyError::NoValidCombinations)
 }
 
 #[cfg(test)]

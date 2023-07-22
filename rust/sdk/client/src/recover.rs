@@ -16,7 +16,7 @@ use juicebox_sdk_core::{
     },
 };
 use juicebox_sdk_secret_sharing::{
-    recover_secret, recover_secret_combinatorially, Secret, SecretSharingError, Share,
+    recover_secret, recover_secret_combinatorially, RecoverSecretCombinatoriallyError, Share,
 };
 
 use crate::{
@@ -161,16 +161,13 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             },
         ) {
             Ok(secret) => UnlockKey::derive(&UnlockKeyScalar::new(secret).as_hash()),
-            Err(SecretSharingError::NoValidCombinations) => {
+            Err(RecoverSecretCombinatoriallyError::NoValidCombinations) => {
                 // We couldn't validate the unlock key commitment with any
                 // share combination so we either have the wrong PIN or the
                 // realms are misbehaving. Use a null unlock key to proceed
                 // to register3 and notify the realms we weren't able to
                 // recover it.
                 UnlockKey::from([0; 32])
-            }
-            Err(_) => {
-                return Err(RecoverError::Assertion);
             }
         };
 
@@ -321,10 +318,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             index: configuration
                 .share_index(&realm.id)
                 .ok_or(RecoverError::Assertion)?,
-            secret: Scalar::from_bytes(
-                *UnlockKeyScalarShare::unmask(&masked_unlock_key_share, &oprf_result)
-                    .expose_secret(),
-            ),
+            secret: UnlockKeyScalarShare::unmask(&masked_unlock_key_share, &oprf_result)
+                .as_scalar(),
         };
 
         Ok((unlock_key_scalar_share, unlock_key_commitment))
@@ -370,9 +365,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                         index: configuration
                             .share_index(&realm.id)
                             .ok_or(RecoverError::Assertion)?,
-                        secret: Scalar::from_bytes(
-                            *user_secret_encryption_key_scalar_share.expose_secret(),
-                        ),
+                        secret: user_secret_encryption_key_scalar_share.as_scalar(),
                     };
                     Ok((
                         secret_share,
