@@ -5,7 +5,7 @@ use subtle::ConstantTimeEq;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
-    oprf::{OprfBlindedInput, OprfBlindedResult, OprfResult},
+    oprf::{OprfBlindedInput, OprfBlindedResult, OprfResult, OprfVerifyingKey},
     requests::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
@@ -132,28 +132,27 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             )
         });
 
-        let mut oprf_blinded_result_shares_by_commitment: HashMap<
-            UnlockKeyCommitment,
-            Vec<(Share<RistrettoPoint>, u16)>,
-        > = HashMap::new();
+        let mut oprf_blinded_result_shares_by_commitment_and_verifying_key: HashMap<_, Vec<_>> =
+            HashMap::new();
 
-        for (share, commitment, guesses_remaining) in
+        for (oprf_verifying_key, share, commitment, guesses_remaining) in
             join_at_least_threshold(recover2_requests, configuration.recover_threshold).await?
         {
-            oprf_blinded_result_shares_by_commitment
-                .entry(commitment)
+            oprf_blinded_result_shares_by_commitment_and_verifying_key
+                .entry((commitment, oprf_verifying_key))
                 .or_default()
                 .push((share, guesses_remaining));
         }
 
-        oprf_blinded_result_shares_by_commitment
+        oprf_blinded_result_shares_by_commitment_and_verifying_key
             .retain(|_, values| values.len() >= configuration.recover_threshold as usize);
 
         // We enforce a strict majority for the `recover_threshold`, so there should always
-        // be one or none realms with consensus on an unlock key commitment to recover from.
-        assert!(oprf_blinded_result_shares_by_commitment.len() <= 1);
+        // be one or none realms with consensus on an unlock key commitment and verifying
+        // key to recover from.
+        assert!(oprf_blinded_result_shares_by_commitment_and_verifying_key.len() <= 1);
 
-        let Some((unlock_key_commitment, oprf_blinded_result_shares_and_guesses_remaining)) = oprf_blinded_result_shares_by_commitment.into_iter().next() else {
+        let Some(((unlock_key_commitment, _), oprf_blinded_result_shares_and_guesses_remaining)) = oprf_blinded_result_shares_by_commitment_and_verifying_key.into_iter().next() else {
             return Err(RecoverError::Assertion);
         };
 
@@ -278,7 +277,15 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
         oprf_blinded_input: &OprfBlindedInput,
-    ) -> Result<(Share<RistrettoPoint>, UnlockKeyCommitment, u16), RecoverError> {
+    ) -> Result<
+        (
+            OprfVerifyingKey,
+            Share<RistrettoPoint>,
+            UnlockKeyCommitment,
+            u16,
+        ),
+        RecoverError,
+    > {
         let recover2_request = self.make_request(
             realm,
             SecretsRequest::Recover2(Recover2Request {
@@ -287,7 +294,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             }),
         );
 
-        let (oprf_blinded_result, unlock_key_commitment, guesses_remaining) =
+        let (oprf_signed_public_key, oprf_blinded_result, unlock_key_commitment, guesses_remaining) =
             match recover2_request.await {
                 Err(RequestError::Transient) => return Err(RecoverError::Transient),
                 Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
@@ -295,11 +302,13 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
                 Ok(SecretsResponse::Recover2(rr)) => match rr {
                     Recover2Response::Ok {
+                        oprf_signed_public_key,
                         oprf_blinded_result,
                         unlock_key_commitment,
                         num_guesses,
                         guess_count,
                     } => (
+                        oprf_signed_public_key,
                         oprf_blinded_result,
                         unlock_key_commitment,
                         num_guesses - guess_count,
@@ -323,6 +332,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 Ok(_) => return Err(RecoverError::Assertion),
             };
 
+        oprf_signed_public_key
+            .verify()
+            .map_err(|_| RecoverError::Assertion)?;
+
         let oprf_blinded_result_share = Share {
             index: configuration
                 .share_index(&realm.id)
@@ -331,6 +344,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         };
 
         Ok((
+            oprf_signed_public_key.signature.verifying_key,
             oprf_blinded_result_share,
             unlock_key_commitment,
             guesses_remaining,
@@ -369,20 +383,20 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
             Ok(SecretsResponse::Recover3(rr)) => match rr {
                 Recover3Response::Ok {
-                    user_secret_encryption_key_scalar_share,
-                    encrypted_user_secret,
-                    encrypted_user_secret_commitment,
+                    encryption_key_scalar_share,
+                    encrypted_secret,
+                    encrypted_secret_commitment,
                 } => {
                     let secret_share = Share {
                         index: configuration
                             .share_index(&realm.id)
                             .ok_or(RecoverError::Assertion)?,
-                        secret: user_secret_encryption_key_scalar_share.to_scalar(),
+                        secret: encryption_key_scalar_share.to_scalar(),
                     };
                     Ok((
                         secret_share,
-                        encrypted_user_secret,
-                        encrypted_user_secret_commitment,
+                        encrypted_secret,
+                        encrypted_secret_commitment,
                         realm.to_owned(),
                     ))
                 }
