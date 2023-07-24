@@ -49,8 +49,9 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 ] }
 cbindgen = "0.24.3"
 ciborium = { version = "0.2.0", default-features = false }
-curve25519-dalek = { version = "4.0.0-rc.2", features = ["zeroize"] }
+curve25519-dalek = { version = "4.0.0-rc.3", features = ["rand_core"] }
 digest = { version = "0.10.6" }
+elliptic-curve = { version = "0.13.5", features = ["hash2curve"] }
 futures = { version = "0.3.25" }
 futures-channel = { version = " 0.3.28" }
 getrandom = "0.2.8"
@@ -79,6 +80,7 @@ serde = { version = "1.0.152", default-features = false, features = [
 serde_json = "1.0.94"
 serde-wasm-bindgen = "0.5"
 subtle = { version = "2.4.1", default-features = false }
+sha2 = { version = "0.10.7", default-features = false }
 thiserror = "1.0.40"
 tokio = { version = "1.25.0", features = ["sync", "time"] }
 tracing = { version = "0.2.0", default-features = false, features = [
@@ -89,7 +91,6 @@ tracing = { version = "0.2.0", default-features = false, features = [
 tracing-opentelemetry = { version = "*" }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.3.0", features = ["v4"] }
-voprf = { version = "0.5.0-pre.4" }
 wasm-bindgen = { version = "0.2.87", features = ["serde"] }
 wasm-bindgen-futures = "0.4.34"
 wasm-bindgen-test = "0.3.34"
@@ -102,7 +103,7 @@ web-sys = { version = "0.3.4", features = [
     "Response",
     "Window",
 ] }
-x25519-dalek = { version = "2.0.0-rc.2", features = [
+x25519-dalek = { version = "2.0.0-rc.3", features = [
     "reusable_secrets",
     "serde",
     "static_secrets",

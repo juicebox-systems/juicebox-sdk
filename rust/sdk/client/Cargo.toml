@@ -30,11 +30,11 @@ juicebox-sdk-secret-sharing = { workspace = true }
 rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 subtle = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-voprf = { workspace = true }
 x25519-dalek = { workspace = true }
 zeroize = { workspace = true }
 

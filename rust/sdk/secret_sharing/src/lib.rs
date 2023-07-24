@@ -128,22 +128,23 @@ pub enum RecoverSecretCombinatoriallyError {
 /// e.g. by comparing it to a known MAC computed before the original shares
 /// were produced. This allows recovery from a set of shares that may potentially
 /// contain invalid shares, but still have enough material to recover the secret.
-pub fn recover_secret_combinatorially<Validator, S: Secret>(
+pub fn recover_secret_combinatorially<Validator, S: Secret, T>(
     shares: &[Share<S>],
     threshold: u32,
     validator: Validator,
-) -> Result<S, RecoverSecretCombinatoriallyError>
+) -> Result<T, RecoverSecretCombinatoriallyError>
 where
-    Validator: Fn(&S) -> bool,
+    Validator: Fn(S) -> Option<T>,
 {
     if shares.len() < threshold as usize {
         return Err(RecoverSecretCombinatoriallyError::NoValidCombinations);
     }
 
     for shares in shares.iter().cloned().combinations(threshold as usize) {
-        match recover_secret(&shares) {
-            Ok(secret) if validator(&secret) => return Ok(secret),
-            _ => {}
+        if let Ok(secret) = recover_secret(&shares) {
+            if let Some(result) = validator(secret) {
+                return Ok(result);
+            }
         };
     }
     Err(RecoverSecretCombinatoriallyError::NoValidCombinations)
@@ -273,7 +274,13 @@ mod tests {
                 .collect();
 
             let reconstructed_secret =
-                recover_secret_combinatorially(&recover_shares, threshold, |s| s == &secret);
+                recover_secret_combinatorially(&recover_shares, threshold, |s| {
+                    if s == secret {
+                        Some(s)
+                    } else {
+                        None
+                    }
+                });
             assert!(reconstructed_secret.is_ok());
             assert_eq!(reconstructed_secret.unwrap(), secret);
         });

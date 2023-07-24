@@ -2,14 +2,15 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use blake2::{Blake2s256, Blake2sMac256, Digest};
-use curve25519_dalek::Scalar;
-use digest::Mac;
-
+use blake2::Blake2sMac;
 use core::{
     fmt::{self, Debug},
+    hash::Hash,
     str::FromStr,
 };
+use curve25519_dalek::Scalar;
+use digest::consts::U16;
+use digest::Mac;
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
@@ -126,143 +127,6 @@ impl From<String> for SecretString {
     }
 }
 
-pub type OprfCipherSuite = voprf::Ristretto255;
-pub type OprfBlindedElement = voprf::BlindedElement<OprfCipherSuite>;
-pub type OprfEvaluationElement = voprf::EvaluationElement<OprfCipherSuite>;
-pub type OprfClient = voprf::OprfClient<OprfCipherSuite>;
-pub type OprfServer = voprf::OprfServer<OprfCipherSuite>;
-pub type OprfHash = digest::Output<<OprfCipherSuite as voprf::CipherSuite>::Hash>;
-pub const OPRF_KEY_INFO: &[u8] = b"juicebox-oprf";
-
-#[derive(Debug)]
-pub struct OprfResult(SecretBytesArray<64>);
-
-impl From<OprfHash> for OprfResult {
-    fn from(value: OprfHash) -> Self {
-        Self(SecretBytesArray(Into::<[u8; 64]>::into(value)))
-    }
-}
-
-impl From<[u8; 64]> for OprfResult {
-    fn from(value: [u8; 64]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl OprfResult {
-    pub fn expose_secret(&self) -> &[u8; 64] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_bytes_mod_order(Blake2s256::digest(self.expose_secret()).into())
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfBlindedInput(SecretBytesArray<32>);
-
-impl From<OprfBlindedElement> for OprfBlindedInput {
-    fn from(value: OprfBlindedElement) -> Self {
-        Self(SecretBytesArray::from(Into::<[u8; 32]>::into(
-            value.serialize(),
-        )))
-    }
-}
-
-impl From<[u8; 32]> for OprfBlindedInput {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl OprfBlindedInput {
-    pub fn expose_secret(&self) -> OprfBlindedElement {
-        OprfBlindedElement::deserialize(self.0.expose_secret()).expect("invalid blinded element")
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfBlindedResult(SecretBytesArray<32>);
-
-impl From<OprfEvaluationElement> for OprfBlindedResult {
-    fn from(value: OprfEvaluationElement) -> Self {
-        Self(SecretBytesArray::from(Into::<[u8; 32]>::into(
-            value.serialize(),
-        )))
-    }
-}
-
-impl From<[u8; 32]> for OprfBlindedResult {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
-impl OprfBlindedResult {
-    pub fn expose_secret(&self) -> OprfEvaluationElement {
-        OprfEvaluationElement::deserialize(self.0.expose_secret())
-            .expect("invalid evaluation element")
-    }
-}
-
-/// A private root seed derived by the client and used
-/// to derive the per-realm [`OprfSeed`].
-pub struct OprfRootSeed(SecretBytesArray<32>);
-
-impl OprfRootSeed {
-    pub fn derive(
-        unlock_key_scalar_hash: &UnlockKeyScalarHash,
-        user_secret_access_key: &UserSecretAccessKey,
-    ) -> Self {
-        let label = b"Oprf Root Seed";
-        let oprf_root_seed: [u8; 32] =
-            <Blake2sMac256 as Mac>::new(unlock_key_scalar_hash.expose_secret().into())
-                .chain_update((label.len() as u32).to_le_bytes())
-                .chain_update(label)
-                .chain_update((user_secret_access_key.expose_secret().len() as u32).to_le_bytes())
-                .chain_update(user_secret_access_key.expose_secret())
-                .finalize()
-                .into_bytes()
-                .into();
-        Self(SecretBytesArray::from(oprf_root_seed))
-    }
-
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-}
-
-/// A private per-realm oprf seed derived by the client from
-/// the [`OprfRootSeed`].
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfSeed(SecretBytesArray<32>);
-
-impl OprfSeed {
-    pub fn derive(root_seed: &OprfRootSeed, realm_id: &RealmId) -> Self {
-        let label = b"Oprf Seed";
-        let seed: [u8; 32] = <Blake2sMac256 as Mac>::new(root_seed.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
-            .chain_update(label)
-            .chain_update((realm_id.0.len() as u32).to_le_bytes())
-            .chain_update(realm_id.0)
-            .finalize()
-            .into_bytes()
-            .into();
-        Self::from(seed)
-    }
-
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-}
-
-impl From<[u8; 32]> for OprfSeed {
-    fn from(value: [u8; 32]) -> Self {
-        Self(SecretBytesArray::from(value))
-    }
-}
-
 /// A unique identifier for a realm.
 ///
 /// A realm is a remote service that clients interact with to register and
@@ -361,28 +225,35 @@ pub struct SessionId(pub u32);
 /// The client needs a threshold number of such shares, along with the PIN,
 /// to recover the user's encryption key.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct UserSecretEncryptionKeyScalarShare(SecretBytesArray<32>);
+pub struct UserSecretEncryptionKeyScalarShare(#[serde(with = "bytes")] Scalar);
 
 impl UserSecretEncryptionKeyScalarShare {
-    /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
+    pub fn as_scalar(&self) -> &Scalar {
+        &self.0
     }
 
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
+    pub fn to_scalar(&self) -> Scalar {
+        self.0
     }
-}
 
-impl From<[u8; 32]> for UserSecretEncryptionKeyScalarShare {
-    fn from(value: [u8; 32]) -> Self {
-        Self::from(Scalar::from_canonical_bytes(value).unwrap())
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        self.0.as_bytes()
     }
 }
 
 impl From<Scalar> for UserSecretEncryptionKeyScalarShare {
     fn from(value: Scalar) -> Self {
-        Self(SecretBytesArray::from(value.to_bytes()))
+        Self(value)
+    }
+}
+
+impl TryFrom<[u8; 32]> for UserSecretEncryptionKeyScalarShare {
+    type Error = &'static str;
+
+    fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
+        Ok(Self(
+            Option::from(Scalar::from_canonical_bytes(value)).ok_or("invalid scalar")?,
+        ))
     }
 }
 
@@ -449,17 +320,6 @@ pub struct Policy {
 pub struct UnlockKey(SecretBytesArray<32>);
 
 impl UnlockKey {
-    pub fn derive(hash: &UnlockKeyScalarHash) -> Self {
-        let label = b"Unlock Key";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(hash.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
-            .chain_update(label)
-            .finalize()
-            .into_bytes()
-            .into();
-        Self(SecretBytesArray::from(mac))
-    }
-
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
@@ -471,59 +331,10 @@ impl From<[u8; 32]> for UnlockKey {
     }
 }
 
-/// A share of the [`UnlockKeyScalar`] that has been added to a scalar
-/// derived from an [`OprfResult`].
-///
-/// The client sends this to a realm during registration and gets it back from
-/// the realm during recovery.
-///
-/// The client needs the correct PIN and a threshold number of such shares and
-/// OPRF results to recover the unlock key.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct MaskedUnlockKeyScalarShare(SecretBytesArray<32>);
-
-impl MaskedUnlockKeyScalarShare {
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-
-    pub fn as_scalar(&self) -> Scalar {
-        Scalar::from_canonical_bytes(*self.expose_secret()).unwrap()
-    }
-}
-
-impl From<[u8; 32]> for MaskedUnlockKeyScalarShare {
-    fn from(value: [u8; 32]) -> Self {
-        Self::from(Scalar::from_canonical_bytes(value).unwrap())
-    }
-}
-
-impl From<Scalar> for MaskedUnlockKeyScalarShare {
-    fn from(value: Scalar) -> Self {
-        Self(SecretBytesArray::from(value.to_bytes()))
-    }
-}
-
-/// A hash of the [`UnlockKeyScalar`] used to derive the
-/// [`UnlockKey`] and the [`UnlockKeyCommitment`]
-pub struct UnlockKeyScalarHash(SecretBytesArray<32>);
-
-impl UnlockKeyScalarHash {
-    pub fn expose_secret(&self) -> &[u8; 32] {
-        self.0.expose_secret()
-    }
-}
-
-impl From<[u8; 32]> for UnlockKeyScalarHash {
-    fn from(value: [u8; 32]) -> Self {
-        UnlockKeyScalarHash(SecretBytesArray::from(value))
-    }
-}
-
 /// A pseudo-random value that the client assigns to a realm when registering a
 /// share of the user's secret and must provide to the realm during recovery to
 /// get back the share.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct UnlockKeyTag(SecretBytesArray<16>);
 
 impl ConstantTimeEq for UnlockKeyTag {
@@ -532,20 +343,25 @@ impl ConstantTimeEq for UnlockKeyTag {
     }
 }
 
+impl PartialEq for UnlockKeyTag {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
+    }
+}
+
 impl UnlockKeyTag {
     /// Computes a derived secret-unlocking tag for the realm.
     pub fn derive(unlock_key: &UnlockKey, realm_id: &RealmId) -> Self {
         let label = b"Unlock Key Tag";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(unlock_key.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
+        let mac: [u8; 16] = <Blake2sMac<U16> as Mac>::new(unlock_key.expose_secret().into())
+            .chain_update(to_be4(label.len()))
             .chain_update(label)
-            .chain_update((realm_id.0.len() as u32).to_le_bytes())
+            .chain_update(to_be4(realm_id.0.len()))
             .chain_update(realm_id.0)
             .finalize()
             .into_bytes()
             .into();
-        let mac_prefix: [u8; 16] = mac[..16].try_into().unwrap();
-        Self::from(mac_prefix)
+        Self::from(mac)
     }
 
     pub fn expose_secret(&self) -> &[u8; 16] {
@@ -563,12 +379,18 @@ impl From<[u8; 16]> for UnlockKeyTag {
 /// before using its [`UserSecretEncryptionKeyScalarShare`]
 /// in recovery and avoid a Denial-of-Service attack by
 /// a misbheaving realm.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct EncryptedUserSecretCommitment(SecretBytesArray<16>);
 
 impl ConstantTimeEq for EncryptedUserSecretCommitment {
     fn ct_eq(&self, other: &Self) -> subtle::Choice {
         self.expose_secret().ct_eq(other.expose_secret())
+    }
+}
+
+impl PartialEq for EncryptedUserSecretCommitment {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
     }
 }
 
@@ -580,20 +402,19 @@ impl EncryptedUserSecretCommitment {
         encrypted_secret: &EncryptedUserSecret,
     ) -> Self {
         let label = b"Encrypted User Secret Commitment";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(unlock_key.expose_secret().into())
-            .chain_update((label.len() as u32).to_le_bytes())
+        let mac: [u8; 16] = <Blake2sMac<U16> as Mac>::new(unlock_key.expose_secret().into())
+            .chain_update(to_be4(label.len()))
             .chain_update(label)
-            .chain_update((realm_id.0.len() as u32).to_le_bytes())
+            .chain_update(to_be4(realm_id.0.len()))
             .chain_update(realm_id.0)
-            .chain_update((encryption_key_scalar_share.expose_secret().len() as u32).to_le_bytes())
-            .chain_update(encryption_key_scalar_share.expose_secret())
-            .chain_update((encrypted_secret.expose_secret().len() as u32).to_le_bytes())
+            .chain_update(to_be4(encryption_key_scalar_share.as_bytes().len()))
+            .chain_update(encryption_key_scalar_share.as_bytes())
+            .chain_update(to_be4(encrypted_secret.expose_secret().len()))
             .chain_update(encrypted_secret.expose_secret())
             .finalize()
             .into_bytes()
             .into();
-        let mac_prefix: [u8; 16] = mac[..16].try_into().unwrap();
-        Self::from(mac_prefix)
+        Self::from(mac)
     }
 
     pub fn expose_secret(&self) -> &[u8; 16] {
@@ -610,7 +431,7 @@ impl From<[u8; 16]> for EncryptedUserSecretCommitment {
 /// A commitment used to verify recovery of an [`UnlockKey`] and
 /// from a set of realms and avoid a Denial-of-Service attack by
 /// a misbheaving realm.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct UnlockKeyCommitment(SecretBytesArray<32>);
 
 impl ConstantTimeEq for UnlockKeyCommitment {
@@ -619,20 +440,19 @@ impl ConstantTimeEq for UnlockKeyCommitment {
     }
 }
 
-impl UnlockKeyCommitment {
-    pub fn derive(hash: &UnlockKeyScalarHash, access_key: &UserSecretAccessKey) -> Self {
-        let commitment_label = b"Unlock Key Commitment";
-        let mac: [u8; 32] = <Blake2sMac256 as Mac>::new(hash.expose_secret().into())
-            .chain_update((commitment_label.len() as u32).to_le_bytes())
-            .chain_update(commitment_label)
-            .chain_update((access_key.expose_secret().len() as u32).to_le_bytes())
-            .chain_update(access_key.expose_secret())
-            .finalize()
-            .into_bytes()
-            .into();
-        Self(SecretBytesArray::from(mac))
+impl PartialEq for UnlockKeyCommitment {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
     }
+}
 
+impl Hash for UnlockKeyCommitment {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.expose_secret().hash(state);
+    }
+}
+
+impl UnlockKeyCommitment {
     pub fn expose_secret(&self) -> &[u8; 32] {
         self.0.expose_secret()
     }
@@ -642,6 +462,36 @@ impl From<[u8; 32]> for UnlockKeyCommitment {
     fn from(value: [u8; 32]) -> Self {
         Self(SecretBytesArray::from(value))
     }
+}
+
+/// Convert the provided integer into a 2 byte array in big-endian
+/// (network) byte order or panic if it is too large to fit.
+pub fn to_be2<T, E>(len: T) -> [u8; 2]
+where
+    T: TryInto<u16, Error = E>,
+    E: Debug,
+{
+    len.try_into().expect("length too large").to_be_bytes()
+}
+
+/// Convert the provided integer into a 4 byte array in big-endian
+/// (network) byte order or panic if it is too large to fit.
+pub fn to_be4<T, E>(len: T) -> [u8; 4]
+where
+    T: TryInto<u32, Error = E>,
+    E: Debug,
+{
+    len.try_into().expect("length too large").to_be_bytes()
+}
+
+/// Convert the provided integer into a 8 byte array in big-endian
+/// (network) byte order or panic if it is too large to fit.
+pub fn to_be8<T, E>(len: T) -> [u8; 8]
+where
+    T: TryInto<u64, Error = E>,
+    E: Debug,
+{
+    len.try_into().expect("length too large").to_be_bytes()
 }
 
 #[cfg(test)]

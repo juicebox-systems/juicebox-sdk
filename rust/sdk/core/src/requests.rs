@@ -6,10 +6,11 @@ use core::fmt;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
+use crate::oprf::{OprfBlindedInput, OprfBlindedResult, OprfKey};
 use crate::types::{
-    AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, MaskedUnlockKeyScalarShare,
-    OprfBlindedInput, OprfBlindedResult, OprfSeed, Policy, RealmId, RegistrationVersion, SessionId,
-    UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
+    AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RealmId,
+    RegistrationVersion, SessionId, UnlockKeyCommitment, UnlockKeyTag,
+    UserSecretEncryptionKeyScalarShare,
 };
 use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
@@ -172,8 +173,7 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub version: RegistrationVersion,
-    pub oprf_seed: OprfSeed,
-    pub masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare,
+    pub oprf_key: OprfKey,
     pub unlock_key_commitment: UnlockKeyCommitment,
     pub unlock_key_tag: UnlockKeyTag,
     pub user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
@@ -208,8 +208,9 @@ pub struct Recover2Request {
 pub enum Recover2Response {
     Ok {
         oprf_blinded_result: OprfBlindedResult,
-        masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare,
         unlock_key_commitment: UnlockKeyCommitment,
+        num_guesses: u16,
+        guess_count: u16,
     },
     VersionMismatch,
     NotRegistered,
@@ -251,11 +252,11 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
+        oprf::OprfKey,
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
-            EncryptedUserSecret, EncryptedUserSecretCommitment, MaskedUnlockKeyScalarShare,
-            OprfSeed, Policy, RegistrationVersion, UnlockKeyCommitment, UnlockKeyTag,
-            UserSecretEncryptionKeyScalarShare,
+            EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RegistrationVersion,
+            UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
         },
     };
     use curve25519_dalek::Scalar;
@@ -265,8 +266,7 @@ mod tests {
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            oprf_seed: OprfSeed::from([0xff; 32]),
-            masked_unlock_key_scalar_share: MaskedUnlockKeyScalarShare::from(Scalar::ONE),
+            oprf_key: OprfKey::try_from([0x5; 32]).unwrap(),
             unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
             unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
             user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(

@@ -11,4 +11,5 @@ edition = "2021"
 
 [dependencies]
 ciborium = { workspace = true }
+curve25519-dalek = { workspace = true }
 serde = { workspace = true }

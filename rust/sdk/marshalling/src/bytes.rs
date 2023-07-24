@@ -2,6 +2,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt;
+use curve25519_dalek::{ristretto::CompressedRistretto, RistrettoPoint, Scalar};
 
 pub fn serialize<Ser, B>(bytes: &B, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
 where
@@ -125,6 +126,48 @@ impl Bytes for Vec<u8> {
         }
 
         deserializer.deserialize_any(Visitor)
+    }
+}
+
+impl Bytes for Scalar {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
+    where
+        Ser: serde::ser::Serializer,
+    {
+        serializer.serialize_bytes(self.as_bytes())
+    }
+
+    fn deserialize<'de, De>(deserializer: De) -> Result<Self, De::Error>
+    where
+        De: serde::de::Deserializer<'de>,
+    {
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        Option::from(Scalar::from_canonical_bytes(bytes)).ok_or(serde::de::Error::invalid_value(
+            serde::de::Unexpected::Bytes(&bytes),
+            &"a valid Scalar",
+        ))
+    }
+}
+
+impl Bytes for RistrettoPoint {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
+    where
+        Ser: serde::ser::Serializer,
+    {
+        serializer.serialize_bytes(self.compress().as_bytes())
+    }
+
+    fn deserialize<'de, De>(deserializer: De) -> Result<Self, De::Error>
+    where
+        De: serde::de::Deserializer<'de>,
+    {
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        CompressedRistretto(bytes)
+            .decompress()
+            .ok_or(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Bytes(&bytes),
+                &"a valid RistrettoPoint",
+            ))
     }
 }
 
