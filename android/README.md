@@ -6,8 +6,6 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 
 ### Install
 
-**_Note:_** This repo is pre-production and has not yet been published to Maven. It must be installed manually.
-
 #### Gradle
 
 ```
@@ -17,7 +15,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'com.github.juicebox-systems.juicebox-sdk:juicebox-sdk:0.0.1'
+  implementation 'xyz.juicebox:sdk:0.1.1'
 }
 ```
 
@@ -25,9 +23,9 @@ dependencies {
 
 ```
 <dependency>
-  <groupId>com.github.juicebox-systems.juicebox-sdk</groupId>
-  <artifactId>juicebox-sdk</artifactId>
-  <version>0.0.1</version>
+  <groupId>xyz.juicebox</groupId>
+  <artifactId>sdk</artifactId>
+  <version>0.1.1</version>
 </dependency>
 ```
 

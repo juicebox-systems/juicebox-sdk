@@ -1,6 +1,7 @@
 [package]
 name = "juicebox-sdk"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = [
     "Simon Fell <simon@juicebox.me>",
     "Diego Ongaro <diego@juicebox.me>",
@@ -21,11 +22,11 @@ digest = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 instant = { workspace = true }
-juicebox-sdk-core = { path = "../core" }
-juicebox-sdk-marshalling = { path = "../marshalling" }
-juicebox-sdk-networking = { path = "../networking" }
-juicebox-sdk-noise = { path = "../noise" }
-juicebox-sdk-secret-sharing = { path = "../secret_sharing" }
+juicebox-sdk-core = { workspace = true }
+juicebox-sdk-marshalling = { workspace = true }
+juicebox-sdk-networking = { workspace = true }
+juicebox-sdk-noise = { workspace = true }
+juicebox-sdk-secret-sharing = { workspace = true }
 rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -38,9 +39,9 @@ x25519-dalek = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]
-juicebox-sdk-process-group = { path = "../process_group" }
-juicebox-sdk-realm-auth = { path = "../realm_auth" }
-juicebox-sdk-software-realm = { path = "../software_realm" }
+juicebox-sdk-process-group = { workspace = true }
+juicebox-sdk-realm-auth = { workspace = true }
+juicebox-sdk-software-realm = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [features]

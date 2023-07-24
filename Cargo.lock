@@ -996,7 +996,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1029,7 +1029,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-bridge"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "juicebox-sdk",
@@ -1041,7 +1041,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake2",
  "curve25519-dalek",
@@ -1058,7 +1058,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-demo"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap 4.3.10",
  "hex",
@@ -1071,7 +1071,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-ffi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "cbindgen",
@@ -1086,7 +1086,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-jni"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "cbindgen",
@@ -1101,7 +1101,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-marshalling"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ciborium",
  "serde",
@@ -1109,7 +1109,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-networking"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "http",
@@ -1126,7 +1126,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-noise"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake2",
  "chacha20poly1305",
@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-process-group"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "libc",
  "nix",
@@ -1153,7 +1153,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-realm-auth"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hex",
  "jsonwebtoken",
@@ -1164,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-secret-sharing"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "curve25519-dalek",
  "itertools",
@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-software-realm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hex",
  "juicebox-sdk-core",
@@ -1187,7 +1187,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-tokens"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap 4.3.10",
  "hex",
@@ -1199,7 +1199,7 @@ dependencies = [
 
 [[package]]
 name = "juicebox-sdk-wasm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "console_error_panic_hook",

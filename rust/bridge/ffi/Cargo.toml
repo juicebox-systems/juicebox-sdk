@@ -1,6 +1,7 @@
 [package]
 name = "juicebox-sdk-ffi"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = ["Nora Trapp <nora@juicebox.me>", "Diego Ongaro <diego@juicebox.me>"]
 edition = "2021"
 build = "build.rs"
@@ -12,8 +13,8 @@ crate-type = ["staticlib"]
 async-trait = { workspace = true }
 futures = { workspace = true }
 libc = { workspace = true }
-juicebox-sdk = { path = "../../sdk/client" }
-juicebox-sdk-bridge = { path = "../common", features = ["tokio"] }
+juicebox-sdk = { workspace = true }
+juicebox-sdk-bridge = { workspace = true, features = ["tokio"] }
 tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }

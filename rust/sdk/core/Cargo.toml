@@ -1,6 +1,7 @@
 [package]
 name = "juicebox-sdk-core"
-version = "0.1.0"
+version.workspace = true
+license.workspace = true
 authors = [
     "Simon Fell <simon@juicebox.me>",
     "Diego Ongaro <diego@juicebox.me>",
@@ -13,8 +14,8 @@ blake2 = { workspace = true }
 curve25519-dalek = { workspace = true }
 digest = { workspace = true }
 hex = { workspace = true }
-juicebox-sdk-marshalling = { path = "../marshalling" }
-juicebox-sdk-noise = { path = "../noise" }
+juicebox-sdk-marshalling = { workspace = true }
+juicebox-sdk-noise = { workspace = true }
 rand_core = { workspace = true }
 serde = { workspace = true }
 subtle = { workspace = true }
