@@ -67,7 +67,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             self.configuration.share_count(),
             &mut OsRng,
         )
-        .map(|share| UserSecretEncryptionKeyScalarShare::from(*share.secret.expose_secret()))
+        .map(|share| UserSecretEncryptionKeyScalarShare::from(share.secret))
         .collect();
 
         let encryption_key =
@@ -101,7 +101,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 .expect("oprf pin evaluation failed")
                 .into();
 
-            let unmasked_share = UnlockKeyScalarShare::from(*share.secret.expose_secret());
+            let unmasked_share = UnlockKeyScalarShare::from(share.secret);
             unmasked_share.mask(&oprf_result)
         })
         .collect();

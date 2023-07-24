@@ -49,7 +49,7 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 ] }
 cbindgen = "0.24.3"
 ciborium = { version = "0.2.0", default-features = false }
-curve25519-dalek = "4.0.0-rc.2"
+curve25519-dalek = { version = "4.0.0-rc.2", features = ["zeroize"] }
 digest = { version = "0.10.6" }
 futures = { version = "0.3.25" }
 futures-channel = { version = " 0.3.28" }
