@@ -6,7 +6,7 @@ use sha2::{Digest, Sha512};
 
 use juicebox_sdk_marshalling::bytes;
 
-use crate::types::{i2osp_2, SecretBytesArray};
+use crate::types::{to_be2, SecretBytesArray};
 
 #[derive(Debug)]
 pub struct OprfResult(SecretBytesArray<64>);
@@ -28,9 +28,9 @@ impl OprfResult {
 
     fn new(evaluated_element: &RistrettoPoint, input: &[u8]) -> Self {
         let result_hash: [u8; 64] = Sha512::new()
-            .chain_update(i2osp_2(input.len()))
+            .chain_update(to_be2(input.len()))
             .chain_update(input)
-            .chain_update(i2osp_2(32))
+            .chain_update(to_be2(32))
             .chain_update(evaluated_element.compress().as_bytes())
             .chain_update(b"Finalize")
             .finalize()

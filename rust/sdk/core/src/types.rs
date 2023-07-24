@@ -354,9 +354,9 @@ impl UnlockKeyTag {
     pub fn derive(unlock_key: &UnlockKey, realm_id: &RealmId) -> Self {
         let label = b"Unlock Key Tag";
         let mac: [u8; 16] = <Blake2sMac<U16> as Mac>::new(unlock_key.expose_secret().into())
-            .chain_update(i2osp_4(label.len()))
+            .chain_update(to_be4(label.len()))
             .chain_update(label)
-            .chain_update(i2osp_4(realm_id.0.len()))
+            .chain_update(to_be4(realm_id.0.len()))
             .chain_update(realm_id.0)
             .finalize()
             .into_bytes()
@@ -403,13 +403,13 @@ impl EncryptedUserSecretCommitment {
     ) -> Self {
         let label = b"Encrypted User Secret Commitment";
         let mac: [u8; 16] = <Blake2sMac<U16> as Mac>::new(unlock_key.expose_secret().into())
-            .chain_update(i2osp_4(label.len()))
+            .chain_update(to_be4(label.len()))
             .chain_update(label)
-            .chain_update(i2osp_4(realm_id.0.len()))
+            .chain_update(to_be4(realm_id.0.len()))
             .chain_update(realm_id.0)
-            .chain_update(i2osp_4(encryption_key_scalar_share.as_bytes().len()))
+            .chain_update(to_be4(encryption_key_scalar_share.as_bytes().len()))
             .chain_update(encryption_key_scalar_share.as_bytes())
-            .chain_update(i2osp_4(encrypted_secret.expose_secret().len()))
+            .chain_update(to_be4(encrypted_secret.expose_secret().len()))
             .chain_update(encrypted_secret.expose_secret())
             .finalize()
             .into_bytes()
@@ -464,7 +464,9 @@ impl From<[u8; 32]> for UnlockKeyCommitment {
     }
 }
 
-pub fn i2osp_2<T, E>(len: T) -> [u8; 2]
+/// Convert the provided integer into a 2 byte array in big-endian
+/// (network) byte order or panic if it is too large to fit.
+pub fn to_be2<T, E>(len: T) -> [u8; 2]
 where
     T: TryInto<u16, Error = E>,
     E: Debug,
@@ -472,7 +474,9 @@ where
     len.try_into().expect("length too large").to_be_bytes()
 }
 
-pub fn i2osp_4<T, E>(len: T) -> [u8; 4]
+/// Convert the provided integer into a 4 byte array in big-endian
+/// (network) byte order or panic if it is too large to fit.
+pub fn to_be4<T, E>(len: T) -> [u8; 4]
 where
     T: TryInto<u32, Error = E>,
     E: Debug,
@@ -480,7 +484,9 @@ where
     len.try_into().expect("length too large").to_be_bytes()
 }
 
-pub fn i2osp_8<T, E>(len: T) -> [u8; 8]
+/// Convert the provided integer into a 8 byte array in big-endian
+/// (network) byte order or panic if it is too large to fit.
+pub fn to_be8<T, E>(len: T) -> [u8; 8]
 where
     T: TryInto<u64, Error = E>,
     E: Debug,

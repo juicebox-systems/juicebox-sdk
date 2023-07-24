@@ -1,6 +1,6 @@
 use crate::{types::UserSecretEncryptionKeySeed, UserInfo};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
-use juicebox_sdk_core::types::{i2osp_4, RegistrationVersion, SecretBytesVec, UserSecretAccessKey};
+use juicebox_sdk_core::types::{to_be4, RegistrationVersion, SecretBytesVec, UserSecretAccessKey};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -81,9 +81,9 @@ impl Pin {
             .hash_password_into(
                 self.expose_secret(),
                 [
-                    &i2osp_4(version.expose_secret().len()),
+                    &to_be4(version.expose_secret().len()),
                     version.expose_secret().as_slice(),
-                    &i2osp_4(info.expose_secret().len()),
+                    &to_be4(info.expose_secret().len()),
                     info.expose_secret(),
                 ]
                 .concat()
