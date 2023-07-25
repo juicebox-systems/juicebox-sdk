@@ -6,10 +6,7 @@ use core::fmt;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
-use crate::oprf::{
-    OprfBlindedInput, OprfBlindedResult, OprfPrivateKey, OprfPublicKeySignature,
-    OprfSignedPublicKey,
-};
+use crate::oprf::{OprfBlindedInput, OprfBlindedResult, OprfPrivateKey, OprfSignedPublicKey};
 use crate::types::{
     AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RealmId,
     RegistrationVersion, SessionId, UnlockKeyCommitment, UnlockKeyTag,
@@ -177,7 +174,7 @@ pub enum Register1Response {
 pub struct Register2Request {
     pub version: RegistrationVersion,
     pub oprf_private_key: OprfPrivateKey,
-    pub oprf_public_key_signature: OprfPublicKeySignature,
+    pub oprf_signed_public_key: OprfSignedPublicKey,
     pub unlock_key_commitment: UnlockKeyCommitment,
     pub unlock_key_tag: UnlockKeyTag,
     pub encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
@@ -257,7 +254,7 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
-        oprf::{OprfPrivateKey, OprfPublicKeySignature, OprfVerifyingKey},
+        oprf::{OprfPrivateKey, OprfSignedPublicKey, OprfVerifyingKey},
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
             EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RegistrationVersion,
@@ -272,14 +269,15 @@ mod tests {
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            oprf_private_key: OprfPrivateKey::try_from([0x5; 32]).unwrap(),
-            oprf_public_key_signature: OprfPublicKeySignature {
+            oprf_private_key: OprfPrivateKey::from(-Scalar::ONE),
+            oprf_signed_public_key: OprfSignedPublicKey {
+                public_key: OprfPrivateKey::from(-Scalar::ONE).public_key(),
                 verifying_key: OprfVerifyingKey::from([0xff; 32]),
-                bytes: SecretBytesArray::from([0xFF; 64]),
+                signature: SecretBytesArray::from([0xFF; 64]),
             },
             unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
             unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
-            encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(Scalar::ONE),
+            encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(-Scalar::ONE),
             encrypted_secret: EncryptedUserSecret::from([0xff; 145]),
             encrypted_secret_commitment: EncryptedUserSecretCommitment::from([0xff; 16]),
             policy: Policy {

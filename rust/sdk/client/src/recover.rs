@@ -344,7 +344,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         };
 
         Ok((
-            oprf_signed_public_key.signature.verifying_key,
+            oprf_signed_public_key.verifying_key,
             oprf_blinded_result_share,
             unlock_key_commitment,
             guesses_remaining,

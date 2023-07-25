@@ -2,7 +2,7 @@ use rand::rngs::OsRng;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
-    oprf::{OprfPrivateKey, OprfPublicKeySignature, OprfResult, OprfSigningKey},
+    oprf::{OprfPrivateKey, OprfResult, OprfSignedPublicKey, OprfSigningKey},
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
@@ -71,9 +71,9 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let signing_key = OprfSigningKey::new_random(&mut OsRng);
 
-        let oprf_public_key_signatures: Vec<OprfPublicKeySignature> = oprf_private_key_shares
+        let oprf_signed_public_keys: Vec<OprfSignedPublicKey> = oprf_private_key_shares
             .iter()
-            .map(|private_key| private_key.public_key().to_signed(&signing_key).signature)
+            .map(|private_key| private_key.public_key().to_signed(&signing_key))
             .collect();
 
         let oprf_result = OprfResult::evaluate(&oprf_private_key, access_key.expose_secret());
@@ -97,14 +97,14 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         let register2_requests = zip4(
             &self.configuration.realms,
             oprf_private_key_shares,
-            oprf_public_key_signatures,
+            oprf_signed_public_keys,
             encryption_key_scalar_shares,
         )
         .map(
             |(
                 realm,
                 oprf_private_key_share,
-                oprf_public_key_signature,
+                oprf_signed_public_key,
                 encryption_key_scalar_share,
             )| {
                 self.register2_on_realm(
@@ -112,7 +112,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                     Register2Request {
                         version: version.to_owned(),
                         oprf_private_key: oprf_private_key_share.to_owned(),
-                        oprf_public_key_signature: oprf_public_key_signature.to_owned(),
+                        oprf_signed_public_key: oprf_signed_public_key.to_owned(),
                         unlock_key_commitment: unlock_key_commitment.to_owned(),
                         unlock_key_tag: UnlockKeyTag::derive(&unlock_key, &realm.id),
                         encryption_key_scalar_share: encryption_key_scalar_share.to_owned(),

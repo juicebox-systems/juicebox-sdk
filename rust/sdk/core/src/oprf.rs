@@ -214,10 +214,8 @@ impl OprfPublicKey {
         let signature = signing_key.0.sign(self.as_point().compress().as_bytes());
         OprfSignedPublicKey {
             public_key: self.clone(),
-            signature: OprfPublicKeySignature {
-                verifying_key: signing_key.verifying_key(),
-                bytes: SecretBytesArray::from(signature.to_bytes()),
-            },
+            verifying_key: signing_key.verifying_key(),
+            signature: SecretBytesArray::from(signature.to_bytes()),
         }
     }
 
@@ -271,13 +269,14 @@ impl From<[u8; 32]> for OprfVerifyingKey {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfPublicKeySignature {
+pub struct OprfSignedPublicKey {
+    pub public_key: OprfPublicKey,
     pub verifying_key: OprfVerifyingKey,
-    pub bytes: SecretBytesArray<64>,
+    pub signature: SecretBytesArray<64>,
 }
 
-impl OprfPublicKeySignature {
-    pub fn verify(&self, public_key: &OprfPublicKey) -> Result<(), SignatureError> {
+impl OprfSignedPublicKey {
+    pub fn verify(&self) -> Result<(), SignatureError> {
         VerifyingKey::from(
             self.verifying_key
                 .0
@@ -285,21 +284,9 @@ impl OprfPublicKeySignature {
                 .ok_or(SignatureError::default())?,
         )
         .verify_strict(
-            public_key.as_point().compress().as_bytes(),
-            &Signature::from(self.bytes.expose_secret()),
+            self.public_key.as_point().compress().as_bytes(),
+            &Signature::from(self.signature.expose_secret()),
         )
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfSignedPublicKey {
-    pub public_key: OprfPublicKey,
-    pub signature: OprfPublicKeySignature,
-}
-
-impl OprfSignedPublicKey {
-    pub fn verify(&self) -> Result<(), SignatureError> {
-        self.signature.verify(&self.public_key)
     }
 }
 
