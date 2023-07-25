@@ -6,7 +6,7 @@ use core::fmt;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
-use crate::oprf::{OprfBlindedInput, OprfBlindedResult, OprfKey};
+use crate::oprf::{OprfBlindedInput, OprfBlindedResult, OprfPrivateKey, OprfSignedPublicKey};
 use crate::types::{
     AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RealmId,
     RegistrationVersion, SessionId, UnlockKeyCommitment, UnlockKeyTag,
@@ -173,12 +173,13 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub version: RegistrationVersion,
-    pub oprf_key: OprfKey,
+    pub oprf_private_key: OprfPrivateKey,
+    pub oprf_signed_public_key: OprfSignedPublicKey,
     pub unlock_key_commitment: UnlockKeyCommitment,
     pub unlock_key_tag: UnlockKeyTag,
-    pub user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
-    pub encrypted_user_secret: EncryptedUserSecret,
-    pub encrypted_user_secret_commitment: EncryptedUserSecretCommitment,
+    pub encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
+    pub encrypted_secret: EncryptedUserSecret,
+    pub encrypted_secret_commitment: EncryptedUserSecretCommitment,
     pub policy: Policy,
 }
 
@@ -207,7 +208,8 @@ pub struct Recover2Request {
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover2Response {
     Ok {
-        oprf_blinded_result: OprfBlindedResult,
+        oprf_signed_public_key: Box<OprfSignedPublicKey>,
+        oprf_blinded_result: Box<OprfBlindedResult>,
         unlock_key_commitment: UnlockKeyCommitment,
         num_guesses: u16,
         guess_count: u16,
@@ -228,9 +230,9 @@ pub struct Recover3Request {
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Recover3Response {
     Ok {
-        user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
-        encrypted_user_secret: EncryptedUserSecret,
-        encrypted_user_secret_commitment: EncryptedUserSecretCommitment,
+        encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare,
+        encrypted_secret: EncryptedUserSecret,
+        encrypted_secret_commitment: EncryptedUserSecretCommitment,
     },
     VersionMismatch,
     NotRegistered,
@@ -252,11 +254,12 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
-        oprf::OprfKey,
+        oprf::{OprfPrivateKey, OprfSignedPublicKey, OprfVerifyingKey},
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
             EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RegistrationVersion,
-            UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
+            SecretBytesArray, UnlockKeyCommitment, UnlockKeyTag,
+            UserSecretEncryptionKeyScalarShare,
         },
     };
     use curve25519_dalek::Scalar;
@@ -266,14 +269,17 @@ mod tests {
     fn test_request_body_size_limit() {
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            oprf_key: OprfKey::try_from([0x5; 32]).unwrap(),
+            oprf_private_key: OprfPrivateKey::from(-Scalar::ONE),
+            oprf_signed_public_key: OprfSignedPublicKey {
+                public_key: OprfPrivateKey::from(-Scalar::ONE).public_key(),
+                verifying_key: OprfVerifyingKey::from([0xff; 32]),
+                signature: SecretBytesArray::from([0xFF; 64]),
+            },
             unlock_key_commitment: UnlockKeyCommitment::from([0xff; 32]),
             unlock_key_tag: UnlockKeyTag::from([0xff; 16]),
-            user_secret_encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(
-                Scalar::ONE,
-            ),
-            encrypted_user_secret: EncryptedUserSecret::from([0xff; 145]),
-            encrypted_user_secret_commitment: EncryptedUserSecretCommitment::from([0xff; 16]),
+            encryption_key_scalar_share: UserSecretEncryptionKeyScalarShare::from(-Scalar::ONE),
+            encrypted_secret: EncryptedUserSecret::from([0xff; 145]),
+            encrypted_secret_commitment: EncryptedUserSecretCommitment::from([0xff; 16]),
             policy: Policy {
                 num_guesses: u16::MAX,
             },

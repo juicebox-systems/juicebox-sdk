@@ -2,7 +2,9 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt;
-use curve25519_dalek::{ristretto::CompressedRistretto, RistrettoPoint, Scalar};
+use curve25519_dalek::{
+    edwards::CompressedEdwardsY, ristretto::CompressedRistretto, RistrettoPoint, Scalar,
+};
 
 pub fn serialize<Ser, B>(bytes: &B, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
 where
@@ -168,6 +170,23 @@ impl Bytes for RistrettoPoint {
                 serde::de::Unexpected::Bytes(&bytes),
                 &"a valid RistrettoPoint",
             ))
+    }
+}
+
+impl Bytes for CompressedEdwardsY {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
+    where
+        Ser: serde::ser::Serializer,
+    {
+        serializer.serialize_bytes(self.as_bytes())
+    }
+
+    fn deserialize<'de, De>(deserializer: De) -> Result<Self, De::Error>
+    where
+        De: serde::de::Deserializer<'de>,
+    {
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        Ok(CompressedEdwardsY(bytes))
     }
 }
 

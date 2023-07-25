@@ -2,7 +2,7 @@ use rand::rngs::OsRng;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
-    oprf::{OprfKey, OprfResult},
+    oprf::{OprfPrivateKey, OprfResult, OprfSignedPublicKey, OprfSigningKey},
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
@@ -59,17 +59,24 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(self.configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let oprf_root_key = OprfKey::new_random(&mut OsRng);
-        let oprf_key_shares: Vec<OprfKey> = create_shares(
-            oprf_root_key.as_scalar(),
+        let oprf_private_key = OprfPrivateKey::new_random(&mut OsRng);
+        let oprf_private_key_shares: Vec<OprfPrivateKey> = create_shares(
+            oprf_private_key.as_scalar(),
             self.configuration.recover_threshold,
             self.configuration.share_count(),
             &mut OsRng,
         )
-        .map(|share| OprfKey::from(share.secret))
+        .map(|share| OprfPrivateKey::from(share.secret))
         .collect();
 
-        let oprf_result = OprfResult::evaluate(&oprf_root_key, access_key.expose_secret());
+        let signing_key = OprfSigningKey::new_random(&mut OsRng);
+
+        let oprf_signed_public_keys: Vec<OprfSignedPublicKey> = oprf_private_key_shares
+            .iter()
+            .map(|private_key| private_key.public_key().to_signed(&signing_key))
+            .collect();
+
+        let oprf_result = OprfResult::evaluate(&oprf_private_key, access_key.expose_secret());
 
         let (unlock_key, unlock_key_commitment) = derive_unlock_key_and_commitment(&oprf_result);
 
@@ -87,31 +94,40 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             UserSecretEncryptionKey::derive(&encryption_key_seed, &encryption_key_scalar);
         let encrypted_secret = secret.encrypt(&encryption_key);
 
-        let register2_requests = zip3(
+        let register2_requests = zip4(
             &self.configuration.realms,
-            oprf_key_shares,
+            oprf_private_key_shares,
+            oprf_signed_public_keys,
             encryption_key_scalar_shares,
         )
-        .map(|(realm, oprf_key_share, encryption_key_scalar_share)| {
-            self.register2_on_realm(
+        .map(
+            |(
                 realm,
-                Register2Request {
-                    version: version.to_owned(),
-                    oprf_key: oprf_key_share.to_owned(),
-                    unlock_key_commitment: unlock_key_commitment.to_owned(),
-                    unlock_key_tag: UnlockKeyTag::derive(&unlock_key, &realm.id),
-                    user_secret_encryption_key_scalar_share: encryption_key_scalar_share.to_owned(),
-                    encrypted_user_secret: encrypted_secret.to_owned(),
-                    encrypted_user_secret_commitment: EncryptedUserSecretCommitment::derive(
-                        &unlock_key,
-                        &realm.id,
-                        &encryption_key_scalar_share,
-                        &encrypted_secret,
-                    ),
-                    policy: policy.to_owned(),
-                },
-            )
-        });
+                oprf_private_key_share,
+                oprf_signed_public_key,
+                encryption_key_scalar_share,
+            )| {
+                self.register2_on_realm(
+                    realm,
+                    Register2Request {
+                        version: version.to_owned(),
+                        oprf_private_key: oprf_private_key_share.to_owned(),
+                        oprf_signed_public_key: oprf_signed_public_key.to_owned(),
+                        unlock_key_commitment: unlock_key_commitment.to_owned(),
+                        unlock_key_tag: UnlockKeyTag::derive(&unlock_key, &realm.id),
+                        encryption_key_scalar_share: encryption_key_scalar_share.to_owned(),
+                        encrypted_secret: encrypted_secret.to_owned(),
+                        encrypted_secret_commitment: EncryptedUserSecretCommitment::derive(
+                            &unlock_key,
+                            &realm.id,
+                            &encryption_key_scalar_share,
+                            &encrypted_secret,
+                        ),
+                        policy: policy.to_owned(),
+                    },
+                )
+            },
+        );
 
         join_at_least_threshold(register2_requests, self.configuration.register_threshold).await?;
 
@@ -150,26 +166,37 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 }
 
-fn zip3<A, B, C>(a: A, b: B, c: C) -> impl Iterator<Item = (A::Item, B::Item, C::Item)>
+fn zip4<A, B, C, D>(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+) -> impl Iterator<Item = (A::Item, B::Item, C::Item, D::Item)>
 where
     A: IntoIterator,
     B: IntoIterator,
     C: IntoIterator,
+    D: IntoIterator,
 {
-    let iter = a.into_iter().zip(b).zip(c);
-    iter.map(|((a, b), c)| (a, b, c))
+    let iter = a.into_iter().zip(b).zip(c).zip(d);
+    iter.map(|(((a, b), c), d)| (a, b, c, d))
 }
 
 mod tests {
     #[test]
-    fn test_zip3() {
+    fn test_zip4() {
         let a = vec![1, 2, 3];
         let b = vec!['a', 'b', 'c'];
         let c = vec![true, false, true];
+        let d = vec!["l", "m", "n"];
 
-        let zipped: Vec<_> = super::zip3(a, b, c).collect();
+        let zipped: Vec<_> = super::zip4(a, b, c, d).collect();
 
-        let expected = vec![(1, 'a', true), (2, 'b', false), (3, 'c', true)];
+        let expected = vec![
+            (1, 'a', true, "l"),
+            (2, 'b', false, "m"),
+            (3, 'c', true, "n"),
+        ];
 
         assert_eq!(zipped, expected);
     }

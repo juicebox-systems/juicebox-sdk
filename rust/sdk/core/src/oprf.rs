@@ -1,4 +1,7 @@
-use curve25519_dalek::{ristretto::CompressedRistretto, RistrettoPoint, Scalar};
+use curve25519_dalek::{
+    edwards::CompressedEdwardsY, ristretto::CompressedRistretto, RistrettoPoint, Scalar,
+};
+use ed25519_dalek::{Signature, SignatureError, Signer, SigningKey, VerifyingKey};
 use elliptic_curve::hash2curve::{ExpandMsg, ExpandMsgXmd, Expander};
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -12,7 +15,7 @@ use crate::types::{to_be2, SecretBytesArray};
 pub struct OprfResult(SecretBytesArray<64>);
 
 impl OprfResult {
-    pub fn evaluate(key: &OprfKey, input: &[u8]) -> Self {
+    pub fn evaluate(key: &OprfPrivateKey, input: &[u8]) -> Self {
         let evaluated_element = key.as_scalar() * hash_to_group(input);
         Self::new(&evaluated_element, input)
     }
@@ -152,7 +155,7 @@ impl TryFrom<[u8; 32]> for OprfBlindedResult {
 }
 
 impl OprfBlindedResult {
-    pub fn new(key: &OprfKey, blinded_input: &OprfBlindedInput) -> Self {
+    pub fn new(key: &OprfPrivateKey, blinded_input: &OprfBlindedInput) -> Self {
         let result = key.as_scalar() * blinded_input.as_point();
         Self(result)
     }
@@ -167,11 +170,15 @@ impl OprfBlindedResult {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OprfKey(#[serde(with = "bytes")] Scalar);
+pub struct OprfPrivateKey(#[serde(with = "bytes")] Scalar);
 
-impl OprfKey {
+impl OprfPrivateKey {
     pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
         Self(Scalar::random(rng))
+    }
+
+    pub fn public_key(&self) -> OprfPublicKey {
+        OprfPublicKey(RistrettoPoint::mul_base(self.as_scalar()))
     }
 
     pub fn as_scalar(&self) -> &Scalar {
@@ -183,19 +190,103 @@ impl OprfKey {
     }
 }
 
-impl From<Scalar> for OprfKey {
+impl From<Scalar> for OprfPrivateKey {
     fn from(value: Scalar) -> Self {
         Self(value)
     }
 }
 
-impl TryFrom<[u8; 32]> for OprfKey {
+impl TryFrom<[u8; 32]> for OprfPrivateKey {
     type Error = &'static str;
 
     fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
         Ok(Self(
             Option::from(Scalar::from_canonical_bytes(value)).ok_or("invalid scalar")?,
         ))
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct OprfPublicKey(#[serde(with = "bytes")] RistrettoPoint);
+
+impl OprfPublicKey {
+    pub fn to_signed(&self, signing_key: &OprfSigningKey) -> OprfSignedPublicKey {
+        let signature = signing_key.0.sign(self.as_point().compress().as_bytes());
+        OprfSignedPublicKey {
+            public_key: self.clone(),
+            verifying_key: signing_key.verifying_key(),
+            signature: SecretBytesArray::from(signature.to_bytes()),
+        }
+    }
+
+    pub fn as_point(&self) -> &RistrettoPoint {
+        &self.0
+    }
+
+    pub fn to_point(&self) -> RistrettoPoint {
+        self.0
+    }
+}
+
+impl From<RistrettoPoint> for OprfPublicKey {
+    fn from(value: RistrettoPoint) -> Self {
+        Self(value)
+    }
+}
+
+impl TryFrom<[u8; 32]> for OprfPublicKey {
+    type Error = &'static str;
+
+    fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
+        Ok(Self(
+            CompressedRistretto(value)
+                .decompress()
+                .ok_or("invalid point")?,
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct OprfSigningKey(SigningKey);
+
+impl OprfSigningKey {
+    pub fn new_random<T: RngCore + CryptoRng + Send>(rng: &mut T) -> Self {
+        Self(SigningKey::generate(rng))
+    }
+
+    pub fn verifying_key(&self) -> OprfVerifyingKey {
+        OprfVerifyingKey(CompressedEdwardsY(self.0.verifying_key().to_bytes()))
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct OprfVerifyingKey(#[serde(with = "bytes")] CompressedEdwardsY);
+
+impl From<[u8; 32]> for OprfVerifyingKey {
+    fn from(value: [u8; 32]) -> Self {
+        Self(CompressedEdwardsY(value))
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct OprfSignedPublicKey {
+    pub public_key: OprfPublicKey,
+    pub verifying_key: OprfVerifyingKey,
+    pub signature: SecretBytesArray<64>,
+}
+
+impl OprfSignedPublicKey {
+    pub fn verify(&self) -> Result<(), SignatureError> {
+        VerifyingKey::from(
+            self.verifying_key
+                .0
+                .decompress()
+                .ok_or(SignatureError::default())?,
+        )
+        .verify_strict(
+            self.public_key.as_point().compress().as_bytes(),
+            &Signature::from(self.signature.expose_secret()),
+        )
     }
 }
 
@@ -296,7 +387,7 @@ mod tests {
         ];
 
         for vector in vectors.into_iter() {
-            let key = OprfKey::try_from(vector.key).unwrap();
+            let key = OprfPrivateKey::try_from(vector.key).unwrap();
             let blinding_factor = OprfBlindingFactor::try_from(vector.blinding_factor).unwrap();
 
             let blinded_input = OprfBlindedInput::new_deterministic(&blinding_factor, vector.input);
