@@ -134,7 +134,6 @@ jobs:
         uses: ./.github/actions/software-realm
         with:
           token: ${{ secrets.ACCESS_TOKEN }}
-          ref: nt/signatures
 
       - name: Run software realm integration tests
         uses: actions-rs/cargo@v1
