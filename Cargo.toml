@@ -11,6 +11,7 @@ members = [
     "rust/sdk/secret_sharing",
     "rust/sdk/software_realm",
     "rust/sdk/tokens",
+    "rust/sdk/voprf",
     "rust/bridge/ffi",
     "rust/bridge/jni",
     "rust/bridge/wasm",
@@ -33,6 +34,7 @@ juicebox-sdk-process-group = { path = "rust/sdk/process_group", version = "0.1.1
 juicebox-sdk-realm-auth = { path = "rust/sdk/realm_auth", version = "0.1.1" }
 juicebox-sdk-secret-sharing = { path = "rust/sdk/secret_sharing", version = "0.1.1" }
 juicebox-sdk-software-realm = { path = "rust/sdk/software_realm", version = "0.1.1" }
+juicebox-sdk-voprf = { path = "rust/sdk/voprf", version = "0.1.1" }
 juicebox-sdk-bridge = { path = "rust/bridge/common", version = "0.1.1" }
 juicebox-sdk-ffi = { path = "rust/bridge/ffi", version = "0.1.1" }
 juicebox-sdk-jni = { path = "rust/bridge/jni", version = "0.1.1" }
@@ -49,9 +51,15 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 ] }
 cbindgen = "0.24.3"
 ciborium = { version = "0.2.0", default-features = false }
-curve25519-dalek = { version = "4.0.0-rc.3", features = ["rand_core"] }
+criterion = "0.5.1"
+curve25519-dalek = { version = "4.0.0-rc.3", features = [
+    "digest",
+    "rand_core",
+] }
 digest = { version = "0.10.6" }
-ed25519-dalek = { version = "2.0.0-rc.3", default-features = false, features = ["rand_core"] }
+ed25519-dalek = { version = "2.0.0-rc.3", default-features = false, features = [
+    "rand_core",
+] }
 elliptic-curve = { version = "0.13.5", features = ["hash2curve"] }
 futures = { version = "0.3.25" }
 futures-channel = { version = " 0.3.28" }
@@ -61,7 +69,9 @@ hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "0.2.8"
 instant = "0.1.12"
-itertools = { version = "0.11.0", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.11.0", default-features = false, features = [
+    "use_alloc",
+] }
 jni = "0.21.1"
 jsonwebtoken = { version = "8.3.0", default-features = false }
 js-sys = "0.3.61"
@@ -70,6 +80,7 @@ nix = { version = "0.26.2", default-features = false, features = ["signal"] }
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
+rand_chacha = { version = "0.3.1", default-features = false }
 regex = "1.5"
 reqwest = { version = "0.11.14", default-features = false, features = [
     "rustls-tls",
@@ -109,7 +120,7 @@ x25519-dalek = { version = "2.0.0-rc.3", features = [
     "serde",
     "static_secrets",
 ] }
-zeroize = "1.6.0"
+zeroize = { version = "1.6.0", features = ["derive"] }
 
 [patch.crates-io]
 # We need https://github.com/tokio-rs/tracing/pull/2335 to quiet down error return
