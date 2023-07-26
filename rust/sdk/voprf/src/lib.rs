@@ -420,7 +420,7 @@ mod tests {
         input: String,
         private_key_seed: String,
         blind_seed: String,
-        beta_z_seed: String,
+        beta_t_seed: String,
     }
 
     #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -441,7 +441,7 @@ mod tests {
             entropy: [
                 hex::decode(&inputs.private_key_seed).unwrap(),
                 hex::decode(&inputs.blind_seed).unwrap(),
-                hex::decode(&inputs.beta_z_seed).unwrap(),
+                hex::decode(&inputs.beta_t_seed).unwrap(),
             ]
             .into_iter()
             .flatten()
@@ -517,14 +517,14 @@ mod tests {
         let mut blind_seed = [0u8; 64];
         OsRng.fill_bytes(&mut blind_seed);
 
-        let mut beta_z_seed = [0u8; 64];
-        OsRng.fill_bytes(&mut beta_z_seed);
+        let mut beta_t_seed = [0u8; 64];
+        OsRng.fill_bytes(&mut beta_t_seed);
 
         TestInputs {
             input: hex::encode(input),
             private_key_seed: hex::encode(private_key_seed),
             blind_seed: hex::encode(blind_seed),
-            beta_z_seed: hex::encode(beta_z_seed),
+            beta_t_seed: hex::encode(beta_t_seed),
         }
     }
 
