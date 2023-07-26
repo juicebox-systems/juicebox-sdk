@@ -161,7 +161,7 @@ fn voprf_bench(c: &mut Criterion) {
         OsRng.fill_bytes(&mut input);
         let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
         let private_key = voprf::PrivateKey::random(&mut OsRng);
-        let public_key = voprf::PublicKey::new_from_private(&private_key);
+        let public_key = private_key.make_public_key();
         let blinded_output = voprf::blind_evaluate(&private_key, &blinded_input);
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
@@ -180,7 +180,7 @@ fn voprf_bench(c: &mut Criterion) {
         OsRng.fill_bytes(&mut input);
         let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
         let private_key = voprf::PrivateKey::random(&mut OsRng);
-        let public_key = voprf::PublicKey::new_from_private(&private_key);
+        let public_key = private_key.make_public_key();
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
             voprf::blind_verifiable_evaluate(
@@ -212,7 +212,7 @@ fn voprf_bench(c: &mut Criterion) {
         OsRng.fill_bytes(&mut input);
         let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
         let private_key = voprf::PrivateKey::random(&mut OsRng);
-        let public_key = voprf::PublicKey::new_from_private(&private_key);
+        let public_key = private_key.make_public_key();
         let (blinded_output, proof) =
             voprf::blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, &mut OsRng);
         b.iter(|| {
@@ -252,7 +252,7 @@ fn voprf_bench(c: &mut Criterion) {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
         let private_key = voprf::PrivateKey::random(&mut OsRng);
-        let public_key = voprf::PublicKey::new_from_private(&private_key);
+        let public_key = private_key.make_public_key();
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
             // Client

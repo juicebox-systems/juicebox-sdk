@@ -33,7 +33,7 @@
 //! # let rng = &mut rand_core::OsRng;
 //! use juicebox_sdk_voprf as voprf;
 //! let private_key = voprf::PrivateKey::random(rng);
-//! let public_key = voprf::PublicKey::new_from_private(&private_key);
+//! let public_key = private_key.make_public_key();
 //! let input = b"secret";
 //!
 //! // Client
@@ -274,6 +274,14 @@ impl PrivateKey {
     pub fn expose_secret(&self) -> &Scalar {
         &self.scalar
     }
+
+    /// Returns a public key from this private key, using a somewhat expensive
+    /// computation.
+    pub fn make_public_key(&self) -> PublicKey {
+        PublicKey {
+            point: Point::mul_base(&self.scalar).compress(),
+        }
+    }
 }
 
 impl From<Scalar> for PrivateKey {
@@ -285,6 +293,8 @@ impl From<Scalar> for PrivateKey {
 
 /// The public key used to create and verify VOPRF proofs. It corresponds to a
 /// [`PrivateKey`], which is used to evaluate the OPRF.
+///
+/// See [`PrivateKey::make_public_key`] for how to get a [`PublicKey`].
 //
 // This is represented in compressed form only:
 // - The server only needs the compressed form.
@@ -308,14 +318,6 @@ impl fmt::Debug for PublicKey {
 }
 
 impl PublicKey {
-    /// Generates a public from the private key, using a somewhat expensive
-    /// computation.
-    pub fn new_from_private(private_key: &PrivateKey) -> Self {
-        Self {
-            point: Point::mul_base(&private_key.scalar).compress(),
-        }
-    }
-
     pub fn as_bytes(&self) -> &[u8; 32] {
         self.point.as_bytes()
     }
@@ -497,7 +499,7 @@ mod tests {
             let mut input = [0u8; 8];
             OsRng.fill_bytes(&mut input);
             let private_key = PrivateKey::random(&mut OsRng);
-            let public_key = PublicKey::new_from_private(&private_key);
+            let public_key = private_key.make_public_key();
             let expected = unoblivious_evaluate(&private_key, &input);
 
             for _ in 0..3 {
@@ -597,7 +599,7 @@ mod tests {
             .collect(),
         };
         let private_key = PrivateKey::random(&mut rng);
-        let public_key = PublicKey::new_from_private(&private_key);
+        let public_key = private_key.make_public_key();
 
         let input = hex::decode(&inputs.input).unwrap();
         let (blinding_factor, blinded_input) = start(&input, &mut rng);
@@ -739,7 +741,7 @@ mod tests {
     #[test]
     fn test_public_key_serialize() {
         let private_key = PrivateKey::random(&mut OsRng);
-        let public_key = PublicKey::new_from_private(&private_key);
+        let public_key = private_key.make_public_key();
         let (serialized_len, public_key2) = serialize_rt(&public_key);
         assert_eq!(34, serialized_len);
         assert_eq!(public_key.point, public_key2.point);

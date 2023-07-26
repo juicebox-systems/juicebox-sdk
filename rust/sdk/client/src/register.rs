@@ -74,12 +74,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let oprf_signed_public_keys: Vec<OprfSignedPublicKey> = oprf_private_key_shares
             .iter()
-            .map(|private_key| {
-                sign_public_key(
-                    voprf::PublicKey::new_from_private(private_key),
-                    &signing_key,
-                )
-            })
+            .map(|private_key| sign_public_key(private_key.make_public_key(), &signing_key))
             .collect();
 
         let oprf_result =

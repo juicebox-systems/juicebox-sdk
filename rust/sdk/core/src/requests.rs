@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn test_request_body_size_limit() {
         let oprf_private_key = voprf::PrivateKey::random(&mut OsRng);
-        let oprf_public_key = voprf::PublicKey::new_from_private(&oprf_private_key);
+        let oprf_public_key = oprf_private_key.make_public_key();
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
             oprf_private_key,
