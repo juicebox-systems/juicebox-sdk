@@ -116,7 +116,10 @@ impl InputHash {
 
 /// What the server runs its computation over.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
-pub struct BlindedInput(PrecompressedPoint);
+#[serde(transparent)]
+pub struct BlindedInput {
+    point: PrecompressedPoint,
+}
 
 impl fmt::Debug for BlindedInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -126,7 +129,10 @@ impl fmt::Debug for BlindedInput {
 
 /// The server's result.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
-pub struct BlindedOutput(PrecompressedPoint);
+#[serde(transparent)]
+pub struct BlindedOutput {
+    point: PrecompressedPoint,
+}
 
 impl fmt::Debug for BlindedOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -137,14 +143,16 @@ impl fmt::Debug for BlindedOutput {
 impl BlindedOutput {
     /// Low-level interface exposed for JKKX17 usage.
     pub fn to_point(self) -> Point {
-        self.0.uncompressed
+        self.point.uncompressed
     }
 }
 
 impl From<Point> for BlindedOutput {
     /// Low-level interface exposed for JKKX17 usage.
     fn from(point: Point) -> Self {
-        Self(PrecompressedPoint::from(point))
+        Self {
+            point: PrecompressedPoint::from(point),
+        }
     }
 }
 
@@ -170,11 +178,15 @@ impl Output {
 
 /// The key used by the server to compute its result.
 #[derive(Clone, Deserialize, Eq, Serialize, ZeroizeOnDrop)]
-pub struct PrivateKey(#[serde(with = "bytes")] Scalar);
+#[serde(transparent)]
+pub struct PrivateKey {
+    #[serde(with = "bytes")]
+    scalar: Scalar,
+}
 
 impl PartialEq for PrivateKey {
     fn eq(&self, other: &Self) -> bool {
-        bool::from(self.0.ct_eq(&other.0))
+        bool::from(self.scalar.ct_eq(&other.scalar))
     }
 }
 
@@ -187,19 +199,21 @@ impl fmt::Debug for PrivateKey {
 impl PrivateKey {
     /// Generates a new random private key.
     pub fn random(rng: &mut impl CryptoRngCore) -> Self {
-        Self(Scalar::random(rng))
+        Self {
+            scalar: Scalar::random(rng),
+        }
     }
 
     /// Low-level interface exposed for JKKX17 usage.
-    pub fn as_scalar(&self) -> &Scalar {
-        &self.0
+    pub fn expose_secret(&self) -> &Scalar {
+        &self.scalar
     }
 }
 
 impl From<Scalar> for PrivateKey {
     /// Low-level interface exposed for JKKX17 usage.
     fn from(scalar: Scalar) -> Self {
-        Self(scalar)
+        Self { scalar }
     }
 }
 
@@ -211,7 +225,11 @@ impl From<Scalar> for PrivateKey {
 // - The client needs to decompress the public key only to verify the proof,
 //   which is done once and is already a fallible operation.
 #[derive(Clone, Eq, Deserialize, PartialEq, Serialize)]
-pub struct PublicKey(#[serde(with = "bytes")] CompressedPoint);
+#[serde(transparent)]
+pub struct PublicKey {
+    #[serde(with = "bytes")]
+    point: CompressedPoint,
+}
 
 impl fmt::Debug for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -227,11 +245,13 @@ impl PublicKey {
     /// Generates a public from the private key, using a somewhat expensive
     /// computation.
     pub fn new_from_private(private_key: &PrivateKey) -> Self {
-        Self(Point::mul_base(&private_key.0).compress())
+        Self {
+            point: Point::mul_base(&private_key.scalar).compress(),
+        }
     }
 
     pub fn as_bytes(&self) -> &[u8; 32] {
-        self.0.as_bytes()
+        self.point.as_bytes()
     }
 }
 
@@ -242,7 +262,7 @@ impl PublicKey {
 pub fn unoblivious_evaluate(private_key: &PrivateKey, input: &[u8]) -> Output {
     let input_hash: [u8; 64] = Sha512::digest(input).into();
     let input_point = Point::from_uniform_bytes(&input_hash);
-    let result = private_key.0 * input_point;
+    let result = private_key.scalar * input_point;
     hash_to_output(input, &result)
 }
 
@@ -276,7 +296,9 @@ fn to_be8(len: impl TryInto<u64>) -> [u8; 8] {
 /// A random values produced by [`start`] that is needed to complete the VOPRF
 /// on the client.
 #[derive(ZeroizeOnDrop)]
-pub struct BlindingFactor(Scalar);
+pub struct BlindingFactor {
+    scalar: Scalar,
+}
 
 impl fmt::Debug for BlindingFactor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -292,8 +314,15 @@ impl fmt::Debug for BlindingFactor {
 pub fn start(input: &[u8], rng: &mut impl CryptoRngCore) -> (BlindingFactor, BlindedInput) {
     let input_point = Point::hash_from_bytes::<Sha512>(input);
     let blinding_factor = Scalar::random(rng);
-    let blinded_input = BlindedInput(PrecompressedPoint::from(input_point * blinding_factor));
-    (BlindingFactor(blinding_factor), blinded_input)
+    let blinded_input = BlindedInput {
+        point: PrecompressedPoint::from(input_point * blinding_factor),
+    };
+    (
+        BlindingFactor {
+            scalar: blinding_factor,
+        },
+        blinded_input,
+    )
 }
 
 /// Completes the VOPRF protocol on the client.
@@ -310,7 +339,7 @@ pub fn finalize(
     blinding_factor: &BlindingFactor,
     blinded_output: &BlindedOutput,
 ) -> Output {
-    let result = blinded_output.0.uncompressed * Scalar::invert(&blinding_factor.0);
+    let result = blinded_output.point.uncompressed * blinding_factor.scalar.invert();
     hash_to_output(input, &result)
 }
 
@@ -329,8 +358,13 @@ pub fn verify_proof(
     proof: &Proof,
 ) -> Result<(), &'static str> {
     let public_key =
-        PrecompressedPoint::try_from(public_key.0).map_err(|_| "invalid public key")?;
-    dleq::verify_proof(&blinded_input.0, &public_key, &blinded_output.0, proof)
+        PrecompressedPoint::try_from(public_key.point).map_err(|_| "invalid public key")?;
+    dleq::verify_proof(
+        &blinded_input.point,
+        &public_key,
+        &blinded_output.point,
+        proof,
+    )
 }
 
 /// Runs the VOPRF evaluation on the server.
@@ -340,15 +374,21 @@ pub fn blind_evaluate(
     blinded_input: &BlindedInput,
     rng: &mut impl CryptoRngCore,
 ) -> (BlindedOutput, Proof) {
-    let blinded_output = PrecompressedPoint::from(private_key.0 * blinded_input.0.uncompressed);
+    let blinded_output =
+        PrecompressedPoint::from(private_key.scalar * blinded_input.point.uncompressed);
     let proof = dleq::generate_proof(
         rng,
-        &private_key.0,
-        &blinded_input.0,
-        &public_key.0,
+        &private_key.scalar,
+        &blinded_input.point,
+        &public_key.point,
         &blinded_output,
     );
-    (BlindedOutput(blinded_output), proof)
+    (
+        BlindedOutput {
+            point: blinded_output,
+        },
+        proof,
+    )
 }
 
 #[cfg(test)]
@@ -373,7 +413,10 @@ mod tests {
 
             for _ in 0..3 {
                 // unoblivious
-                assert_eq!(expected.0, unoblivious_evaluate(&private_key, &input).0);
+                assert_eq!(
+                    expected.expose_secret(),
+                    unoblivious_evaluate(&private_key, &input).expose_secret()
+                );
 
                 // oblivious
                 let (blinding_factor, blinded_input) = start(&input, &mut OsRng);
@@ -381,8 +424,8 @@ mod tests {
                     blind_evaluate(&private_key, &public_key, &blinded_input, &mut OsRng);
                 assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
                 assert_eq!(
-                    expected.0,
-                    finalize(&input, &blinding_factor, &blinded_output).0
+                    expected.expose_secret(),
+                    finalize(&input, &blinding_factor, &blinded_output).expose_secret()
                 );
             }
         }
@@ -471,17 +514,20 @@ mod tests {
         assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
         let output = finalize(&input, &blinding_factor, &blinded_output);
 
-        assert_eq!(output.0, unoblivious_evaluate(&private_key, &input).0);
+        assert_eq!(
+            output.expose_secret(),
+            unoblivious_evaluate(&private_key, &input).expose_secret()
+        );
 
         TestOutputs {
-            private_key: hex::encode(private_key.0.as_bytes()),
-            public_key: hex::encode(public_key.0.as_bytes()),
-            blinding_factor: hex::encode(blinding_factor.0.as_bytes()),
-            blinded_input: hex::encode(blinded_input.0.compressed.as_bytes()),
-            blinded_output: hex::encode(blinded_output.0.compressed.as_bytes()),
+            private_key: hex::encode(private_key.scalar.as_bytes()),
+            public_key: hex::encode(public_key.point.as_bytes()),
+            blinding_factor: hex::encode(blinding_factor.scalar.as_bytes()),
+            blinded_input: hex::encode(blinded_input.point.compressed.as_bytes()),
+            blinded_output: hex::encode(blinded_output.point.compressed.as_bytes()),
             proof_c: hex::encode(proof.c.as_bytes()),
             proof_beta_z: hex::encode(proof.beta_z.as_bytes()),
-            output: hex::encode(output.0),
+            output: hex::encode(output.expose_secret()),
         }
     }
 
@@ -557,22 +603,35 @@ mod tests {
 
     #[test]
     fn test_blinded_input_serialize() {
-        let blinded_input = BlindedInput(PrecompressedPoint::from(Point::random(&mut OsRng)));
+        let blinded_input = BlindedInput {
+            point: PrecompressedPoint::from(Point::random(&mut OsRng)),
+        };
         let (serialized_len, blinded_input2) = serialize_rt(&blinded_input);
         assert_eq!(34, serialized_len);
-        assert_eq!(blinded_input.0.compressed, blinded_input2.0.compressed);
-        assert_eq!(blinded_input.0.uncompressed, blinded_input2.0.uncompressed);
+        assert_eq!(
+            blinded_input.point.compressed,
+            blinded_input2.point.compressed
+        );
+        assert_eq!(
+            blinded_input.point.uncompressed,
+            blinded_input2.point.uncompressed
+        );
     }
 
     #[test]
     fn test_blinded_output_serialize() {
-        let blinded_output = BlindedOutput(PrecompressedPoint::from(Point::random(&mut OsRng)));
+        let blinded_output = BlindedOutput {
+            point: PrecompressedPoint::from(Point::random(&mut OsRng)),
+        };
         let (serialized_len, blinded_output2) = serialize_rt(&blinded_output);
         assert_eq!(34, serialized_len);
-        assert_eq!(blinded_output.0.compressed, blinded_output2.0.compressed);
         assert_eq!(
-            blinded_output.0.uncompressed,
-            blinded_output2.0.uncompressed
+            blinded_output.point.compressed,
+            blinded_output2.point.compressed
+        );
+        assert_eq!(
+            blinded_output.point.uncompressed,
+            blinded_output2.point.uncompressed
         );
     }
 
@@ -581,7 +640,7 @@ mod tests {
         let private_key = PrivateKey::random(&mut OsRng);
         let (serialized_len, private_key2) = serialize_rt(&private_key);
         assert_eq!(34, serialized_len);
-        assert_eq!(private_key.0, private_key2.0);
+        assert_eq!(private_key.scalar, private_key2.scalar);
     }
 
     #[test]
@@ -590,18 +649,18 @@ mod tests {
         let public_key = PublicKey::new_from_private(&private_key);
         let (serialized_len, public_key2) = serialize_rt(&public_key);
         assert_eq!(34, serialized_len);
-        assert_eq!(public_key.0, public_key2.0);
+        assert_eq!(public_key.point, public_key2.point);
     }
 
     #[test]
     fn test_public_key_debug() {
-        let public_key = PublicKey(
-            CompressedPoint::from_slice(
+        let public_key = PublicKey {
+            point: CompressedPoint::from_slice(
                 &hex::decode("5c4bf4acff9c745d2c59c5ed4eb86b607d838b7dcc6a9399484a80ca83cf2634")
                     .unwrap(),
             )
             .unwrap(),
-        );
+        };
         assert_eq!(
             format!("{public_key:?}"),
             "PublicKey(5c4bf4acff9c745d2c59c5ed4eb86b607d838b7dcc6a9399484a80ca83cf2634)"

@@ -62,7 +62,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let oprf_private_key = voprf::PrivateKey::random(&mut OsRng);
         let oprf_private_key_shares: Vec<voprf::PrivateKey> = create_shares(
-            oprf_private_key.as_scalar(),
+            oprf_private_key.expose_secret(),
             self.configuration.recover_threshold,
             self.configuration.share_count(),
             &mut OsRng,
