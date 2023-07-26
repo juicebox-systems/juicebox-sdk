@@ -164,22 +164,6 @@ impl<'de> Deserialize<'de> for PrecompressedPoint {
     }
 }
 
-/// A hash of the secret OPRF input data.
-#[derive(ZeroizeOnDrop)]
-pub struct InputHash([u8; 64]);
-
-impl fmt::Debug for InputHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("InputHash(REDACTED)")
-    }
-}
-
-impl InputHash {
-    pub fn hash(input: &[u8]) -> Self {
-        Self(Sha512::digest(input).into())
-    }
-}
-
 /// What the server runs its computation over.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
