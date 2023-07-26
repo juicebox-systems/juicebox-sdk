@@ -239,66 +239,79 @@ impl PublicKey {
 ///
 /// This gives the same result as a full client-server VOPRF interaction, but
 /// it is much cheaper computationally.
-pub fn unoblivious_evaluate(private_key: &PrivateKey, input_hash: &InputHash) -> Output {
-    let input_point = Point::from_uniform_bytes(&input_hash.0);
+pub fn unoblivious_evaluate(private_key: &PrivateKey, input: &[u8]) -> Output {
+    let input_hash: [u8; 64] = Sha512::digest(input).into();
+    let input_point = Point::from_uniform_bytes(&input_hash);
     let result = private_key.0 * input_point;
-    hash_result(input_hash, &result)
+    hash_to_output(input, &result)
 }
 
-fn hash_result(input_hash: &InputHash, result: &Point) -> Output {
+fn hash_to_output(input: &[u8], result: &Point) -> Output {
     Output(
         Sha512::new()
             .chain_update("Juicebox_VOPRF_2023_1;")
             // JKK14 includes the public key in the hash. This does not do so,
             // because there is no obvious single public key in JKKX17.
-            //
-            // As another slight deviation from JKK14, this hashes over the
-            // hash of the input instead of the original input. Doing so makes
-            // all the values constant-size, so we don't need to include
-            // lengths here.
-            .chain_update(input_hash.0)
+            .chain_update(to_be8(input.len()))
+            .chain_update(input)
             .chain_update(result.compress().as_bytes())
             .finalize()
             .into(),
     )
 }
 
-/// Values produced by [`start`] that are needed to complete the VOPRF on the
-/// client.
-#[derive(ZeroizeOnDrop)]
-pub struct ClientState {
-    blind: Scalar,
-    input_hash: InputHash,
+/// Converts the provided integer into a 8 byte array in big-endian
+/// (network) byte order or panics if it is too large to fit.
+//
+// TODO: Move the `to_be[N]` functions to a crate this can depend on, and
+// update them all to not include `len` on panics.
+fn to_be8(len: impl TryInto<u64>) -> [u8; 8] {
+    // Note: `len` may be sensitive, so don't include it in the error message.
+    match len.try_into() {
+        Ok(len) => len.to_be_bytes(),
+        Err(_) => panic!("integer larger than 8 bytes"),
+    }
 }
 
-impl fmt::Debug for ClientState {
+/// A random values produced by [`start`] that is needed to complete the VOPRF
+/// on the client.
+#[derive(ZeroizeOnDrop)]
+pub struct BlindingFactor(Scalar);
+
+impl fmt::Debug for BlindingFactor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ClientState(REDACTED)")
+        f.write_str("BlindingFactor(REDACTED)")
     }
 }
 
 /// Starts the VOPRF protocol on the client.
 ///
-/// The client should send the returned [`BlindedInput`] to the server.
-pub fn start(input_hash: InputHash, rng: &mut impl CryptoRngCore) -> (ClientState, BlindedInput) {
-    let input_point = Point::from_uniform_bytes(&input_hash.0);
-    let blind = Scalar::random(rng);
-    let blinded_input = BlindedInput(DecompressedPoint::from(input_point * blind));
-    (ClientState { blind, input_hash }, blinded_input)
+/// The client should send the returned [`BlindedInput`] to the server and
+/// should keep the returned [`BlindingFactor`] secret. The blinding factor
+/// must be provided to [`finalize`] later to complete the VOPRF.
+pub fn start(input: &[u8], rng: &mut impl CryptoRngCore) -> (BlindingFactor, BlindedInput) {
+    let input_point = Point::hash_from_bytes::<Sha512>(input);
+    let blinding_factor = Scalar::random(rng);
+    let blinded_input = BlindedInput(DecompressedPoint::from(input_point * blinding_factor));
+    (BlindingFactor(blinding_factor), blinded_input)
 }
 
-impl ClientState {
-    /// Completes the VOPRF protocol on the client.
-    ///
-    /// The [`BlindedOutput`] should come from the server.
-    ///
-    /// # Warning
-    ///
-    /// The caller should call [`verify_proof`] before using the output.
-    pub fn finalize(&self, blinded_output: &BlindedOutput) -> Output {
-        let result = blinded_output.0.uncompressed * Scalar::invert(&self.blind);
-        hash_result(&self.input_hash, &result)
-    }
+/// Completes the VOPRF protocol on the client.
+///
+/// The `input` should be the same as given to `start`, and the
+/// `blinding_factor` should be as returned from [`start`]. The
+/// `blinded_output` should come from the server.
+///
+/// # Warning
+///
+/// The caller should call [`verify_proof`] before using the output.
+pub fn finalize(
+    input: &[u8],
+    blinding_factor: &BlindingFactor,
+    blinded_output: &BlindedOutput,
+) -> Output {
+    let result = blinded_output.0.uncompressed * Scalar::invert(&blinding_factor.0);
+    hash_to_output(input, &result)
 }
 
 /// The client should call this to ensure that the server did the correct
@@ -355,21 +368,21 @@ mod tests {
             OsRng.fill_bytes(&mut input);
             let private_key = PrivateKey::random(&mut OsRng);
             let public_key = PublicKey::new_from_private(&private_key);
-            let expected = unoblivious_evaluate(&private_key, &InputHash::hash(&input));
+            let expected = unoblivious_evaluate(&private_key, &input);
 
             for _ in 0..3 {
                 // unoblivious
-                assert_eq!(
-                    expected.0,
-                    unoblivious_evaluate(&private_key, &InputHash::hash(&input)).0
-                );
+                assert_eq!(expected.0, unoblivious_evaluate(&private_key, &input).0);
 
                 // oblivious
-                let (state, blinded_input) = start(InputHash::hash(&input), &mut OsRng);
+                let (blinding_factor, blinded_input) = start(&input, &mut OsRng);
                 let (blinded_output, proof) =
                     blind_evaluate(&private_key, &public_key, &blinded_input, &mut OsRng);
                 assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
-                assert_eq!(expected.0, state.finalize(&blinded_output).0);
+                assert_eq!(
+                    expected.0,
+                    finalize(&input, &blinding_factor, &blinded_output).0
+                );
             }
         }
     }
@@ -419,7 +432,7 @@ mod tests {
     struct TestInputs {
         input: String,
         private_key_seed: String,
-        blind_seed: String,
+        blinding_factor_seed: String,
         beta_t_seed: String,
     }
 
@@ -427,8 +440,7 @@ mod tests {
     struct TestOutputs {
         private_key: String,
         public_key: String,
-        input_hash: String,
-        blind: String,
+        blinding_factor: String,
         blinded_input: String,
         blinded_output: String,
         proof_c: String,
@@ -440,7 +452,7 @@ mod tests {
         let mut rng = ManualRng {
             entropy: [
                 hex::decode(&inputs.private_key_seed).unwrap(),
-                hex::decode(&inputs.blind_seed).unwrap(),
+                hex::decode(&inputs.blinding_factor_seed).unwrap(),
                 hex::decode(&inputs.beta_t_seed).unwrap(),
             ]
             .into_iter()
@@ -450,30 +462,20 @@ mod tests {
         let private_key = PrivateKey::random(&mut rng);
         let public_key = PublicKey::new_from_private(&private_key);
 
-        let (state, blinded_input) = start(
-            InputHash::hash(&hex::decode(&inputs.input).unwrap()),
-            &mut rng,
-        );
+        let input = hex::decode(&inputs.input).unwrap();
+        let (blinding_factor, blinded_input) = start(&input, &mut rng);
         let (blinded_output, proof) =
             blind_evaluate(&private_key, &public_key, &blinded_input, &mut rng);
         assert_eq!(rng.entropy.len(), 0);
         assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
-        let output = state.finalize(&blinded_output);
+        let output = finalize(&input, &blinding_factor, &blinded_output);
 
-        assert_eq!(
-            output.0,
-            unoblivious_evaluate(
-                &private_key,
-                &InputHash::hash(&hex::decode(&inputs.input).unwrap())
-            )
-            .0
-        );
+        assert_eq!(output.0, unoblivious_evaluate(&private_key, &input).0);
 
         TestOutputs {
             private_key: hex::encode(private_key.0.as_bytes()),
             public_key: hex::encode(public_key.0.as_bytes()),
-            input_hash: hex::encode(state.input_hash.0),
-            blind: hex::encode(state.blind.as_bytes()),
+            blinding_factor: hex::encode(blinding_factor.0.as_bytes()),
             blinded_input: hex::encode(blinded_input.0.compressed.as_bytes()),
             blinded_output: hex::encode(blinded_output.0.compressed.as_bytes()),
             proof_c: hex::encode(proof.c.as_bytes()),
@@ -514,8 +516,8 @@ mod tests {
         let mut private_key_seed = [0u8; 64];
         OsRng.fill_bytes(&mut private_key_seed);
 
-        let mut blind_seed = [0u8; 64];
-        OsRng.fill_bytes(&mut blind_seed);
+        let mut blinding_factor_seed = [0u8; 64];
+        OsRng.fill_bytes(&mut blinding_factor_seed);
 
         let mut beta_t_seed = [0u8; 64];
         OsRng.fill_bytes(&mut beta_t_seed);
@@ -523,7 +525,7 @@ mod tests {
         TestInputs {
             input: hex::encode(input),
             private_key_seed: hex::encode(private_key_seed),
-            blind_seed: hex::encode(blind_seed),
+            blinding_factor_seed: hex::encode(blinding_factor_seed),
             beta_t_seed: hex::encode(beta_t_seed),
         }
     }

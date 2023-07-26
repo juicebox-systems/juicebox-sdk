@@ -82,10 +82,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             })
             .collect();
 
-        let oprf_result = voprf::unoblivious_evaluate(
-            &oprf_private_key,
-            &voprf::InputHash::hash(access_key.expose_secret()),
-        );
+        let oprf_result =
+            voprf::unoblivious_evaluate(&oprf_private_key, access_key.expose_secret());
 
         let (unlock_key, unlock_key_commitment) = derive_unlock_key_and_commitment(&oprf_result);
 

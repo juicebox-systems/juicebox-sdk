@@ -120,10 +120,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let (oprf_state, oprf_blinded_input) = voprf::start(
-            voprf::InputHash::hash(access_key.expose_secret()),
-            &mut OsRng,
-        );
+        let (oprf_blinding_factor, oprf_blinded_input) =
+            voprf::start(access_key.expose_secret(), &mut OsRng);
 
         let recover2_requests = realms.iter().map(|realm| {
             self.recover2_on_realm(
@@ -172,7 +170,11 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             &oprf_blinded_result_shares,
             configuration.recover_threshold,
             |secret| {
-                let oprf_result = oprf_state.finalize(&voprf::BlindedOutput::from(secret));
+                let oprf_result = voprf::finalize(
+                    access_key.expose_secret(),
+                    &oprf_blinding_factor,
+                    &voprf::BlindedOutput::from(secret),
+                );
                 let (unlock_key, our_commitment) = derive_unlock_key_and_commitment(&oprf_result);
                 if bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
                     Some(unlock_key)
