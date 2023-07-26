@@ -1,6 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 
-//! A VOPRF based on 2HashDH and a Chaum-Pedersen DLEQ proof.
+//! An OPRF and VOPRF based on 2HashDH and a Chaum-Pedersen DLEQ proof.
 //!
 //! See the JKK14 paper for 2HashDH:
 //!
@@ -10,15 +10,81 @@
 //! > 10.1007/978-3-662-45608-8_13, 2014,
 //! > <https://doi.org/10.1007/978-3-662-45608-8_13>.
 //!
-//! # Historical Note
+//! #### Related Work
 //!
-//! We considered using the IRTF draft [Oblivious Pseudorandom Functions
-//! (OPRFs) using Prime-Order
-//! Groups](https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/). However,
-//! their proof definition is optimized for batches, at the expense of
-//! single-VOPRF performance. It requires the server to do 4 scalar-point
-//! multiplications (for a small batch) instead of the 2 required by a
-//! Chaum-Pedersen proof.
+//! The IRTF draft [Oblivious Pseudorandom Functions (OPRFs) using Prime-Order
+//! Groups](https://datatracker.ietf.org/doc/draft-irtf-cfrg-voprf/) defines an
+//! OPRF and VOPRF and has many implementations in different languages. The
+//! OPRF is simlar to this one, as both are based on 2HashDH. The VOPRF proof
+//! is optimized for batches, at the expense of single-evaluation performance.
+//! Generating a batched proof requires a minimum of 4 scalar-point
+//! multiplications instead of the 2 required by a Chaum-Pedersen proof.
+//!
+//! # Examples
+//!
+//! #### VOPRF
+//!
+//! This example shows a client interacting with a server to compute the
+//! result, and verifying that the server's output is correct. Normally, the
+//! client would not have access to the server's private key. The client must
+//! somehow trust the public key.
+//!
+//! ```
+//! # let rng = &mut rand_core::OsRng;
+//! use juicebox_sdk_voprf as voprf;
+//! let private_key = voprf::PrivateKey::random(rng);
+//! let public_key = voprf::PublicKey::new_from_private(&private_key);
+//! let input = b"secret";
+//!
+//! // Client
+//! let (blinding_factor, blinded_input) = voprf::start(input, rng);
+//!
+//! // Server
+//! let (blinded_output, proof) =
+//!     voprf::blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, rng);
+//!
+//! // Client
+//! voprf::verify_proof(&blinded_input, &blinded_output, &public_key, &proof).unwrap();
+//! let output = voprf::finalize(input, &blinding_factor, &blinded_output);
+//! ```
+//!
+//! #### OPRF
+//!
+//! This example shows a client interacting with a server to compute the
+//! result, without verifying that the server's output is correct. The OPRF
+//! output is exactly the same as the VOPRF output. Normally, the client would
+//! not have access to the server's private key.
+//!
+//! ```
+//! # let rng = &mut rand_core::OsRng;
+//! use juicebox_sdk_voprf as voprf;
+//! let private_key = voprf::PrivateKey::random(rng);
+//! let input = b"secret";
+//!
+//! // Client
+//! let (blinding_factor, blinded_input) = voprf::start(input, rng);
+//!
+//! // Server
+//! let blinded_output = voprf::blind_evaluate(&private_key, &blinded_input);
+//!
+//! // Client
+//! let output = voprf::finalize(input, &blinding_factor, &blinded_output);
+//! ```
+//!
+//! #### PRF
+//!
+//! This example shows how to directly compute the output, without a
+//! client-server protocol. The output is exactly the same as in the VOPRF and
+//! OPRF.
+//!
+//! ```
+//! # let rng = &mut rand_core::OsRng;
+//! use juicebox_sdk_voprf as voprf;
+//! let private_key = voprf::PrivateKey::random(rng);
+//! let input = b"secret";
+//!
+//! let output = voprf::unoblivious_evaluate(&private_key, input);
+//! ```
 
 use core::fmt;
 use curve25519_dalek::ristretto::{
@@ -367,27 +433,50 @@ pub fn verify_proof(
     )
 }
 
-/// Runs the VOPRF evaluation on the server.
-pub fn blind_evaluate(
+/// Runs the OPRF evaluation on the server.
+///
+/// For a VOPRF, use [`blind_verifiable_evaluate`] instead (or call [`generate_proof`] directly).
+pub fn blind_evaluate(private_key: &PrivateKey, blinded_input: &BlindedInput) -> BlindedOutput {
+    BlindedOutput {
+        point: PrecompressedPoint::from(private_key.scalar * blinded_input.point.uncompressed),
+    }
+}
+
+/// Runs the VOPRF evaluation on the server, including the OPRF evaluation and
+/// generating a proof.
+///
+/// Note: You can do these steps separately with [`blind_evaluate`] followed by
+/// [`generate_proof`]. This function is provided for convenience and safety
+/// for normal VOPRF usage.
+pub fn blind_verifiable_evaluate(
     private_key: &PrivateKey,
     public_key: &PublicKey,
     blinded_input: &BlindedInput,
     rng: &mut impl CryptoRngCore,
 ) -> (BlindedOutput, Proof) {
-    let blinded_output =
-        PrecompressedPoint::from(private_key.scalar * blinded_input.point.uncompressed);
-    let proof = dleq::generate_proof(
+    let blinded_output = blind_evaluate(private_key, blinded_input);
+    let proof = generate_proof(private_key, public_key, blinded_input, &blinded_output, rng);
+    (blinded_output, proof)
+}
+
+/// Generates a proof on the server for a previous OPRF evaluation.
+///
+/// Normal VOPRF users can call [`blind_verifiable_evaluate`] for convenience
+/// and safety. This function is provided separately in case the proof is only
+/// needed sometimes/later.
+pub fn generate_proof(
+    private_key: &PrivateKey,
+    public_key: &PublicKey,
+    blinded_input: &BlindedInput,
+    blinded_output: &BlindedOutput,
+    rng: &mut impl CryptoRngCore,
+) -> Proof {
+    dleq::generate_proof(
         rng,
         &private_key.scalar,
         &blinded_input.point,
         &public_key.point,
-        &blinded_output,
-    );
-    (
-        BlindedOutput {
-            point: blinded_output,
-        },
-        proof,
+        &blinded_output.point,
     )
 }
 
@@ -420,8 +509,12 @@ mod tests {
 
                 // oblivious
                 let (blinding_factor, blinded_input) = start(&input, &mut OsRng);
-                let (blinded_output, proof) =
-                    blind_evaluate(&private_key, &public_key, &blinded_input, &mut OsRng);
+                let (blinded_output, proof) = blind_verifiable_evaluate(
+                    &private_key,
+                    &public_key,
+                    &blinded_input,
+                    &mut OsRng,
+                );
                 assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
                 assert_eq!(
                     expected.expose_secret(),
@@ -509,7 +602,7 @@ mod tests {
         let input = hex::decode(&inputs.input).unwrap();
         let (blinding_factor, blinded_input) = start(&input, &mut rng);
         let (blinded_output, proof) =
-            blind_evaluate(&private_key, &public_key, &blinded_input, &mut rng);
+            blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, &mut rng);
         assert_eq!(rng.entropy.len(), 0);
         assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
         let output = finalize(&input, &blinding_factor, &blinded_output);
