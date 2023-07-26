@@ -55,7 +55,13 @@ pub(crate) fn generate_proof(
     let beta_t = Scalar::random(rng);
     let v_t = Point::mul_base(&beta_t);
     let w_t = u.uncompressed * beta_t;
-    let c = hash_to_challenge(&u.compressed, v, &w.compressed, &v_t, &w_t);
+    let c = hash_to_challenge(
+        &u.compressed,
+        v,
+        &w.compressed,
+        &v_t.compress(),
+        &w_t.compress(),
+    );
     let beta_z = beta_t + beta * c;
     Proof { c, beta_z }
 }
@@ -76,7 +82,13 @@ pub(crate) fn verify_proof(
         u.uncompressed * proof.beta_z - w.uncompressed * proof.c
     );
 
-    let c = hash_to_challenge(&u.compressed, &v.compressed, &w.compressed, &v_t, &w_t);
+    let c = hash_to_challenge(
+        &u.compressed,
+        &v.compressed,
+        &w.compressed,
+        &v_t.compress(),
+        &w_t.compress(),
+    );
 
     if bool::from(c.ct_eq(&proof.c)) {
         Ok(())
@@ -89,19 +101,9 @@ fn hash_to_challenge(
     u: &CompressedPoint,
     v: &CompressedPoint,
     w: &CompressedPoint,
-    v_t: &Point,
-    w_t: &Point,
+    v_t: &CompressedPoint,
+    w_t: &CompressedPoint,
 ) -> Scalar {
-    // `v_t` and `w_t` are only used as inputs to this hash. We can compress
-    // them faster in batch, with the unwanted but harmless side-effect of
-    // doubling them (scaling each one by a factor of 2).
-    let doubled = Point::double_and_compress_batch([v_t, w_t]);
-    let [double_v_t, double_w_t] = doubled[..] else {
-        unreachable!("expected 2 doubled and compressed points");
-    };
-    debug_assert_eq!((v_t + v_t).compress(), double_v_t);
-    debug_assert_eq!((w_t + w_t).compress(), double_w_t);
-
     Scalar::from_hash(
         Sha512::new()
             // These values are all constant-size, so we don't need to include
@@ -112,8 +114,8 @@ fn hash_to_challenge(
             .chain_update(u.as_bytes())
             .chain_update(v.as_bytes())
             .chain_update(w.as_bytes())
-            .chain_update(double_v_t.as_bytes())
-            .chain_update(double_w_t.as_bytes()),
+            .chain_update(v_t.as_bytes())
+            .chain_update(w_t.as_bytes()),
     )
 }
 
