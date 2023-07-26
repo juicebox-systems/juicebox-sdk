@@ -19,7 +19,7 @@ use sha2::Sha512;
 use subtle::ConstantTimeEq;
 use zeroize::ZeroizeOnDrop;
 
-use super::DecompressedPoint;
+use super::PrecompressedPoint;
 
 /// Produced by the VOPRF server as evidence that it evaluated the function
 /// correctly, then checked by the client with
@@ -47,10 +47,10 @@ impl PartialEq for Proof {
 
 pub(crate) fn generate_proof(
     rng: &mut impl CryptoRngCore,
-    beta: &Scalar,         // VOPRF private key
-    u: &DecompressedPoint, // VOPRF blinded input
-    v: &CompressedPoint,   // VOPRF public key
-    w: &DecompressedPoint, // VOPRF blinded output
+    beta: &Scalar,          // VOPRF private key
+    u: &PrecompressedPoint, // VOPRF blinded input
+    v: &CompressedPoint,    // VOPRF public key
+    w: &PrecompressedPoint, // VOPRF blinded output
 ) -> Proof {
     let beta_t = Scalar::random(rng);
     let v_t = Point::mul_base(&beta_t);
@@ -61,9 +61,9 @@ pub(crate) fn generate_proof(
 }
 
 pub(crate) fn verify_proof(
-    u: &DecompressedPoint, // VOPRF blinded input
-    v: &DecompressedPoint, // VOPRF public key
-    w: &DecompressedPoint, // VOPRF blinded output
+    u: &PrecompressedPoint, // VOPRF blinded input
+    v: &PrecompressedPoint, // VOPRF public key
+    w: &PrecompressedPoint, // VOPRF blinded output
     proof: &Proof,
 ) -> Result<(), &'static str> {
     let v_t = Point::mul_base(&proof.beta_z) - v.uncompressed * proof.c;
@@ -126,9 +126,9 @@ mod tests {
     #[test]
     fn test_basic() {
         let private_key = Scalar::random(&mut OsRng);
-        let public_key = DecompressedPoint::from(Point::mul_base(&private_key));
-        let input = DecompressedPoint::from(Point::random(&mut OsRng));
-        let result = DecompressedPoint::from(input.uncompressed * private_key);
+        let public_key = PrecompressedPoint::from(Point::mul_base(&private_key));
+        let input = PrecompressedPoint::from(Point::random(&mut OsRng));
+        let result = PrecompressedPoint::from(input.uncompressed * private_key);
 
         let proof = generate_proof(
             &mut OsRng,
@@ -140,7 +140,7 @@ mod tests {
 
         assert!(verify_proof(&input, &public_key, &result, &proof).is_ok());
         assert!(verify_proof(
-            &DecompressedPoint::from(Point::random(&mut OsRng)),
+            &PrecompressedPoint::from(Point::random(&mut OsRng)),
             &public_key,
             &result,
             &proof
@@ -148,7 +148,7 @@ mod tests {
         .is_err());
         assert!(verify_proof(
             &input,
-            &DecompressedPoint::from(Point::random(&mut OsRng)),
+            &PrecompressedPoint::from(Point::random(&mut OsRng)),
             &result,
             &proof
         )
@@ -156,7 +156,7 @@ mod tests {
         assert!(verify_proof(
             &input,
             &public_key,
-            &DecompressedPoint::from(Point::random(&mut OsRng)),
+            &PrecompressedPoint::from(Point::random(&mut OsRng)),
             &proof
         )
         .is_err());

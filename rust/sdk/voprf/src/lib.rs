@@ -39,24 +39,24 @@ pub use dleq::Proof;
 
 /// A Ristretto [`Point`] in both uncompressed and compressed forms.
 ///
-/// Decompressing or compressing a point takes about 3 microseconds on a 2012
+/// Decompressing or compressing a point takes about 3 microseconds on a 2022
 /// Intel laptop. Careful use of this struct helps avoid unnecessarily
 /// decompressing and compressing points.
 ///
 /// Note: Points are always serialized to bytes in compressed form only.
 #[derive(Clone, Eq, ZeroizeOnDrop)]
-struct DecompressedPoint {
+struct PrecompressedPoint {
     uncompressed: Point,
     compressed: CompressedPoint,
 }
 
-impl PartialEq for DecompressedPoint {
+impl PartialEq for PrecompressedPoint {
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.compressed.ct_eq(&other.compressed))
     }
 }
 
-impl From<Point> for DecompressedPoint {
+impl From<Point> for PrecompressedPoint {
     fn from(uncompressed: Point) -> Self {
         Self {
             compressed: uncompressed.compress(),
@@ -65,7 +65,7 @@ impl From<Point> for DecompressedPoint {
     }
 }
 
-impl TryFrom<CompressedPoint> for DecompressedPoint {
+impl TryFrom<CompressedPoint> for PrecompressedPoint {
     type Error = &'static str;
 
     fn try_from(compressed: CompressedPoint) -> Result<Self, Self::Error> {
@@ -79,7 +79,7 @@ impl TryFrom<CompressedPoint> for DecompressedPoint {
     }
 }
 
-impl Serialize for DecompressedPoint {
+impl Serialize for PrecompressedPoint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -88,7 +88,7 @@ impl Serialize for DecompressedPoint {
     }
 }
 
-impl<'de> Deserialize<'de> for DecompressedPoint {
+impl<'de> Deserialize<'de> for PrecompressedPoint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -116,7 +116,7 @@ impl InputHash {
 
 /// What the server runs its computation over.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
-pub struct BlindedInput(DecompressedPoint);
+pub struct BlindedInput(PrecompressedPoint);
 
 impl fmt::Debug for BlindedInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -126,7 +126,7 @@ impl fmt::Debug for BlindedInput {
 
 /// The server's result.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
-pub struct BlindedOutput(DecompressedPoint);
+pub struct BlindedOutput(PrecompressedPoint);
 
 impl fmt::Debug for BlindedOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -144,7 +144,7 @@ impl BlindedOutput {
 impl From<Point> for BlindedOutput {
     /// Low-level interface exposed for JKKX17 usage.
     fn from(point: Point) -> Self {
-        Self(DecompressedPoint::from(point))
+        Self(PrecompressedPoint::from(point))
     }
 }
 
@@ -292,7 +292,7 @@ impl fmt::Debug for BlindingFactor {
 pub fn start(input: &[u8], rng: &mut impl CryptoRngCore) -> (BlindingFactor, BlindedInput) {
     let input_point = Point::hash_from_bytes::<Sha512>(input);
     let blinding_factor = Scalar::random(rng);
-    let blinded_input = BlindedInput(DecompressedPoint::from(input_point * blinding_factor));
+    let blinded_input = BlindedInput(PrecompressedPoint::from(input_point * blinding_factor));
     (BlindingFactor(blinding_factor), blinded_input)
 }
 
@@ -328,7 +328,8 @@ pub fn verify_proof(
     public_key: &PublicKey,
     proof: &Proof,
 ) -> Result<(), &'static str> {
-    let public_key = DecompressedPoint::try_from(public_key.0).map_err(|_| "invalid public key")?;
+    let public_key =
+        PrecompressedPoint::try_from(public_key.0).map_err(|_| "invalid public key")?;
     dleq::verify_proof(&blinded_input.0, &public_key, &blinded_output.0, proof)
 }
 
@@ -339,7 +340,7 @@ pub fn blind_evaluate(
     blinded_input: &BlindedInput,
     rng: &mut impl CryptoRngCore,
 ) -> (BlindedOutput, Proof) {
-    let blinded_output = DecompressedPoint::from(private_key.0 * blinded_input.0.uncompressed);
+    let blinded_output = PrecompressedPoint::from(private_key.0 * blinded_input.0.uncompressed);
     let proof = dleq::generate_proof(
         rng,
         &private_key.0,
@@ -556,7 +557,7 @@ mod tests {
 
     #[test]
     fn test_blinded_input_serialize() {
-        let blinded_input = BlindedInput(DecompressedPoint::from(Point::random(&mut OsRng)));
+        let blinded_input = BlindedInput(PrecompressedPoint::from(Point::random(&mut OsRng)));
         let (serialized_len, blinded_input2) = serialize_rt(&blinded_input);
         assert_eq!(34, serialized_len);
         assert_eq!(blinded_input.0.compressed, blinded_input2.0.compressed);
@@ -565,7 +566,7 @@ mod tests {
 
     #[test]
     fn test_blinded_output_serialize() {
-        let blinded_output = BlindedOutput(DecompressedPoint::from(Point::random(&mut OsRng)));
+        let blinded_output = BlindedOutput(PrecompressedPoint::from(Point::random(&mut OsRng)));
         let (serialized_len, blinded_output2) = serialize_rt(&blinded_output);
         assert_eq!(34, serialized_len);
         assert_eq!(blinded_output.0.compressed, blinded_output2.0.compressed);
