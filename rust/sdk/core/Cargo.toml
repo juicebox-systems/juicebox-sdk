@@ -18,6 +18,7 @@ elliptic-curve = { workspace = true }
 hex = { workspace = true }
 juicebox-sdk-marshalling = { workspace = true }
 juicebox-sdk-noise = { workspace = true }
+juicebox-sdk-voprf = { workspace = true }
 rand_core = { workspace = true }
 serde = { workspace = true }
 sha2 = { workspace = true }

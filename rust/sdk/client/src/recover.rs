@@ -5,7 +5,7 @@ use subtle::ConstantTimeEq;
 use tracing::instrument;
 
 use juicebox_sdk_core::{
-    oprf::{OprfBlindedInput, OprfBlindedResult, OprfResult, OprfVerifyingKey},
+    oprf::OprfVerifyingKey,
     requests::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
@@ -18,6 +18,7 @@ use juicebox_sdk_core::{
 use juicebox_sdk_secret_sharing::{
     recover_secret, recover_secret_combinatorially, RecoverSecretCombinatoriallyError, Share,
 };
+use juicebox_sdk_voprf as voprf;
 
 use crate::{
     auth,
@@ -119,8 +120,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let (oprf_blinded_input, oprf_blinding_factor) =
-            OprfBlindedInput::new(access_key.expose_secret(), &mut OsRng);
+        let (oprf_state, oprf_blinded_input) = voprf::start(
+            voprf::InputHash::hash(access_key.expose_secret()),
+            &mut OsRng,
+        );
 
         let recover2_requests = realms.iter().map(|realm| {
             self.recover2_on_realm(
@@ -169,12 +172,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             &oprf_blinded_result_shares,
             configuration.recover_threshold,
             |secret| {
-                let oprf_result = OprfResult::blind_evaluate(
-                    &oprf_blinding_factor,
-                    &OprfBlindedResult::from(secret),
-                    access_key.expose_secret(),
-                );
-
+                let oprf_result = oprf_state.finalize(&voprf::BlindedOutput::from(secret));
                 let (unlock_key, our_commitment) = derive_unlock_key_and_commitment(&oprf_result);
                 if bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
                     Some(unlock_key)
@@ -276,7 +274,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
-        oprf_blinded_input: &OprfBlindedInput,
+        oprf_blinded_input: &voprf::BlindedInput,
     ) -> Result<
         (
             OprfVerifyingKey,
@@ -294,47 +292,62 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             }),
         );
 
-        let (oprf_signed_public_key, oprf_blinded_result, unlock_key_commitment, guesses_remaining) =
-            match recover2_request.await {
-                Err(RequestError::Transient) => return Err(RecoverError::Transient),
-                Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
-                Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
+        let (
+            oprf_signed_public_key,
+            oprf_blinded_result,
+            oprf_proof,
+            unlock_key_commitment,
+            guesses_remaining,
+        ) = match recover2_request.await {
+            Err(RequestError::Transient) => return Err(RecoverError::Transient),
+            Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
+            Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
 
-                Ok(SecretsResponse::Recover2(rr)) => match rr {
-                    Recover2Response::Ok {
-                        oprf_signed_public_key,
-                        oprf_blinded_result,
-                        unlock_key_commitment,
-                        num_guesses,
-                        guess_count,
-                    } => (
-                        oprf_signed_public_key,
-                        oprf_blinded_result,
-                        unlock_key_commitment,
-                        num_guesses - guess_count,
-                    ),
+            Ok(SecretsResponse::Recover2(rr)) => match rr {
+                Recover2Response::Ok {
+                    oprf_signed_public_key,
+                    oprf_blinded_result,
+                    oprf_proof,
+                    unlock_key_commitment,
+                    num_guesses,
+                    guess_count,
+                } => (
+                    oprf_signed_public_key,
+                    oprf_blinded_result,
+                    oprf_proof,
+                    unlock_key_commitment,
+                    num_guesses - guess_count,
+                ),
 
-                    Recover2Response::VersionMismatch => {
-                        return Err(RecoverError::Assertion);
-                    }
+                Recover2Response::VersionMismatch => {
+                    return Err(RecoverError::Assertion);
+                }
 
-                    Recover2Response::NotRegistered => {
-                        return Err(RecoverError::NotRegistered);
-                    }
+                Recover2Response::NotRegistered => {
+                    return Err(RecoverError::NotRegistered);
+                }
 
-                    Recover2Response::NoGuesses => {
-                        return Err(RecoverError::InvalidPin {
-                            guesses_remaining: 0,
-                        });
-                    }
-                },
+                Recover2Response::NoGuesses => {
+                    return Err(RecoverError::InvalidPin {
+                        guesses_remaining: 0,
+                    });
+                }
+            },
 
-                Ok(_) => return Err(RecoverError::Assertion),
-            };
+            Ok(_) => return Err(RecoverError::Assertion),
+        };
 
         oprf_signed_public_key
             .verify()
             .map_err(|_| RecoverError::Assertion)?;
+
+        voprf::verify_proof(
+            oprf_blinded_input,
+            &oprf_blinded_result,
+            &oprf_signed_public_key.public_key,
+            &oprf_proof,
+        )
+        .map_err(|_| RecoverError::Assertion)?;
 
         let oprf_blinded_result_share = Share {
             index: configuration

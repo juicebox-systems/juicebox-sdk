@@ -6,7 +6,7 @@ use core::fmt;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
-use crate::oprf::{OprfBlindedInput, OprfBlindedResult, OprfPrivateKey, OprfSignedPublicKey};
+use crate::oprf::OprfSignedPublicKey;
 use crate::types::{
     AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RealmId,
     RegistrationVersion, SessionId, UnlockKeyCommitment, UnlockKeyTag,
@@ -14,6 +14,7 @@ use crate::types::{
 };
 use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
+use juicebox_sdk_voprf as voprf;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ClientRequest {
@@ -173,7 +174,7 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub version: RegistrationVersion,
-    pub oprf_private_key: OprfPrivateKey,
+    pub oprf_private_key: voprf::PrivateKey,
     pub oprf_signed_public_key: OprfSignedPublicKey,
     pub unlock_key_commitment: UnlockKeyCommitment,
     pub unlock_key_tag: UnlockKeyTag,
@@ -201,15 +202,17 @@ pub enum Recover1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
     pub version: RegistrationVersion,
-    pub oprf_blinded_input: OprfBlindedInput,
+    pub oprf_blinded_input: voprf::BlindedInput,
 }
 
 /// Response message for the second phase of recovery.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum Recover2Response {
     Ok {
-        oprf_signed_public_key: Box<OprfSignedPublicKey>,
-        oprf_blinded_result: Box<OprfBlindedResult>,
+        oprf_signed_public_key: OprfSignedPublicKey,
+        oprf_blinded_result: voprf::BlindedOutput,
+        oprf_proof: voprf::Proof,
         unlock_key_commitment: UnlockKeyCommitment,
         num_guesses: u16,
         guess_count: u16,
@@ -254,7 +257,7 @@ pub const BODY_SIZE_LIMIT: usize = 2048;
 #[cfg(test)]
 mod tests {
     use crate::{
-        oprf::{OprfPrivateKey, OprfSignedPublicKey, OprfVerifyingKey},
+        oprf::{OprfSignedPublicKey, OprfVerifyingKey},
         requests::{Register2Request, SecretsRequest, BODY_SIZE_LIMIT},
         types::{
             EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RegistrationVersion,
@@ -264,14 +267,18 @@ mod tests {
     };
     use curve25519_dalek::Scalar;
     use juicebox_sdk_marshalling as marshalling;
+    use juicebox_sdk_voprf as voprf;
+    use rand_core::OsRng;
 
     #[test]
     fn test_request_body_size_limit() {
+        let oprf_private_key = voprf::PrivateKey::random(&mut OsRng);
+        let oprf_public_key = voprf::PublicKey::new_from_private(&oprf_private_key);
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),
-            oprf_private_key: OprfPrivateKey::from(-Scalar::ONE),
+            oprf_private_key,
             oprf_signed_public_key: OprfSignedPublicKey {
-                public_key: OprfPrivateKey::from(-Scalar::ONE).public_key(),
+                public_key: oprf_public_key,
                 verifying_key: OprfVerifyingKey::from([0xff; 32]),
                 signature: SecretBytesArray::from([0xFF; 64]),
             },
