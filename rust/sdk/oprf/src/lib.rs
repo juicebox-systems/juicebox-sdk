@@ -236,7 +236,7 @@ pub fn unoblivious_evaluate(private_key: &PrivateKey, input: &[u8]) -> Output {
 fn hash_to_output(input: &[u8], result: &Point) -> Output {
     Output(
         Sha512::new()
-            .chain_update("Juicebox_VOPRF_2023_1;")
+            .chain_update("Juicebox_OPRF_2023_1;")
             // JKK14 includes the public key in the hash. This does not do so,
             // because there is no obvious single public key in JKKX17.
             //
