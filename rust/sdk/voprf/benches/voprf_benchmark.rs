@@ -105,6 +105,12 @@ pub fn curve25519_bench(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("curve25519/Scalar::from_canonical_bytes", |b| {
+        let scalar = Scalar::random(&mut OsRng);
+        let bytes = scalar.to_bytes();
+        b.iter(|| Scalar::from_canonical_bytes(black_box(bytes)))
+    });
+
     c.bench_function("curve25519/Scalar::from_bytes_mod_order_wide", |b| {
         let mut bytes = [0u8; 64];
         OsRng.fill_bytes(&mut bytes);
