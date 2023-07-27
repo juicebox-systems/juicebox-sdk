@@ -11,14 +11,12 @@ use juicebox_sdk_core::{
         SecretsRequest, SecretsResponse,
     },
     types::{
-        EncryptedUserSecret, EncryptedUserSecretCommitment, RegistrationVersion, UnlockKey,
+        EncryptedUserSecret, EncryptedUserSecretCommitment, RegistrationVersion,
         UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey, UserSecretEncryptionKeyScalarShare,
     },
 };
 use juicebox_sdk_oprf as oprf;
-use juicebox_sdk_secret_sharing::{
-    recover_secret, recover_secret_combinatorially, RecoverSecretCombinatoriallyError, Share,
-};
+use juicebox_sdk_secret_sharing::{recover_secret, RecoverSecretError, Share};
 
 use crate::{
     auth,
@@ -136,6 +134,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         let mut oprf_blinded_result_shares_by_commitment_and_verifying_key: HashMap<_, Vec<_>> =
             HashMap::new();
 
+        // TODO: this should stop after finding threshold realms that agree on
+        // commitment and verifying key
         for (oprf_verifying_key, share, commitment, guesses_remaining) in
             join_at_least_threshold(recover2_requests, configuration.recover_threshold).await?
         {
@@ -164,30 +164,21 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .into_iter()
             .unzip();
 
-        let guesses_remaining = all_guesses_remaining.into_iter().min().unwrap();
+        let oprf_blinded_result = match recover_secret(&oprf_blinded_result_shares) {
+            Ok(blinded_result) => oprf::BlindedOutput::from(blinded_result),
+            Err(RecoverSecretError::DuplicateShares) => return Err(RecoverError::Assertion),
+        };
+        let oprf_result = oprf::finalize(
+            access_key.expose_secret(),
+            &oprf_blinding_factor,
+            &oprf_blinded_result,
+        );
 
-        let unlock_key: UnlockKey = recover_secret_combinatorially(
-            &oprf_blinded_result_shares,
-            configuration.recover_threshold,
-            |secret| {
-                let oprf_result = oprf::finalize(
-                    access_key.expose_secret(),
-                    &oprf_blinding_factor,
-                    &oprf::BlindedOutput::from(secret),
-                );
-                let (unlock_key, our_commitment) = derive_unlock_key_and_commitment(&oprf_result);
-                if bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
-                    Some(unlock_key)
-                } else {
-                    None
-                }
-            },
-        )
-        .map_err(|err| match err {
-            RecoverSecretCombinatoriallyError::NoValidCombinations => {
-                RecoverError::InvalidPin { guesses_remaining }
-            }
-        })?;
+        let (unlock_key, our_commitment) = derive_unlock_key_and_commitment(&oprf_result);
+        if !bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
+            let guesses_remaining = all_guesses_remaining.into_iter().min().unwrap();
+            return Err(RecoverError::InvalidPin { guesses_remaining });
+        }
 
         let recover3_requests = realms.iter().map(|realm| {
             self.recover3_on_realm(
