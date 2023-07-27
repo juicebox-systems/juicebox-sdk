@@ -324,25 +324,14 @@ fn hash_to_output(input: &[u8], result: &Point) -> Output {
             .chain_update("Juicebox_VOPRF_2023_1;")
             // JKK14 includes the public key in the hash. This does not do so,
             // because there is no obvious single public key in JKKX17.
-            .chain_update(to_be8(input.len()))
+            //
+            // The input is the only variable-length field in this hash,
+            // so its length is omitted.
             .chain_update(input)
             .chain_update(result.compress().as_bytes())
             .finalize()
             .into(),
     )
-}
-
-/// Converts the provided integer into a 8 byte array in big-endian
-/// (network) byte order or panics if it is too large to fit.
-//
-// TODO: Move the `to_be[N]` functions to a crate this can depend on, and
-// update them all to not include `len` on panics.
-fn to_be8(len: impl TryInto<u64>) -> [u8; 8] {
-    // Note: `len` may be sensitive, so don't include it in the error message.
-    match len.try_into() {
-        Ok(len) => len.to_be_bytes(),
-        Err(_) => panic!("integer larger than 8 bytes"),
-    }
 }
 
 /// A random values produced by [`start`] that is needed to complete the VOPRF
