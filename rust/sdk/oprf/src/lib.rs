@@ -121,7 +121,7 @@ impl From<Point> for BlindedOutput {
     }
 }
 
-/// The overall VOPRF result.
+/// The overall OPRF result after finalization.
 ///
 /// This is computed from a cryptographic hash function, so the bytes should be
 /// indistinguishable from random.
@@ -190,7 +190,7 @@ impl From<Scalar> for PrivateKey {
     }
 }
 
-/// The public key used to create and verify VOPRF proofs. It corresponds to a
+/// The public key used to create and verify OPRF proofs. It corresponds to a
 /// [`PrivateKey`], which is used to evaluate the OPRF.
 ///
 /// See [`PrivateKey::to_public_key`] for how to get a [`PublicKey`].
@@ -222,9 +222,9 @@ impl PublicKey {
     }
 }
 
-/// Evaluates a VOPRF locally, directly using the private key and the input.
+/// Evaluates an OPRF locally, directly using the private key and the input.
 ///
-/// This gives the same result as a full client-server VOPRF interaction, but
+/// This gives the same result as a full client-server OPRF interaction, but
 /// it is much cheaper computationally.
 pub fn unoblivious_evaluate(private_key: &PrivateKey, input: &[u8]) -> Output {
     let input_hash: [u8; 64] = Sha512::digest(input).into();
@@ -249,7 +249,7 @@ fn hash_to_output(input: &[u8], result: &Point) -> Output {
     )
 }
 
-/// A random values produced by [`start`] that is needed to complete the VOPRF
+/// A random values produced by [`start`] that is needed to complete the OPRF
 /// on the client.
 #[derive(ZeroizeOnDrop)]
 pub struct BlindingFactor {
@@ -262,11 +262,11 @@ impl fmt::Debug for BlindingFactor {
     }
 }
 
-/// Starts the VOPRF protocol on the client.
+/// Starts the OPRF protocol on the client.
 ///
 /// The client should send the returned [`BlindedInput`] to the server and
 /// should keep the returned [`BlindingFactor`] secret. The blinding factor
-/// must be provided to [`finalize`] later to complete the VOPRF.
+/// must be provided to [`finalize`] later to complete the OPRF.
 pub fn start(input: &[u8], rng: &mut impl CryptoRngCore) -> (BlindingFactor, BlindedInput) {
     let input_point = Point::hash_from_bytes::<Sha512>(input);
     let blinding_factor = Scalar::random(rng);
@@ -281,15 +281,14 @@ pub fn start(input: &[u8], rng: &mut impl CryptoRngCore) -> (BlindingFactor, Bli
     )
 }
 
-/// Completes the VOPRF protocol on the client.
+/// Completes the OPRF protocol on the client.
 ///
 /// The `input` should be the same as given to `start`, and the
 /// `blinding_factor` should be as returned from [`start`]. The
 /// `blinded_output` should come from the server.
 ///
-/// # Warning
-///
-/// The caller should call [`verify_proof`] before using the output.
+/// To detect server misbehavior, the caller should call [`verify_proof`]
+/// before using the output.
 pub fn finalize(
     input: &[u8],
     blinding_factor: &BlindingFactor,
@@ -325,19 +324,21 @@ pub fn verify_proof(
 
 /// Runs the OPRF evaluation on the server.
 ///
-/// For a VOPRF, use [`blind_verifiable_evaluate`] instead (or call [`generate_proof`] directly).
+/// To allow the client to verify the server's computation, use
+/// [`blind_verifiable_evaluate`] instead (or call [`generate_proof`]
+/// directly).
 pub fn blind_evaluate(private_key: &PrivateKey, blinded_input: &BlindedInput) -> BlindedOutput {
     BlindedOutput {
         point: PrecompressedPoint::from(private_key.scalar * blinded_input.point.uncompressed),
     }
 }
 
-/// Runs the VOPRF evaluation on the server, including the OPRF evaluation and
-/// generating a proof.
+/// Runs the verifiable OPRF evaluation on the server, including the OPRF
+/// evaluation and generating a proof.
 ///
 /// Note: You can do these steps separately with [`blind_evaluate`] followed by
 /// [`generate_proof`]. This function is provided for convenience and safety
-/// for normal VOPRF usage.
+/// for common usage.
 pub fn blind_verifiable_evaluate(
     private_key: &PrivateKey,
     public_key: &PublicKey,
@@ -351,8 +352,8 @@ pub fn blind_verifiable_evaluate(
 
 /// Generates a proof on the server for a previous OPRF evaluation.
 ///
-/// Normal VOPRF users can call [`blind_verifiable_evaluate`] for convenience
-/// and safety. This function is provided separately in case the proof is only
+/// Most users can call [`blind_verifiable_evaluate`] for convenience and
+/// safety. This function is provided separately in case the proof is only
 /// needed sometimes/later.
 pub fn generate_proof(
     private_key: &PrivateKey,

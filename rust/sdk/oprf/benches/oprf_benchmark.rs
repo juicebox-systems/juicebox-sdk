@@ -181,7 +181,7 @@ fn oprf_bench(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("oprf/VOPRF evaluate", |b| {
+    c.bench_function("oprf/OPRF evaluate + generate proof", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
         let (_blinding_factor, blinded_input) = oprf::start(&input, &mut OsRng);
@@ -254,7 +254,7 @@ fn oprf_bench(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("oprf/VOPRF total", |b| {
+    c.bench_function("oprf/OPRF+proof total", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
         let private_key = oprf::PrivateKey::random(&mut OsRng);

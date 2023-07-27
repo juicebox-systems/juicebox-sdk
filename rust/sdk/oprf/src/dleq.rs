@@ -1,4 +1,5 @@
-//! A proof that two discrete logs are equal, as needed for a VOPRF.
+//! A proof that two discrete logs are equal, as needed to verify the server's
+//! exponentiation in an OPRF.
 //!
 //! The DLEQ proofs are from
 //! <https://crypto.stanford.edu/~dabo/cryptobook/BonehShoup_0_6.pdf> page 838,
@@ -21,7 +22,7 @@ use zeroize::ZeroizeOnDrop;
 
 use super::PrecompressedPoint;
 
-/// Produced by the VOPRF server as evidence that it evaluated the function
+/// Produced by the OPRF server as evidence that it evaluated the function
 /// correctly, then checked by the client with
 /// [`verify_proof`](super::verify_proof).
 #[derive(Clone, Deserialize, Eq, Serialize, ZeroizeOnDrop)]
@@ -47,10 +48,10 @@ impl PartialEq for Proof {
 
 pub(crate) fn generate_proof(
     rng: &mut impl CryptoRngCore,
-    beta: &Scalar,          // VOPRF private key
-    u: &PrecompressedPoint, // VOPRF blinded input
-    v: &CompressedPoint,    // VOPRF public key
-    w: &PrecompressedPoint, // VOPRF blinded output
+    beta: &Scalar,          // OPRF private key
+    u: &PrecompressedPoint, // OPRF blinded input
+    v: &CompressedPoint,    // OPRF public key
+    w: &PrecompressedPoint, // OPRF blinded output
 ) -> Proof {
     let beta_t = Scalar::random(rng);
     let v_t = Point::mul_base(&beta_t);
@@ -67,9 +68,9 @@ pub(crate) fn generate_proof(
 }
 
 pub(crate) fn verify_proof(
-    u: &PrecompressedPoint, // VOPRF blinded input
-    v: &PrecompressedPoint, // VOPRF public key
-    w: &PrecompressedPoint, // VOPRF blinded output
+    u: &PrecompressedPoint, // OPRF blinded input
+    v: &PrecompressedPoint, // OPRF public key
+    w: &PrecompressedPoint, // OPRF blinded output
     proof: &Proof,
 ) -> Result<(), &'static str> {
     let v_t = Point::mul_base(&proof.beta_z) - v.uncompressed * proof.c;
