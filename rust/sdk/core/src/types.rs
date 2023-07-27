@@ -464,38 +464,39 @@ impl From<[u8; 32]> for UnlockKeyCommitment {
     }
 }
 
-/// Convert the provided integer into a 2 byte array in big-endian
-/// (network) byte order or panic if it is too large to fit.
-pub fn to_be2<T, E>(len: T) -> [u8; 2]
-where
-    T: TryInto<u16, Error = E>,
-    E: Debug,
-{
-    len.try_into().expect("length too large").to_be_bytes()
+/// Converts the provided integer into a 2 byte array in big-endian
+/// (network) byte order or panics if it is too large to fit.
+pub fn to_be2<T: TryInto<u16>>(len: T) -> [u8; 2] {
+    // Note: `len` may be secret, so don't include it in the error message.
+    match len.try_into() {
+        Ok(len) => len.to_be_bytes(),
+        Err(_) => panic!("integer larger than 2 bytes"),
+    }
 }
 
-/// Convert the provided integer into a 4 byte array in big-endian
-/// (network) byte order or panic if it is too large to fit.
-pub fn to_be4<T, E>(len: T) -> [u8; 4]
-where
-    T: TryInto<u32, Error = E>,
-    E: Debug,
-{
-    len.try_into().expect("length too large").to_be_bytes()
+/// Converts the provided integer into a 4 byte array in big-endian
+/// (network) byte order or panics if it is too large to fit.
+pub fn to_be4<T: TryInto<u32>>(len: T) -> [u8; 4] {
+    // Note: `len` may be secret, so don't include it in the error message.
+    match len.try_into() {
+        Ok(len) => len.to_be_bytes(),
+        Err(_) => panic!("integer larger than 4 bytes"),
+    }
 }
 
-/// Convert the provided integer into a 8 byte array in big-endian
-/// (network) byte order or panic if it is too large to fit.
-pub fn to_be8<T, E>(len: T) -> [u8; 8]
-where
-    T: TryInto<u64, Error = E>,
-    E: Debug,
-{
-    len.try_into().expect("length too large").to_be_bytes()
+/// Converts the provided integer into a 8 byte array in big-endian
+/// (network) byte order or panics if it is too large to fit.
+pub fn to_be8<T: TryInto<u64>>(len: T) -> [u8; 8] {
+    // Note: `len` may be secret, so don't include it in the error message.
+    match len.try_into() {
+        Ok(len) => len.to_be_bytes(),
+        Err(_) => panic!("integer larger than 8 bytes"),
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::types::{SecretBytesArray, SecretBytesVec};
     use zeroize::Zeroize;
 
@@ -523,5 +524,22 @@ mod tests {
         let mut secret_bytes = SecretBytesArray::from([5; 32]);
         secret_bytes.zeroize();
         assert_eq!(secret_bytes, SecretBytesArray::from([0; 32]));
+    }
+
+    #[test]
+    fn test_to_be() {
+        assert_eq!(to_be2(0), [0, 0]);
+        assert_eq!(to_be2(0x0123), [0x01, 0x23]);
+        assert_eq!(to_be2(0xffff), [0xff, 0xff]);
+        assert_eq!(to_be4(0x01234567u32), [0x01, 0x23, 0x45, 0x67]);
+        assert_eq!(to_be4(0xffffffffu32), [0xff, 0xff, 0xff, 0xff]);
+        assert_eq!(
+            to_be8(0x0123456789abcdefu64),
+            [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]
+        );
+        assert_eq!(
+            to_be8(0xffffffffffffffffu64),
+            [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+        );
     }
 }
