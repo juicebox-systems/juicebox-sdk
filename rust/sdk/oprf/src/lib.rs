@@ -227,8 +227,7 @@ impl PublicKey {
 /// This gives the same result as a full client-server OPRF interaction, but
 /// it is much cheaper computationally.
 pub fn unoblivious_evaluate(private_key: &PrivateKey, input: &[u8]) -> Output {
-    let input_hash: [u8; 64] = Sha512::digest(input).into();
-    let input_point = Point::from_uniform_bytes(&input_hash);
+    let input_point = Point::hash_from_bytes::<Sha512>(input);
     let result = private_key.scalar * input_point;
     hash_to_output(input, &result)
 }
