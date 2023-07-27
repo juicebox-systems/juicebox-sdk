@@ -28,21 +28,21 @@ public key.
 
 ```rust
 # let rng = &mut rand_core::OsRng;
-use juicebox_sdk_voprf as voprf;
-let private_key = voprf::PrivateKey::random(rng);
+use juicebox_sdk_oprf as oprf;
+let private_key = oprf::PrivateKey::random(rng);
 let public_key = private_key.to_public_key();
 let input = b"secret";
 
 // Client
-let (blinding_factor, blinded_input) = voprf::start(input, rng);
+let (blinding_factor, blinded_input) = oprf::start(input, rng);
 
 // Server
 let (blinded_output, proof) =
-    voprf::blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, rng);
+    oprf::blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, rng);
 
 // Client
-voprf::verify_proof(&blinded_input, &blinded_output, &public_key, &proof).unwrap();
-let output = voprf::finalize(input, &blinding_factor, &blinded_output);
+oprf::verify_proof(&blinded_input, &blinded_output, &public_key, &proof).unwrap();
+let output = oprf::finalize(input, &blinding_factor, &blinded_output);
 ```
 
 #### OPRF
@@ -54,18 +54,18 @@ access to the server's private key.
 
 ```rust
 # let rng = &mut rand_core::OsRng;
-use juicebox_sdk_voprf as voprf;
-let private_key = voprf::PrivateKey::random(rng);
+use juicebox_sdk_oprf as oprf;
+let private_key = oprf::PrivateKey::random(rng);
 let input = b"secret";
 
 // Client
-let (blinding_factor, blinded_input) = voprf::start(input, rng);
+let (blinding_factor, blinded_input) = oprf::start(input, rng);
 
 // Server
-let blinded_output = voprf::blind_evaluate(&private_key, &blinded_input);
+let blinded_output = oprf::blind_evaluate(&private_key, &blinded_input);
 
 // Client
-let output = voprf::finalize(input, &blinding_factor, &blinded_output);
+let output = oprf::finalize(input, &blinding_factor, &blinded_output);
 ```
 
 #### PRF
@@ -75,9 +75,9 @@ protocol. The output is exactly the same as in the VOPRF and OPRF.
 
 ```rust
 # let rng = &mut rand_core::OsRng;
-use juicebox_sdk_voprf as voprf;
-let private_key = voprf::PrivateKey::random(rng);
+use juicebox_sdk_oprf as oprf;
+let private_key = oprf::PrivateKey::random(rng);
 let input = b"secret";
 
-let output = voprf::unoblivious_evaluate(&private_key, input);
+let output = oprf::unoblivious_evaluate(&private_key, input);
 ```

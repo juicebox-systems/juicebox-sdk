@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha512;
 
 use juicebox_sdk_marshalling as marshalling;
-use juicebox_sdk_voprf as voprf;
+use juicebox_sdk_oprf as oprf;
 
 pub fn sha512_bench(c: &mut Criterion) {
     c.bench_function("SHA-512/117 bytes", |b| {
@@ -146,32 +146,32 @@ pub fn curve25519_bench(c: &mut Criterion) {
     });
 }
 
-fn voprf_bench(c: &mut Criterion) {
-    c.bench_function("voprf/client start", |b| {
+fn oprf_bench(c: &mut Criterion) {
+    c.bench_function("oprf/client start", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
-        b.iter(|| voprf::start(black_box(&input), &mut fast_rng))
+        b.iter(|| oprf::start(black_box(&input), &mut fast_rng))
     });
 
-    c.bench_function("voprf/OPRF evaluate", |b| {
+    c.bench_function("oprf/OPRF evaluate", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
-        b.iter(|| voprf::blind_evaluate(black_box(&private_key), black_box(&blinded_input)))
+        let (_blinding_factor, blinded_input) = oprf::start(&input, &mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
+        b.iter(|| oprf::blind_evaluate(black_box(&private_key), black_box(&blinded_input)))
     });
 
-    c.bench_function("voprf/generate proof", |b| {
+    c.bench_function("oprf/generate proof", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
+        let (_blinding_factor, blinded_input) = oprf::start(&input, &mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
         let public_key = private_key.to_public_key();
-        let blinded_output = voprf::blind_evaluate(&private_key, &blinded_input);
+        let blinded_output = oprf::blind_evaluate(&private_key, &blinded_input);
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
-            voprf::generate_proof(
+            oprf::generate_proof(
                 black_box(&private_key),
                 black_box(&public_key),
                 black_box(&blinded_input),
@@ -181,15 +181,15 @@ fn voprf_bench(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("voprf/VOPRF evaluate", |b| {
+    c.bench_function("oprf/VOPRF evaluate", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
+        let (_blinding_factor, blinded_input) = oprf::start(&input, &mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
         let public_key = private_key.to_public_key();
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
-            voprf::blind_verifiable_evaluate(
+            oprf::blind_verifiable_evaluate(
                 black_box(&private_key),
                 black_box(&public_key),
                 black_box(&blinded_input),
@@ -198,14 +198,14 @@ fn voprf_bench(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("voprf/client finalize", |b| {
+    c.bench_function("oprf/client finalize", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let (blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
-        let blinded_output = voprf::blind_evaluate(&private_key, &blinded_input);
+        let (blinding_factor, blinded_input) = oprf::start(&input, &mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
+        let blinded_output = oprf::blind_evaluate(&private_key, &blinded_input);
         b.iter(|| {
-            voprf::finalize(
+            oprf::finalize(
                 black_box(&input),
                 black_box(&blinding_factor),
                 black_box(&blinded_output),
@@ -213,16 +213,16 @@ fn voprf_bench(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("voprf/client verify", |b| {
+    c.bench_function("oprf/client verify", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let (_blinding_factor, blinded_input) = voprf::start(&input, &mut OsRng);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
+        let (_blinding_factor, blinded_input) = oprf::start(&input, &mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
         let public_key = private_key.to_public_key();
         let (blinded_output, proof) =
-            voprf::blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, &mut OsRng);
+            oprf::blind_verifiable_evaluate(&private_key, &public_key, &blinded_input, &mut OsRng);
         b.iter(|| {
-            voprf::verify_proof(
+            oprf::verify_proof(
                 black_box(&blinded_input),
                 black_box(&blinded_output),
                 black_box(&public_key),
@@ -231,49 +231,49 @@ fn voprf_bench(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("voprf/OPRF total", |b| {
+    c.bench_function("oprf/OPRF total", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
             // Client
-            let (blinding_factor, blinded_input) = voprf::start(black_box(&input), &mut fast_rng);
+            let (blinding_factor, blinded_input) = oprf::start(black_box(&input), &mut fast_rng);
             let request = marshalling::to_vec(&blinded_input).unwrap();
 
             // Server
             let response = {
-                let blinded_input: voprf::BlindedInput = marshalling::from_slice(&request).unwrap();
-                let blinded_output = voprf::blind_evaluate(black_box(&private_key), &blinded_input);
+                let blinded_input: oprf::BlindedInput = marshalling::from_slice(&request).unwrap();
+                let blinded_output = oprf::blind_evaluate(black_box(&private_key), &blinded_input);
                 marshalling::to_vec(&blinded_output).unwrap()
             };
 
             // Client
-            let blinded_output: voprf::BlindedOutput = marshalling::from_slice(&response).unwrap();
-            voprf::finalize(black_box(&input), &blinding_factor, &blinded_output)
+            let blinded_output: oprf::BlindedOutput = marshalling::from_slice(&response).unwrap();
+            oprf::finalize(black_box(&input), &blinding_factor, &blinded_output)
         });
     });
 
-    c.bench_function("voprf/VOPRF total", |b| {
+    c.bench_function("oprf/VOPRF total", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
         let public_key = private_key.to_public_key();
         let mut fast_rng = ChaCha12Rng::seed_from_u64(7);
         b.iter(|| {
             // Client
-            let (blinding_factor, blinded_input) = voprf::start(black_box(&input), &mut fast_rng);
+            let (blinding_factor, blinded_input) = oprf::start(black_box(&input), &mut fast_rng);
             let request = marshalling::to_vec(&blinded_input).unwrap();
 
             // Server
             #[derive(Deserialize, Serialize)]
             struct Response {
-                blinded_output: voprf::BlindedOutput,
-                proof: voprf::Proof,
+                blinded_output: oprf::BlindedOutput,
+                proof: oprf::Proof,
             }
             let response = {
-                let blinded_input: voprf::BlindedInput = marshalling::from_slice(&request).unwrap();
-                let (blinded_output, proof) = voprf::blind_verifiable_evaluate(
+                let blinded_input: oprf::BlindedInput = marshalling::from_slice(&request).unwrap();
+                let (blinded_output, proof) = oprf::blind_verifiable_evaluate(
                     black_box(&private_key),
                     black_box(&public_key),
                     &blinded_input,
@@ -291,18 +291,18 @@ fn voprf_bench(c: &mut Criterion) {
                 blinded_output,
                 proof,
             } = marshalling::from_slice(&response).unwrap();
-            voprf::verify_proof(&blinded_input, &blinded_output, &public_key, &proof).unwrap();
-            voprf::finalize(black_box(&input), &blinding_factor, &blinded_output)
+            oprf::verify_proof(&blinded_input, &blinded_output, &public_key, &proof).unwrap();
+            oprf::finalize(black_box(&input), &blinding_factor, &blinded_output)
         });
     });
 
-    c.bench_function("voprf/unoblivious evaluate", |b| {
+    c.bench_function("oprf/unoblivious evaluate", |b| {
         let mut input = [0u8; 32];
         OsRng.fill_bytes(&mut input);
-        let private_key = voprf::PrivateKey::random(&mut OsRng);
-        b.iter(|| voprf::unoblivious_evaluate(black_box(&private_key), black_box(&input)));
+        let private_key = oprf::PrivateKey::random(&mut OsRng);
+        b.iter(|| oprf::unoblivious_evaluate(black_box(&private_key), black_box(&input)));
     });
 }
 
-criterion_group!(benches, sha512_bench, curve25519_bench, voprf_bench);
+criterion_group!(benches, sha512_bench, curve25519_bench, oprf_bench);
 criterion_main!(benches);

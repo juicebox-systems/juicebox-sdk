@@ -4,12 +4,12 @@ use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use juicebox_sdk_marshalling::bytes;
-use juicebox_sdk_voprf as voprf;
+use juicebox_sdk_oprf as oprf;
 
 use crate::types::SecretBytesArray;
 
 pub fn sign_public_key(
-    public_key: voprf::PublicKey,
+    public_key: oprf::PublicKey,
     signing_key: &OprfSigningKey,
 ) -> OprfSignedPublicKey {
     let signature = signing_key.0.sign(public_key.as_bytes());
@@ -44,7 +44,7 @@ impl From<[u8; 32]> for OprfVerifyingKey {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct OprfSignedPublicKey {
-    pub public_key: voprf::PublicKey,
+    pub public_key: oprf::PublicKey,
     pub verifying_key: OprfVerifyingKey,
     pub signature: SecretBytesArray<64>,
 }

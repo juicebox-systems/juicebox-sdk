@@ -1,5 +1,5 @@
 [package]
-name = "juicebox-sdk-voprf"
+name = "juicebox-sdk-oprf"
 version.workspace = true
 license.workspace = true
 authors = ["Diego Ongaro <diego@juicebox.me>"]
@@ -24,5 +24,5 @@ rand_chacha = { workspace = true }
 serde_json = { workspace = true }
 
 [[bench]]
-name = "voprf_benchmark"
+name = "oprf_benchmark"
 harness = false

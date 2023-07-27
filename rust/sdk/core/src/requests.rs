@@ -14,7 +14,7 @@ use crate::types::{
 };
 use juicebox_sdk_marshalling::bytes;
 use juicebox_sdk_noise as noise;
-use juicebox_sdk_voprf as voprf;
+use juicebox_sdk_oprf as oprf;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ClientRequest {
@@ -174,7 +174,7 @@ pub enum Register1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Register2Request {
     pub version: RegistrationVersion,
-    pub oprf_private_key: voprf::PrivateKey,
+    pub oprf_private_key: oprf::PrivateKey,
     pub oprf_signed_public_key: OprfSignedPublicKey,
     pub unlock_key_commitment: UnlockKeyCommitment,
     pub unlock_key_tag: UnlockKeyTag,
@@ -202,7 +202,7 @@ pub enum Recover1Response {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Recover2Request {
     pub version: RegistrationVersion,
-    pub oprf_blinded_input: voprf::BlindedInput,
+    pub oprf_blinded_input: oprf::BlindedInput,
 }
 
 /// Response message for the second phase of recovery.
@@ -211,8 +211,8 @@ pub struct Recover2Request {
 pub enum Recover2Response {
     Ok {
         oprf_signed_public_key: OprfSignedPublicKey,
-        oprf_blinded_result: voprf::BlindedOutput,
-        oprf_proof: voprf::Proof,
+        oprf_blinded_result: oprf::BlindedOutput,
+        oprf_proof: oprf::Proof,
         unlock_key_commitment: UnlockKeyCommitment,
         num_guesses: u16,
         guess_count: u16,
@@ -267,12 +267,12 @@ mod tests {
     };
     use curve25519_dalek::Scalar;
     use juicebox_sdk_marshalling as marshalling;
-    use juicebox_sdk_voprf as voprf;
+    use juicebox_sdk_oprf as oprf;
     use rand_core::OsRng;
 
     #[test]
     fn test_request_body_size_limit() {
-        let oprf_private_key = voprf::PrivateKey::random(&mut OsRng);
+        let oprf_private_key = oprf::PrivateKey::random(&mut OsRng);
         let oprf_public_key = oprf_private_key.to_public_key();
         let secrets_request = SecretsRequest::Register2(Box::new(Register2Request {
             version: RegistrationVersion::from([0xff; 16]),

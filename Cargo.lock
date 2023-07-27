@@ -1088,11 +1088,11 @@ dependencies = [
  "juicebox-sdk-marshalling",
  "juicebox-sdk-networking",
  "juicebox-sdk-noise",
+ "juicebox-sdk-oprf",
  "juicebox-sdk-process-group",
  "juicebox-sdk-realm-auth",
  "juicebox-sdk-secret-sharing",
  "juicebox-sdk-software-realm",
- "juicebox-sdk-voprf",
  "rand",
  "serde",
  "serde_json",
@@ -1129,7 +1129,7 @@ dependencies = [
  "hex",
  "juicebox-sdk-marshalling",
  "juicebox-sdk-noise",
- "juicebox-sdk-voprf",
+ "juicebox-sdk-oprf",
  "rand_core",
  "serde",
  "sha2",
@@ -1225,6 +1225,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "juicebox-sdk-oprf"
+version = "0.1.1"
+dependencies = [
+ "criterion",
+ "curve25519-dalek",
+ "digest",
+ "hex",
+ "juicebox-sdk-marshalling",
+ "rand_chacha",
+ "rand_core",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "tracing 0.2.0",
+ "zeroize",
+]
+
+[[package]]
 name = "juicebox-sdk-process-group"
 version = "0.1.1"
 dependencies = [
@@ -1277,25 +1296,6 @@ dependencies = [
  "juicebox-sdk-core",
  "juicebox-sdk-realm-auth",
  "thiserror",
-]
-
-[[package]]
-name = "juicebox-sdk-voprf"
-version = "0.1.1"
-dependencies = [
- "criterion",
- "curve25519-dalek",
- "digest",
- "hex",
- "juicebox-sdk-marshalling",
- "rand_chacha",
- "rand_core",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "tracing 0.2.0",
- "zeroize",
 ]
 
 [[package]]

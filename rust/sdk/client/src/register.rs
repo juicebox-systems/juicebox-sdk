@@ -11,8 +11,8 @@ use juicebox_sdk_core::{
         UserSecretEncryptionKeyScalarShare,
     },
 };
+use juicebox_sdk_oprf as oprf;
 use juicebox_sdk_secret_sharing::create_shares;
-use juicebox_sdk_voprf as voprf;
 
 use crate::{
     auth, http,
@@ -60,14 +60,14 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .hash(self.configuration.pin_hashing_mode, &version, info)
             .expect("pin hashing failed");
 
-        let oprf_private_key = voprf::PrivateKey::random(&mut OsRng);
-        let oprf_private_key_shares: Vec<voprf::PrivateKey> = create_shares(
+        let oprf_private_key = oprf::PrivateKey::random(&mut OsRng);
+        let oprf_private_key_shares: Vec<oprf::PrivateKey> = create_shares(
             oprf_private_key.expose_secret(),
             self.configuration.recover_threshold,
             self.configuration.share_count(),
             &mut OsRng,
         )
-        .map(|share| voprf::PrivateKey::from(share.secret))
+        .map(|share| oprf::PrivateKey::from(share.secret))
         .collect();
 
         let signing_key = OprfSigningKey::new_random(&mut OsRng);
@@ -77,8 +77,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .map(|private_key| sign_public_key(private_key.to_public_key(), &signing_key))
             .collect();
 
-        let oprf_result =
-            voprf::unoblivious_evaluate(&oprf_private_key, access_key.expose_secret());
+        let oprf_result = oprf::unoblivious_evaluate(&oprf_private_key, access_key.expose_secret());
 
         let (unlock_key, unlock_key_commitment) = derive_unlock_key_and_commitment(&oprf_result);
 

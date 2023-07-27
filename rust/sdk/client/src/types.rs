@@ -17,7 +17,7 @@ use juicebox_sdk_core::types::{
     UnlockKeyCommitment,
 };
 use juicebox_sdk_noise::client as noise;
-use juicebox_sdk_voprf as voprf;
+use juicebox_sdk_oprf as oprf;
 
 /// A remote service that the client interacts with directly.
 ///
@@ -324,7 +324,7 @@ pub(crate) struct Session {
 }
 
 pub(crate) fn derive_unlock_key_and_commitment(
-    result: &voprf::Output,
+    result: &oprf::Output,
 ) -> (UnlockKey, UnlockKeyCommitment) {
     let digest: [u8; 64] = Sha512::digest(result.expose_secret()).into();
     let commitment_bytes: [u8; 32] = digest[..32].try_into().unwrap();

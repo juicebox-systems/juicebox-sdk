@@ -15,10 +15,10 @@ use juicebox_sdk_core::{
         UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey, UserSecretEncryptionKeyScalarShare,
     },
 };
+use juicebox_sdk_oprf as oprf;
 use juicebox_sdk_secret_sharing::{
     recover_secret, recover_secret_combinatorially, RecoverSecretCombinatoriallyError, Share,
 };
-use juicebox_sdk_voprf as voprf;
 
 use crate::{
     auth,
@@ -121,7 +121,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .expect("pin hashing failed");
 
         let (oprf_blinding_factor, oprf_blinded_input) =
-            voprf::start(access_key.expose_secret(), &mut OsRng);
+            oprf::start(access_key.expose_secret(), &mut OsRng);
 
         let recover2_requests = realms.iter().map(|realm| {
             self.recover2_on_realm(
@@ -170,10 +170,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             &oprf_blinded_result_shares,
             configuration.recover_threshold,
             |secret| {
-                let oprf_result = voprf::finalize(
+                let oprf_result = oprf::finalize(
                     access_key.expose_secret(),
                     &oprf_blinding_factor,
-                    &voprf::BlindedOutput::from(secret),
+                    &oprf::BlindedOutput::from(secret),
                 );
                 let (unlock_key, our_commitment) = derive_unlock_key_and_commitment(&oprf_result);
                 if bool::from(unlock_key_commitment.ct_eq(&our_commitment)) {
@@ -276,7 +276,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
         access_key: &UserSecretAccessKey,
-        oprf_blinded_input: &voprf::BlindedInput,
+        oprf_blinded_input: &oprf::BlindedInput,
     ) -> Result<
         (
             OprfVerifyingKey,
@@ -343,7 +343,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .verify()
             .map_err(|_| RecoverError::Assertion)?;
 
-        voprf::verify_proof(
+        oprf::verify_proof(
             oprf_blinded_input,
             &oprf_blinded_result,
             &oprf_signed_public_key.public_key,
