@@ -324,9 +324,9 @@ pub(crate) struct Session {
 }
 
 pub(crate) fn derive_unlock_key_and_commitment(
-    result: &oprf::Output,
+    oprf_result: &oprf::Output,
 ) -> (UnlockKey, UnlockKeyCommitment) {
-    let digest: [u8; 64] = Sha512::digest(result.expose_secret()).into();
+    let digest: [u8; 64] = Sha512::digest(oprf_result.expose_secret()).into();
     let commitment_bytes: [u8; 32] = digest[..32].try_into().unwrap();
     let key_bytes: [u8; 32] = digest[32..].try_into().unwrap();
     (

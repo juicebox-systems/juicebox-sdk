@@ -126,12 +126,18 @@ impl From<Point> for BlindedOutput {
 /// This is computed from a cryptographic hash function, so the bytes should be
 /// indistinguishable from random.
 #[must_use]
-#[derive(ZeroizeOnDrop)]
+#[derive(Eq, ZeroizeOnDrop)]
 pub struct Output([u8; 64]);
 
 impl fmt::Debug for Output {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("Output(REDACTED)")
+    }
+}
+
+impl PartialEq for Output {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.0.ct_eq(&other.0))
     }
 }
 
@@ -392,10 +398,7 @@ mod tests {
 
             for _ in 0..3 {
                 // unoblivious
-                assert_eq!(
-                    expected.expose_secret(),
-                    unoblivious_evaluate(&private_key, &input).expose_secret()
-                );
+                assert_eq!(expected, unoblivious_evaluate(&private_key, &input),);
 
                 // oblivious
                 let (blinding_factor, blinded_input) = start(&input, &mut OsRng);
@@ -407,8 +410,8 @@ mod tests {
                 );
                 assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
                 assert_eq!(
-                    expected.expose_secret(),
-                    finalize(&input, &blinding_factor, &blinded_output).expose_secret()
+                    expected,
+                    finalize(&input, &blinding_factor, &blinded_output)
                 );
             }
         }
@@ -497,10 +500,7 @@ mod tests {
         assert!(verify_proof(&blinded_input, &blinded_output, &public_key, &proof).is_ok());
         let output = finalize(&input, &blinding_factor, &blinded_output);
 
-        assert_eq!(
-            output.expose_secret(),
-            unoblivious_evaluate(&private_key, &input).expose_secret()
-        );
+        assert_eq!(output, unoblivious_evaluate(&private_key, &input));
 
         TestOutputs {
             private_key: hex::encode(private_key.scalar.as_bytes()),
