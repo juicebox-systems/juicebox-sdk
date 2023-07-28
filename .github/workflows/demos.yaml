@@ -36,7 +36,6 @@ jobs:
         with:
           start-realm-count: 25
           token: ${{ secrets.ACCESS_TOKEN }}
-          ref: diego/voprf
 
       - name: Run Rust Demo
         run: target/debug/juicebox_sdk_demo --configuration ${{ steps.software-realm.outputs.configuration }} --auth-tokens ${{ steps.software-realm.outputs.auth-tokens }}
@@ -77,7 +76,6 @@ jobs:
         with:
           start-realm-count: 25
           token: ${{ secrets.ACCESS_TOKEN }}
-          ref: diego/voprf
 
       - name: Run Swift Demo
         run: swift/demo/.build/debug/demo -c ${{ steps.software-realm.outputs.configuration }} -a ${{ steps.software-realm.outputs.auth-tokens }}
@@ -121,7 +119,6 @@ jobs:
         with:
           start-realm-count: 25
           token: ${{ secrets.ACCESS_TOKEN }}
-          ref: diego/voprf
 
       - name: Run WASM Demo
         run: javascript/demo/demo.ts -c ${{ steps.software-realm.outputs.configuration }} -a ${{ steps.software-realm.outputs.auth-tokens }}
