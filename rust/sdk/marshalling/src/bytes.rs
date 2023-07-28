@@ -173,6 +173,23 @@ impl Bytes for RistrettoPoint {
     }
 }
 
+impl Bytes for CompressedRistretto {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
+    where
+        Ser: serde::ser::Serializer,
+    {
+        serializer.serialize_bytes(self.as_bytes())
+    }
+
+    fn deserialize<'de, De>(deserializer: De) -> Result<Self, De::Error>
+    where
+        De: serde::de::Deserializer<'de>,
+    {
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        Ok(CompressedRistretto(bytes))
+    }
+}
+
 impl Bytes for CompressedEdwardsY {
     fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
     where

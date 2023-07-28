@@ -26,6 +26,7 @@ juicebox-sdk-core = { workspace = true }
 juicebox-sdk-marshalling = { workspace = true }
 juicebox-sdk-networking = { workspace = true }
 juicebox-sdk-noise = { workspace = true }
+juicebox-sdk-oprf = { workspace = true }
 juicebox-sdk-secret-sharing = { workspace = true }
 rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }
@@ -47,4 +48,9 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 [features]
 tokio = []
 reqwest = ["juicebox-sdk-networking/reqwest"]
-software_realm_tests = ["tokio", "reqwest", "tokio/macros", "tokio/rt-multi-thread"]
+software_realm_tests = [
+    "tokio",
+    "reqwest",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+]
