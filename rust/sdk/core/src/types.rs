@@ -466,30 +466,30 @@ impl From<[u8; 32]> for UnlockKeyCommitment {
 
 /// Converts the provided integer into a 2 byte array in big-endian
 /// (network) byte order or panics if it is too large to fit.
-pub fn to_be2<T: TryInto<u16>>(len: T) -> [u8; 2] {
-    // Note: `len` may be secret, so don't include it in the error message.
-    match len.try_into() {
-        Ok(len) => len.to_be_bytes(),
+pub fn to_be2<T: TryInto<u16>>(value: T) -> [u8; 2] {
+    // Note: `value` may be secret, so don't include it in the error message.
+    match value.try_into() {
+        Ok(value) => value.to_be_bytes(),
         Err(_) => panic!("integer larger than 2 bytes"),
     }
 }
 
 /// Converts the provided integer into a 4 byte array in big-endian
 /// (network) byte order or panics if it is too large to fit.
-pub fn to_be4<T: TryInto<u32>>(len: T) -> [u8; 4] {
-    // Note: `len` may be secret, so don't include it in the error message.
-    match len.try_into() {
-        Ok(len) => len.to_be_bytes(),
+pub fn to_be4<T: TryInto<u32>>(value: T) -> [u8; 4] {
+    // Note: `value` may be secret, so don't include it in the error message.
+    match value.try_into() {
+        Ok(value) => value.to_be_bytes(),
         Err(_) => panic!("integer larger than 4 bytes"),
     }
 }
 
 /// Converts the provided integer into a 8 byte array in big-endian
 /// (network) byte order or panics if it is too large to fit.
-pub fn to_be8<T: TryInto<u64>>(len: T) -> [u8; 8] {
-    // Note: `len` may be secret, so don't include it in the error message.
-    match len.try_into() {
-        Ok(len) => len.to_be_bytes(),
+pub fn to_be8<T: TryInto<u64>>(value: T) -> [u8; 8] {
+    // Note: `value` may be secret, so don't include it in the error message.
+    match value.try_into() {
+        Ok(value) => value.to_be_bytes(),
         Err(_) => panic!("integer larger than 8 bytes"),
     }
 }
@@ -498,6 +498,7 @@ pub fn to_be8<T: TryInto<u64>>(len: T) -> [u8; 8] {
 mod tests {
     use super::*;
     use crate::types::{SecretBytesArray, SecretBytesVec};
+    use std::panic::catch_unwind;
     use zeroize::Zeroize;
 
     #[test]
@@ -530,16 +531,69 @@ mod tests {
     fn test_to_be() {
         assert_eq!(to_be2(0), [0, 0]);
         assert_eq!(to_be2(0x0123), [0x01, 0x23]);
-        assert_eq!(to_be2(0xffff), [0xff, 0xff]);
+        assert_eq!(to_be2(u16::MAX), [0xff, 0xff]);
         assert_eq!(to_be4(0x01234567u32), [0x01, 0x23, 0x45, 0x67]);
-        assert_eq!(to_be4(0xffffffffu32), [0xff, 0xff, 0xff, 0xff]);
+        assert_eq!(to_be4(u32::MAX), [0xff, 0xff, 0xff, 0xff]);
         assert_eq!(
             to_be8(0x0123456789abcdefu64),
             [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]
         );
         assert_eq!(
-            to_be8(0xffffffffffffffffu64),
+            to_be8(u64::MAX),
             [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+        );
+    }
+
+    #[test]
+    fn test_to_be_panics() {
+        // It's important that the full panic message does not include the
+        // potentially-secret input. This doesn't use
+        // ```
+        // #[should_panic(expected = "...")]
+        // ```
+        // since that only checks if the expected string is a
+        // substring of the panic message.
+        assert_eq!(
+            *catch_unwind(|| to_be2(1u64 << 16))
+                .unwrap_err()
+                .downcast::<&str>()
+                .unwrap(),
+            "integer larger than 2 bytes"
+        );
+        assert_eq!(
+            *catch_unwind(|| to_be2(-1i16))
+                .unwrap_err()
+                .downcast::<&str>()
+                .unwrap(),
+            "integer larger than 2 bytes"
+        );
+        assert_eq!(
+            *catch_unwind(|| to_be4(1u64 << 32))
+                .unwrap_err()
+                .downcast::<&str>()
+                .unwrap(),
+            "integer larger than 4 bytes"
+        );
+        assert_eq!(
+            *catch_unwind(|| to_be4(-1i32))
+                .unwrap_err()
+                .downcast::<&str>()
+                .unwrap(),
+            "integer larger than 4 bytes"
+        );
+        assert_eq!(
+            *catch_unwind(|| to_be8(1u128 << 64))
+                .unwrap_err()
+                .downcast::<&str>()
+                .unwrap(),
+            "integer larger than 8 bytes"
+        );
+        assert_eq!(
+            *catch_unwind(|| to_be8(-1i64))
+                .unwrap_err()
+                .downcast::<&str>()
+                .unwrap(),
+            "integer larger than 8 bytes"
         );
     }
 }
