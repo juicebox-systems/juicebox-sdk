@@ -7,8 +7,8 @@
     (name: "Nora Trapp", affiliation: "Juicebox Systems, Inc"),
     (name: "Diego Ongaro", affiliation: "Juicebox Systems, Inc"),
   ),
-  date: "July 28, 2023",
-  version: "Revision 7",
+  date: "July 29, 2023",
+  version: "Revision 8",
   abstract: [Existing secret management techniques demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have designed a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a short PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudorandom Functions_ (OPRFs) and a _Secret-Sharing Scheme_ (SSS) combined with self-destructing secrets to minimize the trust placed in any singular server. Additionally, our approach allows for servers distributed across organizations, eliminating the need to trust a singular service operator. We have built an open-source implementation of the client and server sides of this new protocol, the latter of which has variants for running on commodity hardware and secure hardware.],
   bibliography-file: "references.bib",
 )
@@ -69,7 +69,7 @@ The Juicebox Protocol layers multiple proven cryptographic primitives to achieve
 As a prerequisite to defining this protocol, the following section defines the primitives that the protocol relies upon. Each of these is abstractly described, as the fundamental details of their implementation may evolve. For specific algorithms that we recommend as of the writing of this paper, see @Cryptographic_Implementation.
 
 == Oblivious Pseudorandom Functions (OPRFs)
-An OPRF is a cryptographic primitive that enables a server to securely evaluate a function on a client's input. This evaluation ensures the server learns nothing about the client's input and the client learns nothing about the server's key beyond the output of the function. The Juicebox Protocol leverages OPRFs to specifically prevent a given _realm_ from ever learning a user's PIN.
+An OPRF is a cryptographic primitive that enables a server to securely evaluate a function on a client's input. This evaluation ensures the server learns nothing about the client's input and the client learns nothing about the server's key beyond the output of the function.
 
 For this paper, we will define an OPRF exchange with the following abstract functions:
 
@@ -87,9 +87,11 @@ For this paper, we will define the following abstract functions for creating and
 / $"RecoverShares"("shares")$: \ Recovers a _secret_ from _y_ _shares_. If an invalid combination of shares is provided, an incorrect _secret_ will be returned that is indistinguishable from random.
 
 == Threshold OPRFs (T-OPRFs)
-A T-OPRF @JKKX17 is a hybrid primitive composing OPRFs and a secret-sharing scheme. This primitive enables a highly-efficient oblivious exchange across a _threshold_ set of servers to compute a single _result_. This is achieved by the client performing _CreateShares_ on a randomly generated root key and sending a single share of the key to each server to use as their OPRF key. By using such related keys, a singular blind evaluation can recover the _result_ after performing _RecoverShares_ on a _threshold_ set of _blindedResults_ returned from the servers.
+A T-OPRF combines OPRFs and a secret-sharing scheme into a hybrid primitive that facilitates a highly-efficient oblivious exchange of an _input_ across a _threshold_ set of servers, allowing the computation of a single secret _result_.
 
-Additionally, since the output of multiple servers can now be utilized to arrive at a common _result_, a portion of that _result_ can be designated as a public _commitment_ and provided to the servers alongside their key share. When performing _TOprfFinalize_ on the _blindedResults_, a client can determine if their _input_ was valid by first establishing a consensus around a _threshold_ set of servers with a shared _commitment_ value. After finalizing the results from that set of servers, the client can then validate that the locally computed _commitment_ matches the _commitment_ provided by the servers to ensure the provided _input_ was correct.
+The T-OPRF process begins with the client performing _CreateShares_ on a randomly generated root key. The client sends a single share to each server, which they utilize as their OPRF key. Thanks to these related keys, when the client receives a _threshold_ set of _blindedResults_ from these servers during the oblivious exchange, it can perform _RecoverShares_ on the _blindedResults_ to get a single _blindedResult_ that corresponds to the original root key. The client can then proceed with the OPRF finalization over that _blindedResult_ to recover the original _result_.
+
+Additionally, since the client controls the root key during initialization, a portion of that _result_ can be designated as a public _commitment_ and provided to the servers alongside their key share. When finalizing the _blindedResults_, a client can determine the correctness of their _input_ by first establishing a consensus around a _threshold_ set of servers with a shared _commitment_ value. After finalizing the results from that set of servers, the client can then validate that the locally computed _commitment_ matches the _commitment_ provided by the servers.
 
 For this paper, we will define a T-OPRF exchange with the following abstract functions:
 
@@ -99,13 +101,23 @@ For this paper, we will define a T-OPRF exchange with the following abstract fun
 / $"TOprfFinalize"("blindedResults", "blindingFactor", "input")$: \ Performs the finalization step to unblind the set of _blindedResults_ returned from at least _threshold_ servers and returns a _result_ and a _commitment_ that can be used to validate that _result_ at a later point. If incorrect or insufficient shares of _blindedResults_ are present, the returned values will be indistinguishable from random. _TOprfFinalize_ can be implemented as _OprfFinalize(RecoverShares(blindedResults), blindingFactor, input)_ and splitting the _result_.
 / $"TOprfEvaluate"("rootKey", "input")$: \ Computes the unblinded _result_ and _commitment_ directly bypassing the oblivious exchange. The _commitment_ can be sent to the servers to validate the _result_ received from _TOprfFinalize_ at a later date. _TOprfEvaluate_ can be implemented as _OprfEvaluate(rootKey, input)_ and splitting the _result_.
 
-== Robust OPRFs with Zero-Knowledge Proofs (ZKPs)
-A ZKP is a cryptographic primitive that allows one party to prove to another that a given statement is true without revealing any additional information beyond that truth. By combining ZKPs with OPRFs, we can create a protocol that is robust against malicious server behavior by validating that the server used a specific private key during the execution of the protocol. This requires that the client has trusted knowledge of a server's public key.
+== Robust T-OPRFs with Zero-Knowledge Proofs (ZKPs)
+A ZKP is a cryptographic primitive that enables one party to demonstrate the truth of a statement to another party without revealing any additional information. By integrating ZKPs with T-OPRFs, we can establish a robust protocol that safeguards against adversarial servers. This is achieved by verifying whether the server used a specific private key during the protocol's execution. Doing so allows any input from adversarial servers to be identified and excluded before finalizing the _blindedResults_. If, after this exclusion, a _threshold_ number of correct servers remains, the client can safely retrieve the _result_ and have certainty that any failure to validate the _commitment_ is due to an incorrect _input_.
 
 For this paper, we will define a ZKP with the following abstract functions:
 
 / $"OprfProofGenerate"("privateKey", "publicKey", "blindedInput", "blindedOutput")$: \ Returns a _proof_ capable of validating that a server performed an _OprfBlindEvaluate_ with a trusted _privateKey_, without revealing the _privateKey_.
-/ $"OprfProofVerify"("proof", "publicKey", "blindedInput", "blindedOutput")$: \ Validates a _proof_ to confirm that a server generated the _blindedOutput_ from the _blindedInput_ using the _privateKey_ associated with the trusted _publicKey_.
+/ $"OprfProofVerify"("proof", "publicKey", "blindedInput", "blindedOutput")$: \ Validates a _proof_ to confirm that a server generated the _blindedOutput_ from the _blindedInput_ using the _privateKey_ associated with a trusted _publicKey_.
+
+== Digital Signature Algorithm (DSA)
+A DSA is a cryptographic primitive that facilitates the generation and verification of digital signatures. These signatures rely on a key pair, comprised of a private signing key and a corresponding public verifying key. While the signing key is kept confidential and used for signing messages, the verifying key is openly shared to verify signatures.
+
+In the context of the Juicebox Protocol, the DSA plays a crucial role in establishing a trusted OPRF public key before the verification of the ZKP. During initialization, each server's public key is signed using a common signing key. This enables the client to establish consensus on a common verifying key during the oblivious exchange. The client can then verify the public key signature and exclude _blindedResults_ from any server that fails verification. This process ensures that a _threshold_ number of adversarial servers must collude before a client can be deceived into trusting an unsigned OPRF public key.
+
+For this paper, we will define a DSA with the following abstract functions:
+
+/ $"GenerateSignature"("signingKey", "message")$: \ Sign the given _message_ using the _signingKey_ and returns the a _signedMessage_ that contains the _signature_, _verifyingKey_, and original _message_.
+/ $"VerifySignature"("signedMessage")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_.
 
 == Additional Primitives
 In addition to the previously established _OPRF_, _SSS_, _T-OPRF_, and _ZKP_ primitives, the following common primitives are necessary to define the protocol:
@@ -117,8 +129,6 @@ In addition to the previously established _OPRF_, _SSS_, _T-OPRF_, and _ZKP_ pri
 / $"Random"(n)$: \ Returns _n_ random bytes. The _Random_ function should ensure the generation of random data with high entropy, suitable for cryptographic purposes.
 / $"Scalar"("seed")$: \ Returns a scalar created from a 64-byte seed value.
 / $"PublicKey"("scalar")$: \ Computes the _point_ representing the public key for a given _scalar_.
-/ $"GenerateSignature"("signingKey", "message")$: \ Sign the given _message_ using the _signingKey_ and returns the signature.
-/ $"VerifySignature"("verifyingKey", "message", "signature")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_.
 
 = Protocol
 The _Juicebox Protocol_ can be abstracted to three simple operations — _register_, _recover_, and _delete_.
@@ -145,9 +155,7 @@ In the _Registered_ state, the following additional information is stored corres
 / version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _Realms_. The version is random so that a malicious realm can't force a client to run out of versions.
 / oprfPrivateKeys#sub[i]: \ A realm-specific OPRF private key derived by secret sharing a random root key.
 / unlockKeyCommitment: \ A 32-byte value derived during registration from the OPRF result used to verify the _unlockKey_.
-/ oprfPublicKeys#sub[i]: \ A public key that corresponds to the _oprfPrivateKeys#sub[i]_ for this realm.
-/ oprfPublicKeySignatures#sub[i]: \ A signature of the _oprfPublicKeys#sub[i]_ for this realm.
-/ verifyingKey: \ The public key that corresponds to the key used to sign the _oprfPublicKeySignatures_ for every realm during registration.
+/ oprfSignedPublicKey#sub[i]: \ A signed public key that corresponds to the _oprfPrivateKeys#sub[i]_ for this realm. Wraps the _publicKey_, a _signature_, and the public _verifyingKey_ for the _signingKey_ used to generate the _signature_.
 / unlockKeyTag#sub[i]: \ A tag unique to this _Realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of the _PIN_ and be granted access to the secret.
 / encryptionKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the `encryptionKey` for the user's secret. Even if _threshold_ shares were recovered, the _encryptionKey_ cannot be derived without knowing the user's _PIN_.
 / encryptedSecret: \ A copy of the user's encrypted secret.
@@ -196,11 +204,9 @@ The following demonstrates the work a client performs to prepare a new registrat
     unlockKeyCommitment, unlockKey = TOprfEvaluate(oprfRootPrivateKey, accessKey)
 
     signingKey = Scalar(Random(64))
-    verifyingKey = PublicKey(signingKey)
 
-    oprfPublicKeys = [PublicKey(key) for key in oprfPrivateKeyShares]
-    oprfPublicKeySignatures = [GenerateSignature(signingKey, key)
-                                for key in oprfPublicKeys]
+    oprfSignedPublicKeys = [GenerateSignature(signingKey, PublicKey(key))
+                            for key in oprfPrivateKeyShares]
 
     encryptionKeyScalar = Scalar(Random(64))
     encryptionKeyScalarShares = CreateShares(len(realms),
@@ -226,9 +232,7 @@ The following demonstrates the work a client performs to prepare a new registrat
         version,
         oprfPrivateKeys,
         unlockKeyCommitment,
-        verifyingKey,
-        oprfPublicKeys,
-        oprfPublicKeySignatures,
+        oprfSignedPublicKeys,
         encryptionKeyScalarShares,
         encryptedSecret,
         encryptedSecretCommitments,
@@ -241,8 +245,7 @@ A _register2_ request is then sent from the client to each _Realm#sub[i]_ that c
 - oprfPrivateKeys#sub[i]
 - unlockKeyCommitment
 - verifyingKey
-- oprfPublicKeys#sub[i]
-- oprfPublicKeySignatures#sub[i]
+- oprfSignedPublicKeys#sub[i]
 - encryptionKeyScalarShares#sub[i]
 - encryptedSecret
 - encryptedSecretCommitments#sub[i]
@@ -342,9 +345,7 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 
       return Ok(blindedResult,
                 blindedResultProof,
-                state.oprfPublicKey,
-                state.verifyingKey,
-                state.oprfPublicKeySignature,
+                state.oprfSignedPublicKey,
                 state.unlockKeyCommitment,
                 state.allowedGuesses,
                 state.attemptedGuesses)
@@ -357,24 +358,22 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 An _OK_ response from this phase should always be expected to return the following information:
 - blindedResult
 - blindedResultProof
-- verifyingKey
-- oprfPublicKeys#sub[i]
-- oprfPublicKeySignatures#sub[i]
+- oprfSignedPublicKeys#sub[i]
 - unlockKeyCommitment
 - allowedGuesses
 - attemptedGuesses
 
 This phase will proceed until a client has completed it on at least _threshold_ _Realm#sub[i]_ that:
-+ agree on an _unlockKeyCommitment_ and _verifyingKey_
-+ have a valid _oprfPublicKeySignatures#sub[i]_ for _oprfPublicKeys#sub[i]_:
++ agree on an _unlockKeyCommitment_ and _verifyingKey_ for the _oprfSignedPublicKeys_
++ have a valid _oprfSignedPublicKeys#sub[i]_:
   ```python
-    VerifySignature(verifyingKey, publicKey, publicKeySignature)
+    VerifySignature(oprfSignedPublicKey)
   ```
 + have a valid _blindedResultProof_ for the _blindedResult_:
   ```python
     OprfProofVerify(
       blindedResultProof,
-      publicKey,
+      oprfSignedPublicKey.publicKey,
       blindedAccessKey,
       blindedResult
     )
@@ -567,14 +566,17 @@ The _register_ and _recover_ operations accept a _userInfo_ argument that is mix
 == OPRFs
 The protocol utilizes OPRFs based on 2HashDH as defined by Jarecki _et al._ @JKK14. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
 
-== Robust OPRFs with ZKPs
-The protocol utilizes ZKPs to allow a client to verify the server used a specific private key during the execution of the protocol. Our implementation of these proofs specifically utilizes a Chaum-Pedersen DLEQ proof with a Fiat-Shamir transform, as defined on page 10 of the paper written by Jarecki _et al._ @JKK14.
-
-== Public Key Signature
-The protocol utilizes a cryptographic signature to validate the public key used by each _realm_. We utilize Edwards-curve Digital Signature Algorithm (EdDSA) @Josefsson_Liusvaara_2017.
-
 == SSS
-The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979 using scalar math over Curve25519.
+The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979 over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023.
+
+=== T-OPRFs
+The protocol utilizes T-OPRFs based on 2HashTDH as defined by Jarecki _et al._ @JKKX17. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
+
+== Robust OPRFs with ZKPs
+The protocol utilizes ZKPs to allow a client to verify the server used a specific private key during the execution of the protocol. Our implementation of these proofs specifically utilizes a Chaum-Pedersen DLEQ with a Fiat-Shamir transform, as defined by Jarecki _et al._ @JKK14. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
+
+== DSA
+The protocol utilizes a cryptographic signature to validate the public key used by each _realm_. We utilize Edwards-curve Digital Signature Algorithm (EdDSA) @Josefsson_Liusvaara_2017.
 
 == KDF
 The protocol relies on a _KDF_ function to add entropy to the user's _PIN_. When an expensive _KDF_ is utilized, this provides an additional layer of protection for low entropy PINs if a _threshold_ of realms were to be compromised. For this reason, we utilize _Argon2_ @Biryukov_Dinu_Khovratovich_2015.
