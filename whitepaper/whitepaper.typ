@@ -7,8 +7,8 @@
     (name: "Nora Trapp", affiliation: "Juicebox Systems, Inc"),
     (name: "Diego Ongaro", affiliation: "Juicebox Systems, Inc"),
   ),
-  date: "July 13, 2023",
-  version: "Revision 6",
+  date: "July 28, 2023",
+  version: "Revision 7",
   abstract: [Existing secret management techniques demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have designed a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a short PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudorandom Functions_ (OPRFs) and a _Secret-Sharing Scheme_ (SSS) combined with self-destructing secrets to minimize the trust placed in any singular server. Additionally, our approach allows for servers distributed across organizations, eliminating the need to trust a singular service operator. We have built an open-source implementation of the client and server sides of this new protocol, the latter of which has variants for running on commodity hardware and secure hardware.],
   bibliography-file: "references.bib",
 )
@@ -64,38 +64,61 @@ This is a type of realm that runs on commodity hardware in common cloud provider
 Each _Realm_ allows the storage and recovery of secrets from users spanning multiple organizational boundaries. We refer to each of these organizational boundaries as a _tenant_, and the protocol as defined ensures that any individual tenant can only perform operations on user secrets within their organizational boundary. We utilize this multi-tenanted approach for realms as it reduces the costs of running realms by dividing the costs of operation across multiple tenants.
 
 = Cryptographic Primitives
-As a prerequisite to defining the protocol, we must define several cryptographic primitives that the protocol relies upon. Each of these is abstractly described, as the fundamental details of their implementation may evolve. For specific algorithms that we recommend as of the writing of this paper, see @Cryptographic_Implementation.
+The Juicebox Protocol layers multiple proven cryptographic primitives to achieve an implementation that is performant while maintaining strong security properties. Specifically, the pieces we have put together enable a protocol that is robust, distributed, and oblivious while allowing the storage and recovery of arbitrary secret material.
+
+As a prerequisite to defining this protocol, the following section defines the primitives that the protocol relies upon. Each of these is abstractly described, as the fundamental details of their implementation may evolve. For specific algorithms that we recommend as of the writing of this paper, see @Cryptographic_Implementation.
 
 == Oblivious Pseudorandom Functions (OPRFs)
-An OPRF is a cryptographic primitive that enables a server to securely evaluate a function on a client's input. This evaluation ensures the server learns nothing about the client's input and the client learns nothing about the server's key beyond the output of the function.
+An OPRF is a cryptographic primitive that enables a server to securely evaluate a function on a client's input. This evaluation ensures the server learns nothing about the client's input and the client learns nothing about the server's key beyond the output of the function. The Juicebox Protocol leverages OPRFs to specifically prevent a given _realm_ from ever learning a user's PIN.
 
 For this paper, we will define an OPRF exchange with the following abstract functions:
 
-/ $"OprfDeriveKey"("seed")$: \ Returns an OPRF _key_ derived from the provided _seed_. The key generated from a specific seed will always be the same.
 / $"OprfBlind"("input")$: \ Performs the blinding step for the _input_ value and returns the _blindedInput_ and _blindingFactor_. This _blindedInput_ is sent from the client to the server.
 / $"OprfBlindEvaluate"("key", "blindedInput")$: \ Performs the evaluation step for the _blindedInput_ and returns the _blindedResult_. This _blindedResult_ is sent from the server to the client.
 / $"OprfFinalize"("blindedResult", "blindingFactor", "input")$: \ Performs the finalization step to unblind the _blindedResult_ using the _blindingFactor_ and the _input_ and returns the _result_.
 / $"OprfEvaluate"("key", "input")$: \ Computes the unblinded _result_ directly bypassing the oblivious exchange.
 
 == Secret-Sharing Scheme (SSS) <SSS>
-A secret-sharing scheme is a cryptographic algorithm that allows a secret to be divided into multiple shares, which are then distributed among different participants. Only by collecting a minimum number of shares — typically determined by a _threshold_ specified during share creation — can the original secret be reconstructed. This approach provides a way to securely distribute and protect sensitive information by splitting it into multiple fragments that individually reveal nothing about the original secret.
+A secret-sharing scheme is a cryptographic primitive that allows a secret to be divided into multiple shares, which are then distributed among different participants. Only by collecting a minimum number of shares — typically determined by a _threshold_ specified during share creation — can the original secret be reconstructed. This approach provides a way to securely distribute and protect sensitive information by splitting it into multiple fragments that individually reveal nothing about the original secret.
 
 For this paper, we will define the following abstract functions for creating and reconstructing shares:
 
-/ $"CreateShares"(n, "threshold", "secret")$: \ Distributes a _secret_ scalar into _n_ scalar _shares_ that can be recovered when _threshold_ are provided.
-/ $"RecoverShares"("shares")$: \ Recovers a _secret_ scalar from _y_ _shares_. If an invalid combination of shares are provided, an incorrect scalar will be returned.
-/ $"RecoverSharesCombinatorially"("shares", "threshold", "validator")$: \ Attempts $"RecoverShares"$ on each _threshold_ combination of _shares_. After each recovery attempt, the recovered _secret_ is passed to the _validator_ function. If the _validator_ returns successfully, recovery is completed and the _secret_ is returned.
+/ $"CreateShares"(n, "threshold", "secret")$: \ Distributes a _secret_ into _n_ _shares_ that can be recovered when _threshold_ are provided.
+/ $"RecoverShares"("shares")$: \ Recovers a _secret_ from _y_ _shares_. If an invalid combination of shares is provided, an incorrect _secret_ will be returned that is indistinguishable from random.
+
+== Threshold OPRFs (T-OPRFs)
+A T-OPRF @JKKX17 is a hybrid primitive composing OPRFs and a secret-sharing scheme. This primitive enables a highly-efficient oblivious exchange across a _threshold_ set of servers to compute a single _result_. This is achieved by the client performing _CreateShares_ on a randomly generated root key and sending a single share of the key to each server to use as their OPRF key. By using such related keys, a singular blind evaluation can recover the _result_ after performing _RecoverShares_ on a _threshold_ set of _blindedResults_ returned from the servers.
+
+Additionally, since the output of multiple servers can now be utilized to arrive at a common _result_, a portion of that _result_ can be designated as a public _commitment_ and provided to the servers alongside their key share. When performing _TOprfFinalize_ on the _blindedResults_, a client can determine if their _input_ was valid by first establishing a consensus around a _threshold_ set of servers with a shared _commitment_ value. After finalizing the results from that set of servers, the client can then validate that the locally computed _commitment_ matches the _commitment_ provided by the servers to ensure the provided _input_ was correct.
+
+For this paper, we will define a T-OPRF exchange with the following abstract functions:
+
+/ $"TOprfKeyShares"(n, "threshold", "rootKey")$: \ Returns _n_ shares of a _rootKey_ with the specified _threshold_. Each key share is sent to one server. This function is an alias of _CreateShares_.
+/ $"TOprfBlind"("input")$: \ Performs the blinding step for the _input_ value and returns the _blindedInput_ and _blindingFactor_. This _blindedInput_ is sent from the client to each server. This function is an alias of _OprfBlind_.
+/ $"TOprfBlindEvaluate"("keyShare", "blindedInput")$: \ Performs the evaluation step for the _blindedInput_ and returns the _blindedResult_. This _blindedResult_ is sent from each server to the client. This function is an alias of _OprfBlindEvaluate_.
+/ $"TOprfFinalize"("blindedResults", "blindingFactor", "input")$: \ Performs the finalization step to unblind the set of _blindedResults_ returned from at least _threshold_ servers and returns a _result_ and a _commitment_ that can be used to validate that _result_ at a later point. If incorrect or insufficient shares of _blindedResults_ are present, the returned values will be indistinguishable from random. _TOprfFinalize_ can be implemented as _OprfFinalize(RecoverShares(blindedResults), blindingFactor, input)_ and splitting the _result_.
+/ $"TOprfEvaluate"("rootKey", "input")$: \ Computes the unblinded _result_ and _commitment_ directly bypassing the oblivious exchange. The _commitment_ can be sent to the servers to validate the _result_ received from _TOprfFinalize_ at a later date. _TOprfEvaluate_ can be implemented as _OprfEvaluate(rootKey, input)_ and splitting the _result_.
+
+== Robust OPRFs with Zero-Knowledge Proofs (ZKPs)
+A ZKP is a cryptographic primitive that allows one party to prove to another that a given statement is true without revealing any additional information beyond that truth. By combining ZKPs with OPRFs, we can create a protocol that is robust against malicious server behavior by validating that the server used a specific private key during the execution of the protocol. This requires that the client has trusted knowledge of a server's public key.
+
+For this paper, we will define a ZKP with the following abstract functions:
+
+/ $"OprfProofGenerate"("privateKey", "publicKey", "blindedInput", "blindedOutput")$: \ Returns a _proof_ capable of validating that a server performed an _OprfBlindEvaluate_ with a trusted _privateKey_, without revealing the _privateKey_.
+/ $"OprfProofVerify"("proof", "publicKey", "blindedInput", "blindedOutput")$: \ Validates a _proof_ to confirm that a server generated the _blindedOutput_ from the _blindedInput_ using the _privateKey_ associated with the trusted _publicKey_.
 
 == Additional Primitives
-In addition to the previously established _OPRF_ and _SSS_ primitives, the following common primitives are necessary to define the protocol:
+In addition to the previously established _OPRF_, _SSS_, _T-OPRF_, and _ZKP_ primitives, the following common primitives are necessary to define the protocol:
 
 / $"Encrypt"("encryptionKey", "plaintext", "nonce")$: \ Returns an authenticated encryption of _plaintext_ with _encryptionKey_. The encryption is performed with the given _nonce_.
 / $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: \ Returns the authenticated decryption of _ciphertext_ with _encryptionKey_. The decryption is performed with the given _nonce_.
 / $"KDF"("data", "salt", "info")$: \ Returns a fixed 64-byte value that is unique to the input _data_, _salt_, and _info_.
 / $"MAC"("key", "*inputs")$: \ Returns a 32-byte tag by combining the _key_ with the provided _inputs_. Each provided input is length-separated.
-/ $"Digest"("input")$: \ Returns a 32-byte value that is irreversibly to the _input_.
 / $"Random"(n)$: \ Returns _n_ random bytes. The _Random_ function should ensure the generation of random data with high entropy, suitable for cryptographic purposes.
-/ $"Scalar"("seed")$: \ Returns a scalar created from a 32-byte seed value.
+/ $"Scalar"("seed")$: \ Returns a scalar created from a 64-byte seed value.
+/ $"PublicKey"("scalar")$: \ Computes the _point_ representing the public key for a given _scalar_.
+/ $"GenerateSignature"("signingKey", "message")$: \ Sign the given _message_ using the _signingKey_ and returns the signature.
+/ $"VerifySignature"("verifyingKey", "message", "signature")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_.
 
 = Protocol
 The _Juicebox Protocol_ can be abstracted to three simple operations — _register_, _recover_, and _delete_.
@@ -120,9 +143,11 @@ A user transitions into the _NoGuesses_ state when the number of _attemptedGuess
 In the _Registered_ state, the following additional information is stored corresponding to the registration:
 
 / version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _Realms_. The version is random so that a malicious realm can't force a client to run out of versions.
-/ oprfSeeds#sub[i]: \ An OPRF seed derived from the user's _accessKey_ and a random root seed during registration for this _Realm#sub[i]_.
-/ maskedUnlockKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the `unlockKeyTag`, masked by the OPRF result such that even if _threshold_ shares were recovered, the _unlockKeyScalar_ cannot be recovered without knowing the user's _PIN_.
-/ unlockKeyCommitment: \ A MAC derived from the _unlockKey_ and _accessKey_ used to validate the _unlockKeyScalar_ was recovered successfuly.
+/ oprfPrivateKeys#sub[i]: \ A realm-specific OPRF private key derived by secret sharing a random root key.
+/ unlockKeyCommitment: \ A 32-byte value derived during registration from the OPRF result used to verify the _unlockKey_.
+/ oprfPublicKeys#sub[i]: \ A public key that corresponds to the _oprfPrivateKeys#sub[i]_ for this realm.
+/ oprfPublicKeySignatures#sub[i]: \ A signature of the _oprfPublicKeys#sub[i]_ for this realm.
+/ verifyingKey: \ The public key that corresponds to the key used to sign the _oprfPublicKeySignatures_ for every realm during registration.
 / unlockKeyTag#sub[i]: \ A tag unique to this _Realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of the _PIN_ and be granted access to the secret.
 / encryptionKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the `encryptionKey` for the user's secret. Even if _threshold_ shares were recovered, the _encryptionKey_ cannot be derived without knowing the user's _PIN_.
 / encryptedSecret: \ A copy of the user's encrypted secret.
@@ -165,7 +190,19 @@ The following demonstrates the work a client performs to prepare a new registrat
     accessKey = stretchedPin[0:32]
     encryptionKeySeed = stretchedPin[32:64]
 
-    encryptionKeyScalar = Scalar(Random(32))
+    oprfRootPrivateKey = Scalar(Random(64))
+    oprfPrivateKeys = TOprfKeyShares(len(realms), threshold, oprfRootPrivateKey)
+
+    unlockKeyCommitment, unlockKey = TOprfEvaluate(oprfRootPrivateKey, accessKey)
+
+    signingKey = Scalar(Random(64))
+    verifyingKey = PublicKey(signingKey)
+
+    oprfPublicKeys = [PublicKey(key) for key in oprfPrivateKeyShares]
+    oprfPublicKeySignatures = [GenerateSignature(signingKey, key)
+                                for key in oprfPublicKeys]
+
+    encryptionKeyScalar = Scalar(Random(64))
     encryptionKeyScalarShares = CreateShares(len(realms),
                                              threshold,
                                              encryptionKeyScalar)
@@ -176,21 +213,6 @@ The following demonstrates the work a client performs to prepare a new registrat
     # A `nonce` of 0 can be used since `encryptionKey` changes with each registration
     encryptedSecret = Encrypt(secret, encryptionKey, 0)
 
-    unlockKeyScalar = Scalar(Random(32))
-    unlockKeySeed = Digest(unlockKeyScalar)
-
-    oprfRootSeed = MAC(unlockKeySeed, "Oprf Root Seed", accessKey)
-    oprfSeeds = [MAC(oprfRootSeed, "Oprf Seed", realm.id) for realm in realms]
-    oprfResults = [OprfEvaluate(OprfDeriveKey(seed), accessKey) for seed in oprfSeeds]
-
-    unlockKeyScalarShares = CreateShares(len(realms), threshold, unlockKeyScalar)
-    maskedUnlockKeyScalarShares = [x + Scalar(Digest(y))
-                                  for x, y in zip(unlockKeyScalarShares, oprfResults)]
-
-    unlockKey = MAC(unlockKeySeed, "Unlock Key")
-    unlockKeyCommitment = MAC(unlockKeySeed, "Unlock Key Commitment", accessKey)
-
-    unlockKeyTags = [MAC(unlockKey, realm.id)[0:16] for realm in realms]
     encryptedSecretCommitments = [MAC(unlockKey,
                                       "Encrypted Secret Commitment",
                                       realm.id,
@@ -198,27 +220,33 @@ The following demonstrates the work a client performs to prepare a new registrat
                                       encryptedSecret)[0:16]
                                   for realm, share in zip(realms, encryptionKeyScalarShares)]
 
+    unlockKeyTags = [MAC(unlockKey, realm.id)[0:16] for realm in realms]
+
     return (
         version,
+        oprfPrivateKeys,
+        unlockKeyCommitment,
+        verifyingKey,
+        oprfPublicKeys,
+        oprfPublicKeySignatures,
         encryptionKeyScalarShares,
         encryptedSecret,
-        oprfSeeds,
-        maskedUnlockKeyScalarShares,
-        unlockKeyCommitment,
-        unlockKeyTags,
-        encryptedSecretCommitments
+        encryptedSecretCommitments,
+        unlockKeyTags
     )
 ```
 
 A _register2_ request is then sent from the client to each _Realm#sub[i]_ that contains the prepared:
 - version
-- oprfSeeds#sub[i]
-- maskedUnlockKeyScalarShares#sub[i]
+- oprfPrivateKeys#sub[i]
 - unlockKeyCommitment
-- unlockKeyTags#sub[i]
+- verifyingKey
+- oprfPublicKeys#sub[i]
+- oprfPublicKeySignatures#sub[i]
 - encryptionKeyScalarShares#sub[i]
 - encryptedSecret
 - encryptedSecretCommitments#sub[i]
+- unlockKeyTags#sub[i]
 - allowedGuesses
 
 Upon receipt of a _register2_ request, _Realm#sub[i]_ creates or overwrites the user's registration state with the corresponding values from the request and resets the _attemptedGuesses_ to 0.
@@ -278,21 +306,19 @@ The following demonstrates the work a client performs to prepare for Phase 2:
     accessKey = stretchedPin[0:32]
     encryptionKeySeed = stretchedPin[32:64]
 
-    blindOutputs = [OprfBlind(accessKey) for _ in realms]
-    blindedAccessKeys = [k for k, _ in blindOutputs]
-    blindingFactors = [f for _, f in blindOutputs]
+    blindedAccessKey, blindingFactor = TOprfBlind(accessKey)
 
     return (
       accessKey,
       encryptionKeySeed,
-      blindedAccessKeys,
-      blindingFactors
+      blindedAccessKey,
+      blindingFactor
     )
 ```
 
 A _recover2_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
 - version
-- blindedAccessKeys#sub[i]
+- blindedAccessKey
 
 The following demonstrates the work a _Realm#sub[i]_ performs to process the request:
 
@@ -305,14 +331,23 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
       if request.version != state.version:
         return Error.VersionMismatch()
 
-      oprfKey = OprfDeriveKey(state.oprfSeed)
-      blindedResult = OprfBlindEvaluate(oprfKey, request.blindedAccessKey)
+      blindedResult = TOprfBlindEvaluate(state.oprfPrivateKey, request.blindedAccessKey)
+      blindedResultProof = OprfProofGenerate(state.oprfPrivateKey,
+                            state.oprfPublicKey,
+                            request.blindedAccessKey,
+                            blindedResult
+                          )
 
       state.attemptedGuesses += 1
 
       return Ok(blindedResult,
-                state.maskedUnlockKeyScalarShare,
-                state.unlockKeyCommitment)
+                blindedResultProof,
+                state.oprfPublicKey,
+                state.verifyingKey,
+                state.oprfPublicKeySignature,
+                state.unlockKeyCommitment,
+                state.allowedGuesses,
+                state.attemptedGuesses)
     elif state.isNoGuesses():
       return Error.NoGuesses():
     elif state.isNotRegistered():
@@ -321,29 +356,59 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 
 An _OK_ response from this phase should always be expected to return the following information:
 - blindedResult
-- maskedUnlockKeyShares#sub[i]
+- blindedResultProof
+- verifyingKey
+- oprfPublicKeys#sub[i]
+- oprfPublicKeySignatures#sub[i]
 - unlockKeyCommitment
+- allowedGuesses
+- attemptedGuesses
 
-Once a client has completed Phase 2 on at least _threshold_ _Realm#sub[i]_ that agree on an _unlockKeyCommitment_, it will attempt to reconstruct the _unlockKey_ that matches the commitment.
+This phase will proceed until a client has completed it on at least _threshold_ _Realm#sub[i]_ that:
++ agree on an _unlockKeyCommitment_ and _verifyingKey_
++ have a valid _oprfPublicKeySignatures#sub[i]_ for _oprfPublicKeys#sub[i]_:
+  ```python
+    VerifySignature(verifyingKey, publicKey, publicKeySignature)
+  ```
++ have a valid _blindedResultProof_ for the _blindedResult_:
+  ```python
+    OprfProofVerify(
+      blindedResultProof,
+      publicKey,
+      blindedAccessKey,
+      blindedResult
+    )
+  ```
 
-The following demonstrates the work the client performs to reconstruct the _unlockKey_:
+If this cannot be completed on _threshold_ realms, the client must assume a fault on the realms and may need to re-register or try again later.
+
+If completed successfully, the client will attempt to recover the _unlockKey_.
+
+The following demonstrates the work the client performs to reconstruct and validate the _unlockKey_:
 
 ```python
-  def RecoverUnlockKey(maskedUnlockKeyShares, unlockKeyCommitment, threshold, accessKey):
-    try:
-      unlockKeyScalar = RecoverSharesCombinatorially(
-        maskedUnlockKeyShares,
-        threshold,
-        lambda scalar:
-          ourUnlockKeyCommitment = MAC(Digest(scalar), "Unlock Key Commitment", accessKey)
-          ConstantTimeEquals(ourUnlockKeyCommitment, unlockKeyCommitment)
-      )
-      return MAC(Digest(unlockKeyScalar), "Unlock Key")
-    except NoValidCombination:
-      return bytearray(b'\x00' * 32)
+  def RecoverUnlockKey(
+    blindingFactor,
+    accessKey,
+    unlockKeyCommitment,
+    blindedResults,
+    allowedGuesses,
+    attemptedGuesses
+  ):
+    ourUnlockKeyCommitment, unlockKey = TOprfFinalize(
+      blindedResults,
+      blindingFactor,
+      accessKey
+    )
+
+    if ConstantTimeEquals(ourUnlockKeyCommitment, unlockKeyCommitment):
+      return unlockKey
+    else:
+      guessesRemaining = allowedGuesses - attemptedGuesses
+      return Error.InvalidPin(guessesRemaining)
 ```
 
-Regardless of if the _unlockKey_ could be recovered successfully, the client will proceed to Phase 3. A null _unlockKey_ will be used if one could not be recovered.
+If the _unlockKey_ could be recovered successfully, the client will proceed to Phase 3. Otherwise, an _InvalidPin_ error will be returned by the client.
 
 === Phase 3 Recovery
 The purpose of Phase 3 is to recover the _encryptionKey_, allowing decryption and reconstruction of the user's _secret_. Additionally, this phase tells each _Realm#sub[i]_ the result of the operation so it can be audited appropriately.
@@ -353,17 +418,8 @@ Upon success this phase resets the _attemptedGuesses_ on each _Realm#sub[i]_ to 
 The following demonstrates the work a client performs to prepare for Phase 3:
 
 ```python
-  def PrepareRecovery3(
-    realms,
-    accessKey,
-    blindingFactors,
-    blindedResults,
-    unlockKey
-  ):
-    oprfResults = [OprfFinalize(x, y, accessKey)
-                   for x, y in zip(blindedResults, blindingFactors)]
+  def PrepareRecovery3(realms, unlockKey):
     unlockKeyTags = [MAC(unlockKey, realm.id) for realm in realms]
-
     return unlockKeyTags
 ```
 
@@ -419,7 +475,8 @@ The following demonstrates the work a client performs to do so:
                     threshold):
     validEncryptionKeyScalarShares = []
 
-    for share, commitment, realm in zip(encryptionKeyScalarShares, encryptedSecretCommitments, realms):
+    for share, commitment, realm in
+      zip(encryptionKeyScalarShares, encryptedSecretCommitments, realms):
       ourCommitment = MAC(unlockKey,
                           "Encrypted Secret Commitment",
                           realm.id,
@@ -481,32 +538,6 @@ A _Realm#sub[i]_ must reject any connections that:
 The operations defined in the prior sections assume all requests contain valid authentication tokens for a given _Realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _Realm_.
 
 = Security Considerations
-== A Deviation from JKKX16
-A subset of the Juicebox protocol can be viewed as a deviation from the PPSS primitive explored by Jarecki _et al._ (JKKX16) @Jarecki_Kiayias_Krawczyk_Xu_2016 where $s = "unlockKeyScalar"$, $K = "unlockKey"$, $C = "unlockKeyCommitment"$ and each OPRF server receives only a single share $e_i = "maskedUnlockKeyScalarShares"_i$. As a result, the calculation of _C_ has also been altered to no longer incorporate $e_*$ and instead look like $C = "COM"("pw", s)$. Without this change, it would be necessary to successfully recover from all OPRF servers in order to verify _C_ which is not viable in real-world environments when $t<n$.
-
-Additionally, we have altered the generation of OPRF keys such that they are deterministically hashed from _s_ and _pw_. This results in an OPRF key this is still effectively random, since _s_ is random per registration.
-
-=== Extending the JKKX16 Game-based Security Proof
-We'll use the name _J_ for the "challenger" in the security game for JKKX16, and the name _J'_ for the similar challenger for our variant of JKKX16 that only stores one share per OPRF server. We'll show that an adversary _A'_ against _J'_ can be converted into an adversary _A_ against _J_. This will suffice for the modified security proof; because JKKX16 shows that no _A_ exists, if _A_ can be implemented using _A'_, then no _A'_ exists.
-
-The challenger _J_ interacts with _A_ (similarly: _J'_ interacts with _A'_) as follows:
-+ During registration, _A_ deterministically hashes the OPRF keys that are used by a sub-threshold set of servers, which we model as a random oracle. Then _A_ learns a real-or-random key _K_ output by the user. This models an adversary who controls a sub-threshold set of servers but is not capable of MITM between the user and other servers.
-+ During a reconstruction attempt by the honest user, _A_ provides the OPRF keys used by a _threshold_ set of servers (possibly by forwarding answers to honest OPRF servers; possibly not). If the user accepts then _A_ learns the real-or-random key _K_. This models an adversary who is capable of MITM with any servers.
-+ _A_ can query passwords to the OPRFs from other honest servers. This models an adversary who can perform reconstruction attempts.
-
-_A_ wins by distinguishing whether it's in the "real" or "random" worlds. (2) and (3) are counted and used to bound _A_'s success probability.
-
-We now show how to implement an adversary _A_ against _J_ using _A'_. _A_ sits between _J_ and _A'_, forwarding interactions between them and emulating _J'_ to _A'_:
-+ During registration, _J_ sends $e_*=(e_1, ..., e_n)$ and $C="COM"("pw", e_*, s, r)$ to _A_. _J'_ sends $e_*$ and $C="COM"("pw", s)$ to _A'_. (Technically _A'_ only learns the _e#sub[i]_ for those servers it controls, during registration, but we assume _A'_ can easily make one reconstruction attempt to learn the other _e#sub[i]_).
-+ During a reconstruction attempt from the honest user, _A'_ only sends _e#sub[i]_ to _J'_ for each server, but _A_ sends $e_*$ to _J_ for each server. _A_ forwards all other data from _A'_ to _J_, including OPRF keys for OPRF responses forged by _A'_.
-+ OPRF queries from _A'_ are forwarded to _A_, to be answered by _J_ from the honest servers.
-
-The real-or-random keys _K_ are forwarded from _J_ to _A'_.
-
-If _A'_ queries $"COM"("pw", s)$ for the correct values then _A_ can recognize the correct query by deterministically recalculating the OPRF keys, $e_*$, and _C_. If _A'_ does not query $"COM"()$ for the correct values then _A'_ can't distinguish the commitment from random, so _A'_ is correctly executed.
-
-Because _K_ is calculated identically in _J_ and _J'_, if _A'_ can distinguish a real-or-random _K_ and "win" the guessing game against _J'_, then _A_ also wins against _J_.
-
 == Threshold Configuration
 While any $"threshold" <= n$ is valid, we recommend a $"threshold" > n/2$ which ensures that there can be only at most one valid secret for a user at a time, avoiding uncertainty during Phase 1 of recovery.
 
@@ -531,15 +562,16 @@ While the protocol provides strong security guarantees for low entropy PINs, usi
 == Salting
 The _register_ and _recover_ operations accept a _userInfo_ argument that is mixed into the _salt_ before passing it to the _KDF_. Using a known constant, like the UID, for this value can prevent a malicious _Realm_ from returning a fixed _salt_ with a pre-computed password table.
 
-== OPRFs
-In the protocol, the client is unconventionally responsible for generating all OPRF seeds and providing them to the realms during registration. It uses these seeds to locally evaluate the OPRF and mask the _unlockKey_. This avoids an extra round trip to the realms to evaluate the OPRF, reduces both client and realm computation, and eliminates an intermediate registration state on the realms.
-
 = Recommended Cryptographic Algorithms <Cryptographic_Implementation>
 
 == OPRFs
-The protocol relies on multiple _OPRF_ functions to ensure a _Realm_ does not gain access to the user's PIN.
+The protocol utilizes OPRFs based on 2HashDH as defined by Jarecki _et al._ @JKK14. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
 
-We specifically utilize OPRFs as described in the working draft by Davidson _et al._ @Davidson_Faz-Hernandez_Sullivan_Wood_2023 with the cipher suite _Ristretto255_ @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 Group and SHA-512 @Hansen_Eastlake_2011 Hash. Other cipher suites could also be potentially suitable depending on hardware and software constraints. In particular, certain HSMs may place restrictions on available cipher suites.
+== Robust OPRFs with ZKPs
+The protocol utilizes ZKPs to allow a client to verify the server used a specific private key during the execution of the protocol. Our implementation of these proofs specifically utilizes a Chaum-Pedersen DLEQ proof with a Fiat-Shamir transform, as defined on page 10 of the paper written by Jarecki _et al._ @JKK14.
+
+== Public Key Signature
+The protocol utilizes a cryptographic signature to validate the public key used by each _realm_. We utilize Edwards-curve Digital Signature Algorithm (EdDSA) @Josefsson_Liusvaara_2017.
 
 == SSS
 The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979 using scalar math over Curve25519.
@@ -564,9 +596,6 @@ The protocol relies on an authenticated _Encrypt_ and _Decrypt_ function to ensu
 
 == MAC
 The protocol relies on a _MAC_ function to compute various values for future validation. We utilize _BLAKE2s-MAC-256_ @Saarinen_Aumasson_2015.
-
-== Digest
-The protocol relies on a _Digest_ operation to derive fixed-length constants from computed values. We utilize _BLAKE2s-256_ @Saarinen_Aumasson_2015.
 
 = Acknowledgments
 - The protocol is heavily based on design and feedback from Trevor Perrin and Moxie Marlinspike.
