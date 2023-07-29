@@ -44,7 +44,7 @@ runs:
       uses: actions-rs/cargo@v1
       if: ${{ inputs.start-realm-count > 0 }}
       with:
-        args: -p juicebox-sdk-tokens
+        args: -p juicebox_tokens_cli
         command: build
 
     - name: Run Software Realm

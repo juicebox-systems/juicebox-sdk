@@ -1,0 +1,25 @@
+[package]
+name = "juicebox_api"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition = "2021"
+
+[dependencies]
+blake2 = { workspace = true }
+curve25519-dalek = { workspace = true }
+digest = { workspace = true }
+ed25519-dalek = { workspace = true }
+elliptic-curve = { workspace = true }
+hex = { workspace = true }
+juicebox_marshalling = { workspace = true }
+juicebox_noise = { workspace = true }
+juicebox_oprf = { workspace = true }
+rand_core = { workspace = true }
+serde = { workspace = true }
+sha2 = { workspace = true }
+subtle = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+rand_core = { workspace = true, features = ["getrandom"] }

@@ -1,0 +1,14 @@
+[package]
+name = "juicebox_software_realm_runner"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition = "2021"
+
+[dependencies]
+hex = { workspace = true }
+juicebox_api = { workspace = true }
+juicebox_process_group = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }

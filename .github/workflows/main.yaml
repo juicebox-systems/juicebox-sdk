@@ -49,7 +49,7 @@ jobs:
     - name: Show cargo package versions
       run: cargo install --list && cbindgen -V && which cbindgen
 
-    - name: Build juicebox-sdk-ffi
+    - name: Build juicebox_sdk_ffi
       run: swift/ffi.sh --debug --verbose --verify
 
     - name: Build and Test
@@ -138,7 +138,7 @@ jobs:
       - name: Run software realm integration tests
         uses: actions-rs/cargo@v1
         with:
-          args: -p juicebox-sdk software_realm --features software_realm_tests
+          args: -p juicebox_sdk software_realm --features software_realm_tests
           command: test
 
       - name: Install nightly
@@ -151,7 +151,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           toolchain: nightly-2023-05-01
-          args: -p juicebox-sdk-core -p juicebox-sdk-marshalling -p juicebox-sdk-noise -p juicebox-sdk-secret-sharing -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
+          args: -p juicebox_api -p juicebox_marshalling -p juicebox_noise -p juicebox_secret_sharing -p juicebox_oprf -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
           command: build
 
   jni:
@@ -197,4 +197,4 @@ jobs:
       - uses: jetli/wasm-pack-action@v0.4.0
 
       - name: Run Tests
-        run: WASM_BINDGEN_TEST_TIMEOUT=60 wasm-pack test --firefox --headless rust/bridge/wasm
+        run: WASM_BINDGEN_TEST_TIMEOUT=60 wasm-pack test --firefox --headless rust/sdk/bridge/wasm

@@ -78,8 +78,8 @@ if [[ -n "${CARGO_BUILD_TARGET:-}" ]] && ! (rustup target list --installed | gre
   exit 1
 fi
 
-echo cargo build -p juicebox-sdk-ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
-cargo build -p juicebox-sdk-ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
+echo cargo build -p juicebox_sdk_ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
+cargo build -p juicebox_sdk_ffi ${RELEASE:+--release} ${VERBOSE:+--verbose} ${CARGO_BUILD_TARGET:+--target $CARGO_BUILD_TARGET}
 
 FFI_HEADER_PATH=swift/Sources/JuiceboxSdkFfi/juicebox-sdk-ffi.h
 
@@ -94,14 +94,14 @@ if [[ -n "${RUN_CBINDGEN}" ]]; then
   fi
 
   if [[ -n "${VERIFY_CBINDGEN}" ]]; then
-    echo diff -u "${FFI_HEADER_PATH}" "<(cbindgen -q ${RELEASE:+--profile release} rust/bridge/ffi)"
-    if ! diff -u "${FFI_HEADER_PATH}"  <(cbindgen -q ${RELEASE:+--profile release} rust/bridge/ffi); then
+    echo diff -u "${FFI_HEADER_PATH}" "<(cbindgen -q ${RELEASE:+--profile release} rust/sdk/bridge/ffi)"
+    if ! diff -u "${FFI_HEADER_PATH}"  <(cbindgen -q ${RELEASE:+--profile release} rust/sdk/bridge/ffi); then
       echo
       echo 'error: juicebox-sdk-ffi.h not up to date; run' "$0" '--generate`' >&2
       exit 1
     fi
   else
-    echo cbindgen ${RELEASE:+--profile release} -o "${FFI_HEADER_PATH}" rust/bridge/ffi
-    cbindgen ${RELEASE:+--profile release} -o "${FFI_HEADER_PATH}" rust/bridge/ffi 2>&1
+    echo cbindgen ${RELEASE:+--profile release} -o "${FFI_HEADER_PATH}" rust/sdk/bridge/ffi
+    cbindgen ${RELEASE:+--profile release} -o "${FFI_HEADER_PATH}" rust/sdk/bridge/ffi 2>&1
   fi
 fi

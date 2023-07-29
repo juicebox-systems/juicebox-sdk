@@ -1,0 +1,18 @@
+[package]
+name = "juicebox_tokens_cli"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition = "2021"
+
+[[bin]]
+name = "tokens"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+hex = { workspace = true, features = ["std"] }
+jsonwebtoken = { workspace = true }
+juicebox_api = { workspace = true }
+juicebox_realm_auth = { workspace = true }
+thiserror = { workspace = true }

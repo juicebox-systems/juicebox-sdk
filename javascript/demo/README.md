@@ -2,7 +2,7 @@
 
 In order to run the demo, first run:
 ```sh
-wasm-pack build ../../rust/bridge/wasm --out-dir ../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
+wasm-pack build ../../rust/sdk/bridge/wasm --out-dir ../../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
 ```
 
 Then run `npm install`. Afterwards, the demo script can be run with `./demo.ts`

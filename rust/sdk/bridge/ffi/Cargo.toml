@@ -1,0 +1,23 @@
+[package]
+name = "juicebox_sdk_ffi"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition = "2021"
+build = "build.rs"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+async-trait = { workspace = true }
+futures = { workspace = true }
+libc = { workspace = true }
+juicebox_sdk = { workspace = true }
+juicebox_sdk_bridge = { workspace = true, features = ["tokio"] }
+tokio = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
+[build-dependencies]
+cbindgen = { workspace = true }

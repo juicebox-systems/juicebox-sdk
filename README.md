@@ -1,12 +1,14 @@
-## Juicebox-SDK
+## Juicebox SDK
 
 An interface for the Juicebox Protocol which provides distributed storage and recovery of secrets using simple PIN authentication.
 
-This interface is implemented in [Rust](rust/README.md), but is also bridged to support [Swift](swift/README.md), [Android](android/README.md), and [JavaScript](javascript/README.md).
+This interface is implemented in [Rust](rust/sdk/README.md), but is also bridged to support [Swift](swift/README.md), [Android](android/README.md), and [JavaScript](javascript/README.md).
 
 For a more in-depth explanation of the protocol – including the motivations behind it – read the [whitepaper](https://docs:JU1C380X@docs.juicebox.xyz/whitepapers/juiceboxprotocol_revision6_20230713.pdf).
 
-The protocol requires authentication, using JSON Web Tokens, the creation of which is delegated away from the operators of the servers that store secrets. Sample Rust code for creating and validating these tokens can be found in the [tokens](rust/sdk/tokens/README.md) CLI tool. Details on Authentication can be found in Section 4.5 of the Whitepaper.
+### Authentication
+
+The protocol requires authentication, using JSON Web Tokens, the creation of which is delegated away from the operators of the servers that store secrets. Sample Rust code for creating and validating these tokens can be found in the [tokens](rust/cli/tokens/README.md) CLI tool. Details on Authentication can be found in Section 4.5 of the Whitepaper.
 
 The following sample code represents how a token could be created on a nodejs server:
 
@@ -31,3 +33,11 @@ const token = jwt.sign(payload, signingKey, header);
 
 console.log('Generated JWT:', token);
 ```
+
+### Related Crates
+
+In addition to the SDK, this repo provides the following crates that may be useful outside of the SDK:
+
+* [juicebox_noise](rust/noise/README.md) – A limited implementation of the Noise protocol, restricted to support for `Noise_NK_25519_ChaChaPoly_BLAKE2s`
+* [juicebox_oprf](rust/oprf/README.md) – A 2HashDH OPRF implementation with additional support for DLEQ Zero-Knowledge proofs
+* [juicebox_secret_sharing](rust/secret_sharing/README.md) – A generic implementation of Shamir's Secret Sharing utilizing Lagrange Basic Polynomials

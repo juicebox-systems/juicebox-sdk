@@ -27,7 +27,7 @@ jobs:
       - name: Build Rust Demo
         uses: actions-rs/cargo@v1
         with:
-          args: -p juicebox-sdk-demo
+          args: -p juicebox_demo_cli
           command: build
 
       - name: Software Realm
@@ -38,7 +38,7 @@ jobs:
           token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Run Rust Demo
-        run: target/debug/juicebox_sdk_demo --configuration ${{ steps.software-realm.outputs.configuration }} --auth-tokens ${{ steps.software-realm.outputs.auth-tokens }}
+        run: target/debug/demo --configuration ${{ steps.software-realm.outputs.configuration }} --auth-tokens ${{ steps.software-realm.outputs.auth-tokens }}
 
   swift:
     name: Swift
@@ -105,7 +105,7 @@ jobs:
       - uses: jetli/wasm-pack-action@v0.4.0
 
       - name: Build WASM
-        run: wasm-pack build rust/bridge/wasm --out-dir ../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
+        run: wasm-pack build rust/sdk/bridge/wasm --out-dir ../../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
 
       - name: NPM Install
         run: |

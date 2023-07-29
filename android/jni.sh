@@ -71,8 +71,8 @@ for target in "${TARGETS[@]}"; do
         exit 1
     fi
 
-    echo cargo build -p juicebox-sdk-jni --release ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
-    cargo build -p juicebox-sdk-jni --release ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
+    echo cargo build -p juicebox_sdk_jni --release ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
+    cargo build -p juicebox_sdk_jni --release ${VERBOSE:+--verbose} --target ${CARGO_BUILD_TARGET}
 
     echo mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
     mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"

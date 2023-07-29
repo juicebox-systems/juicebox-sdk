@@ -1072,53 +1072,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk"
-version = "0.1.1"
-dependencies = [
- "argon2",
- "async-trait",
- "blake2",
- "chacha20poly1305",
- "curve25519-dalek",
- "digest",
- "futures",
- "hex",
- "instant",
- "juicebox-sdk-core",
- "juicebox-sdk-marshalling",
- "juicebox-sdk-networking",
- "juicebox-sdk-noise",
- "juicebox-sdk-oprf",
- "juicebox-sdk-process-group",
- "juicebox-sdk-realm-auth",
- "juicebox-sdk-secret-sharing",
- "juicebox-sdk-software-realm",
- "rand",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "tokio",
- "tracing 0.2.0",
- "url",
- "x25519-dalek",
- "zeroize",
-]
-
-[[package]]
-name = "juicebox-sdk-bridge"
-version = "0.1.1"
-dependencies = [
- "async-trait",
- "juicebox-sdk",
- "tokio",
- "url",
- "uuid",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "juicebox-sdk-core"
+name = "juicebox_api"
 version = "0.1.1"
 dependencies = [
  "blake2",
@@ -1127,9 +1081,9 @@ dependencies = [
  "ed25519-dalek",
  "elliptic-curve",
  "hex",
- "juicebox-sdk-marshalling",
- "juicebox-sdk-noise",
- "juicebox-sdk-oprf",
+ "juicebox_marshalling",
+ "juicebox_noise",
+ "juicebox_oprf",
  "rand_core",
  "serde",
  "sha2",
@@ -1138,12 +1092,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-demo"
+name = "juicebox_demo_cli"
 version = "0.1.1"
 dependencies = [
  "clap 4.3.10",
  "hex",
- "juicebox-sdk",
+ "juicebox_sdk",
  "reqwest",
  "serde_json",
  "tokio",
@@ -1151,37 +1105,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-ffi"
-version = "0.1.1"
-dependencies = [
- "async-trait",
- "cbindgen",
- "futures",
- "juicebox-sdk",
- "juicebox-sdk-bridge",
- "libc",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "juicebox-sdk-jni"
-version = "0.1.1"
-dependencies = [
- "async-trait",
- "cbindgen",
- "futures",
- "jni",
- "juicebox-sdk",
- "juicebox-sdk-bridge",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "juicebox-sdk-marshalling"
+name = "juicebox_marshalling"
 version = "0.1.1"
 dependencies = [
  "ciborium",
@@ -1190,13 +1114,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-networking"
+name = "juicebox_networking"
 version = "0.1.1"
 dependencies = [
  "async-trait",
  "http",
- "juicebox-sdk-core",
- "juicebox-sdk-marshalling",
+ "juicebox_api",
+ "juicebox_marshalling",
  "opentelemetry",
  "reqwest",
  "serde",
@@ -1207,7 +1131,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-noise"
+name = "juicebox_noise"
 version = "0.1.1"
 dependencies = [
  "blake2",
@@ -1216,7 +1140,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "juicebox-sdk-marshalling",
+ "juicebox_marshalling",
  "rand_core",
  "serde",
  "serde_json",
@@ -1225,14 +1149,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-oprf"
+name = "juicebox_oprf"
 version = "0.1.1"
 dependencies = [
  "criterion",
  "curve25519-dalek",
  "digest",
  "hex",
- "juicebox-sdk-marshalling",
+ "juicebox_marshalling",
  "rand_chacha",
  "rand_core",
  "serde",
@@ -1244,7 +1168,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-process-group"
+name = "juicebox_process_group"
 version = "0.1.1"
 dependencies = [
  "libc",
@@ -1253,53 +1177,94 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox-sdk-realm-auth"
+name = "juicebox_realm_auth"
 version = "0.1.1"
 dependencies = [
  "hex",
  "jsonwebtoken",
- "juicebox-sdk-core",
+ "juicebox_api",
  "regex",
  "serde",
 ]
 
 [[package]]
-name = "juicebox-sdk-secret-sharing"
+name = "juicebox_sdk"
 version = "0.1.1"
 dependencies = [
+ "argon2",
+ "async-trait",
+ "blake2",
+ "chacha20poly1305",
  "curve25519-dalek",
- "itertools 0.11.0",
- "juicebox-sdk-core",
+ "digest",
+ "futures",
+ "hex",
+ "instant",
+ "juicebox_api",
+ "juicebox_marshalling",
+ "juicebox_networking",
+ "juicebox_noise",
+ "juicebox_oprf",
+ "juicebox_process_group",
+ "juicebox_realm_auth",
+ "juicebox_secret_sharing",
+ "juicebox_software_realm_runner",
  "rand",
- "rand_core",
-]
-
-[[package]]
-name = "juicebox-sdk-software-realm"
-version = "0.1.1"
-dependencies = [
- "hex",
- "juicebox-sdk-core",
- "juicebox-sdk-process-group",
- "reqwest",
+ "serde",
  "serde_json",
+ "sha2",
+ "subtle",
  "tokio",
+ "tracing 0.2.0",
+ "url",
+ "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
-name = "juicebox-sdk-tokens"
+name = "juicebox_sdk_bridge"
 version = "0.1.1"
 dependencies = [
- "clap 4.3.10",
- "hex",
- "jsonwebtoken",
- "juicebox-sdk-core",
- "juicebox-sdk-realm-auth",
- "thiserror",
+ "async-trait",
+ "juicebox_sdk",
+ "tokio",
+ "url",
+ "uuid",
+ "wasm-bindgen",
 ]
 
 [[package]]
-name = "juicebox-sdk-wasm"
+name = "juicebox_sdk_ffi"
+version = "0.1.1"
+dependencies = [
+ "async-trait",
+ "cbindgen",
+ "futures",
+ "juicebox_sdk",
+ "juicebox_sdk_bridge",
+ "libc",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "juicebox_sdk_jni"
+version = "0.1.1"
+dependencies = [
+ "async-trait",
+ "cbindgen",
+ "futures",
+ "jni",
+ "juicebox_sdk",
+ "juicebox_sdk_bridge",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "juicebox_sdk_wasm"
 version = "0.1.1"
 dependencies = [
  "async-trait",
@@ -1308,8 +1273,8 @@ dependencies = [
  "getrandom",
  "instant",
  "js-sys",
- "juicebox-sdk",
- "juicebox-sdk-bridge",
+ "juicebox_sdk",
+ "juicebox_sdk_bridge",
  "serde",
  "serde-wasm-bindgen",
  "url",
@@ -1317,6 +1282,40 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-sys",
+]
+
+[[package]]
+name = "juicebox_secret_sharing"
+version = "0.1.1"
+dependencies = [
+ "curve25519-dalek",
+ "itertools 0.11.0",
+ "rand",
+ "rand_core",
+]
+
+[[package]]
+name = "juicebox_software_realm_runner"
+version = "0.1.1"
+dependencies = [
+ "hex",
+ "juicebox_api",
+ "juicebox_process_group",
+ "reqwest",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "juicebox_tokens_cli"
+version = "0.1.1"
+dependencies = [
+ "clap 4.3.10",
+ "hex",
+ "jsonwebtoken",
+ "juicebox_api",
+ "juicebox_realm_auth",
+ "thiserror",
 ]
 
 [[package]]
