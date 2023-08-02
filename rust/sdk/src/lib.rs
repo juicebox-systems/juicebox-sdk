@@ -39,6 +39,8 @@ pub use juicebox_networking::reqwest;
 #[cfg(feature = "reqwest")]
 use juicebox_networking::rpc::LoadBalancerService;
 
+pub static VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// Used to build a [`Client`].
 pub struct ClientBuilder<S, Http, Atm> {
     configuration: Option<CheckedConfiguration>,
@@ -158,7 +160,10 @@ where
     /// Sets the [`http::Client`] to [`reqwest::Client`].
     pub fn reqwest(self) -> Self {
         self.http(reqwest::Client::<LoadBalancerService>::new(
-            reqwest::ClientOptions::default(),
+            reqwest::ClientOptions {
+                user_agent: &format!("JuiceboxSdk-Rust/{}", VERSION),
+                ..reqwest::ClientOptions::default()
+            },
         ))
     }
 
