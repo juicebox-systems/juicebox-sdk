@@ -13,16 +13,18 @@ use crate::{http, rpc};
 
 /// Options for configuring the [`reqwest`] [`Client`].
 #[derive(Debug, Clone)]
-pub struct ClientOptions {
+pub struct ClientOptions<'a> {
     pub additional_root_certs: Vec<Certificate>,
     pub timeout: Duration,
+    pub user_agent: &'a str,
 }
 
-impl Default for ClientOptions {
+impl<'a> Default for ClientOptions<'a> {
     fn default() -> Self {
         Self {
             additional_root_certs: Vec::new(),
             timeout: Duration::from_secs(30),
+            user_agent: concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")),
         }
     }
 }
@@ -40,6 +42,7 @@ impl<F: rpc::Service> Client<F> {
     pub fn new(options: ClientOptions) -> Self {
         let mut b = reqwest::Client::builder()
             .timeout(options.timeout)
+            .user_agent(options.user_agent)
             .use_rustls_tls();
         for c in options.additional_root_certs {
             b = b.add_root_certificate(c);

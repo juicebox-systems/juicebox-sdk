@@ -160,7 +160,10 @@ where
     /// Sets the [`http::Client`] to [`reqwest::Client`].
     pub fn reqwest(self) -> Self {
         self.http(reqwest::Client::<LoadBalancerService>::new(
-            reqwest::ClientOptions::default(),
+            reqwest::ClientOptions {
+                user_agent: &format!("JuiceboxSdk-Rust/{}", VERSION),
+                ..reqwest::ClientOptions::default()
+            },
         ))
     }
 
