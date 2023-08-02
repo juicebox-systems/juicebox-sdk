@@ -7,6 +7,7 @@ use juicebox_sdk as sdk;
 use juicebox_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use libc::{c_char, c_void};
 use std::ffi::CString;
+use std::sync::Once;
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -104,10 +105,16 @@ pub unsafe extern "C" fn juicebox_client_destroy(
     drop(Box::from_raw(client))
 }
 
+static VERSION_INIT: Once = Once::new();
+static mut VERSION: *const c_char = ptr::null();
+
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn juicebox_sdk_version() -> *const c_char {
-    CString::new(sdk::VERSION).unwrap().into_raw() as *const c_char
+    VERSION_INIT.call_once(|| {
+        VERSION = CString::new(sdk::VERSION).unwrap().into_raw();
+    });
+    VERSION
 }
 
 #[no_mangle]
