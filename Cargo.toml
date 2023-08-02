@@ -1,44 +1,49 @@
 [workspace]
 members = [
-    "rust/sdk/client",
-    "rust/sdk/core",
-    "rust/sdk/demo",
-    "rust/sdk/marshalling",
-    "rust/sdk/networking",
-    "rust/sdk/noise",
-    "rust/sdk/oprf",
-    "rust/sdk/process_group",
-    "rust/sdk/realm_auth",
-    "rust/sdk/secret_sharing",
-    "rust/sdk/software_realm",
-    "rust/sdk/tokens",
-    "rust/bridge/ffi",
-    "rust/bridge/jni",
-    "rust/bridge/wasm",
-    "rust/bridge/common",
+    "rust/cli/demo",
+    "rust/cli/tokens",
+    "rust/marshalling",
+    "rust/networking",
+    "rust/noise",
+    "rust/oprf",
+    "rust/process_group",
+    "rust/realm/api",
+    "rust/realm/auth",
+    "rust/sdk",
+    "rust/sdk/bridge",
+    "rust/sdk/bridge/ffi",
+    "rust/sdk/bridge/jni",
+    "rust/sdk/bridge/wasm",
+    "rust/secret_sharing",
+    "rust/software_realm_runner",
 ]
-default-members = ["rust/sdk/client"]
+default-members = ["rust/sdk"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.1"
 license = "MIT"
+authors = [
+    "Simon Fell <simon@juicebox.me>",
+    "Diego Ongaro <diego@juicebox.me>",
+    "Nora Trapp <nora@juicebox.me>",
+]
 
 [workspace.dependencies]
-juicebox-sdk = { path = "rust/sdk/client", version = "0.1.1" }
-juicebox-sdk-core = { path = "rust/sdk/core", version = "0.1.1" }
-juicebox-sdk-marshalling = { path = "rust/sdk/marshalling", version = "0.1.1" }
-juicebox-sdk-networking = { path = "rust/sdk/networking", version = "0.1.1" }
-juicebox-sdk-noise = { path = "rust/sdk/noise", version = "0.1.1" }
-juicebox-sdk-oprf = { path = "rust/sdk/oprf", version = "0.1.1" }
-juicebox-sdk-process-group = { path = "rust/sdk/process_group", version = "0.1.1" }
-juicebox-sdk-realm-auth = { path = "rust/sdk/realm_auth", version = "0.1.1" }
-juicebox-sdk-secret-sharing = { path = "rust/sdk/secret_sharing", version = "0.1.1" }
-juicebox-sdk-software-realm = { path = "rust/sdk/software_realm", version = "0.1.1" }
-juicebox-sdk-bridge = { path = "rust/bridge/common", version = "0.1.1" }
-juicebox-sdk-ffi = { path = "rust/bridge/ffi", version = "0.1.1" }
-juicebox-sdk-jni = { path = "rust/bridge/jni", version = "0.1.1" }
-juicebox-sdk-wasm = { path = "rust/bridge/wasm", version = "0.1.1" }
+juicebox_marshalling = { path = "rust/marshalling", version = "0.1.1" }
+juicebox_networking = { path = "rust/networking", version = "0.1.1" }
+juicebox_noise = { path = "rust/noise", version = "0.1.1" }
+juicebox_oprf = { path = "rust/oprf", version = "0.1.1" }
+juicebox_process_group = { path = "rust/process_group", version = "0.1.1" }
+juicebox_realm_api = { path = "rust/realm/api", version = "0.1.1" }
+juicebox_realm_auth = { path = "rust/realm/auth", version = "0.1.1" }
+juicebox_secret_sharing = { path = "rust/secret_sharing", version = "0.1.1" }
+juicebox_sdk = { path = "rust/sdk", version = "0.1.1" }
+juicebox_sdk_bridge = { path = "rust/sdk/bridge", version = "0.1.1" }
+juicebox_sdk_ffi = { path = "rust/sdk/bridge/ffi", version = "0.1.1" }
+juicebox_sdk_jni = { path = "rust/sdk/bridge/jni", version = "0.1.1" }
+juicebox_sdk_wasm = { path = "rust/sdk/bridge/wasm", version = "0.1.1" }
+juicebox_software_realm_runner = { path = "rust/software_realm_runner", version = "0.1.1" }
 
 argon2 = "0.5.0"
 async-trait = "0.1.64"

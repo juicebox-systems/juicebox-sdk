@@ -1,0 +1,52 @@
+[package]
+name = "juicebox_sdk"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition = "2021"
+
+[lib]
+doctest = false
+
+[dependencies]
+argon2 = { workspace = true }
+async-trait = { workspace = true }
+blake2 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+curve25519-dalek = { workspace = true }
+digest = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+instant = { workspace = true }
+juicebox_marshalling = { workspace = true }
+juicebox_networking = { workspace = true }
+juicebox_noise = { workspace = true }
+juicebox_oprf = { workspace = true }
+juicebox_realm_api = { workspace = true }
+juicebox_secret_sharing = { workspace = true }
+rand = { workspace = true, features = ["getrandom"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+subtle = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+x25519-dalek = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+juicebox_process_group = { workspace = true }
+juicebox_realm_auth = { workspace = true }
+juicebox_software_realm_runner = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[features]
+tokio = []
+reqwest = ["juicebox_networking/reqwest"]
+software_realm_tests = [
+    "tokio",
+    "reqwest",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+]

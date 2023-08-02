@@ -1,0 +1,23 @@
+[package]
+name = "juicebox_networking"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition = "2021"
+
+[dependencies]
+async-trait = { workspace = true }
+http = { workspace = true }
+juicebox_marshalling = { workspace = true }
+juicebox_realm_api = { workspace = true }
+opentelemetry = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true, optional = true }
+url = { workspace = true }
+
+[features]
+"distributed-tracing" = ["tracing-opentelemetry", "opentelemetry"]
+"reqwest" = ["dep:reqwest"]

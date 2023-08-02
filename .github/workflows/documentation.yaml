@@ -99,7 +99,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: '-p juicebox-sdk --no-deps --features tokio,reqwest'
+          args: '-p juicebox_sdk --no-deps --features tokio,reqwest'
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
@@ -183,7 +183,7 @@ jobs:
       - uses: jetli/wasm-pack-action@v0.4.0
 
       - name: Create JavaScript package
-        run: wasm-pack build rust/bridge/wasm --out-dir ../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
+        run: wasm-pack build rust/sdk/bridge/wasm --out-dir ../../../../javascript/juicebox-sdk --out-name juicebox-sdk --target nodejs
 
       - name: Install TypeDoc
         run: npm install --global typedoc

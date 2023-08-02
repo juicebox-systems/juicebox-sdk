@@ -56,8 +56,8 @@ jobs:
 
       - name: Build JavaScript Package
         run: >-
-          wasm-pack build rust/bridge/wasm
-          --out-dir ../../../javascript/juicebox-sdk
+          wasm-pack build rust/sdk/bridge/wasm
+          --out-dir ../../../../javascript/juicebox-sdk
           --out-name juicebox-sdk
           --target bundler
 
@@ -69,7 +69,7 @@ jobs:
       - name: Publish
         run: |
           cp ../README.md .
-          sed -i 's/juicebox-sdk-wasm/juicebox-sdk/' package.json
+          sed -i 's/juicebox_sdk_wasm/juicebox-sdk/' package.json
           npm publish
         working-directory: javascript/juicebox-sdk
         env:
