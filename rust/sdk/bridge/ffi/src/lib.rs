@@ -6,6 +6,7 @@ use auth::{AuthTokenGetFn, AuthTokenManager};
 use juicebox_sdk as sdk;
 use juicebox_sdk_bridge::{Client, DeleteError, PinHashingMode, RecoverError, RegisterError};
 use libc::{c_char, c_void};
+use std::ffi::CString;
 use std::{ffi::CStr, ptr, str::FromStr};
 use url::Url;
 
@@ -101,6 +102,12 @@ pub unsafe extern "C" fn juicebox_client_destroy(
 ) {
     assert!(!client.is_null());
     drop(Box::from_raw(client))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_sdk_version() -> *const c_char {
+    CString::new(sdk::VERSION).unwrap().into_raw() as *const c_char
 }
 
 #[no_mangle]

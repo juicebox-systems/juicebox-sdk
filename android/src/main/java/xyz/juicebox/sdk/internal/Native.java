@@ -24,6 +24,8 @@ public final class Native {
 
     public static native void clientDestroy(long client);
 
+    public static native String sdkVersion();
+
     public static native long configurationCreate(
             @NotNull Realm[] realms,
             int registerThreshold,

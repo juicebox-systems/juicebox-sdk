@@ -80,6 +80,15 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_clientDestroy(
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_sdkVersion<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+) -> JString<'local> {
+    env.new_string(sdk::VERSION).unwrap()
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_configurationCreate(
     mut env: JNIEnv,
     _class: JClass,

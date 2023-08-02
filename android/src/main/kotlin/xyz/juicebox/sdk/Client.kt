@@ -143,6 +143,11 @@ class Client private constructor (
 
                     urlConnection.requestMethod = request.method
 
+                    urlConnection.setRequestProperty(
+                        "User-Agent",
+                        "JuiceboxSdk-Android/${Native.sdkVersion()}"
+                    )
+
                     request.headers?.forEach {
                         urlConnection.setRequestProperty(it.name, it.value)
                     }

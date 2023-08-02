@@ -263,6 +263,11 @@ impl sdk::http::Client for HttpClient {
             let js_request = Request::new_with_str_and_init(request.url.as_str(), &opts)
                 .expect("Failed to initialze request");
 
+            js_request
+                .headers()
+                .set("User-Agent", &format!("JuiceboxSdk-WASM/{}", sdk::VERSION))
+                .unwrap();
+
             request.headers.iter().for_each(|(name, value)| {
                 js_request.headers().set(name, value).unwrap();
             });

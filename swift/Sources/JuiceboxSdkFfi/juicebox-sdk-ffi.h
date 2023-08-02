@@ -201,6 +201,8 @@ JuiceboxClient *juicebox_client_create(JuiceboxConfiguration *configuration,
 
 void juicebox_client_destroy(JuiceboxClient *client);
 
+const char *juicebox_sdk_version(void);
+
 JuiceboxConfiguration *juicebox_configuration_create(JuiceboxUnmanagedRealmArray realms,
                                                      uint32_t register_threshold,
                                                      uint32_t recover_threshold,

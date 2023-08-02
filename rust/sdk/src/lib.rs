@@ -39,6 +39,8 @@ pub use juicebox_networking::reqwest;
 #[cfg(feature = "reqwest")]
 use juicebox_networking::rpc::LoadBalancerService;
 
+pub static VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// Used to build a [`Client`].
 pub struct ClientBuilder<S, Http, Atm> {
     configuration: Option<CheckedConfiguration>,
