@@ -1,5 +1,5 @@
 [package]
-name = "juicebox_api"
+name = "juicebox_realm_api"
 version.workspace = true
 license.workspace = true
 authors.workspace = true

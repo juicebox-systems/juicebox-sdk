@@ -1,7 +1,8 @@
 use rand::rngs::OsRng;
 use tracing::instrument;
 
-use juicebox_api::{
+use juicebox_oprf as oprf;
+use juicebox_realm_api::{
     requests::{
         Register1Response, Register2Request, Register2Response, SecretsRequest, SecretsResponse,
     },
@@ -11,7 +12,6 @@ use juicebox_api::{
         UserSecretEncryptionKeyScalarShare,
     },
 };
-use juicebox_oprf as oprf;
 use juicebox_secret_sharing::create_shares;
 
 use crate::{

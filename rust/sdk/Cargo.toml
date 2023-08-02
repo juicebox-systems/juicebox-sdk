@@ -18,11 +18,11 @@ digest = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 instant = { workspace = true }
-juicebox_api = { workspace = true }
 juicebox_marshalling = { workspace = true }
 juicebox_networking = { workspace = true }
 juicebox_noise = { workspace = true }
 juicebox_oprf = { workspace = true }
+juicebox_realm_api = { workspace = true }
 juicebox_secret_sharing = { workspace = true }
 rand = { workspace = true, features = ["getrandom"] }
 serde = { workspace = true }

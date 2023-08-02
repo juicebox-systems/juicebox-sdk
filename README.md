@@ -40,4 +40,4 @@ In addition to the SDK, this repo provides the following crates that may be usef
 
 * [juicebox_noise](rust/noise/README.md) – A limited implementation of the Noise protocol, restricted to support for `Noise_NK_25519_ChaChaPoly_BLAKE2s`
 * [juicebox_oprf](rust/oprf/README.md) – A 2HashDH OPRF implementation with additional support for DLEQ Zero-Knowledge proofs
-* [juicebox_secret_sharing](rust/secret_sharing/README.md) – A generic implementation of Shamir's Secret Sharing utilizing Lagrange Basic Polynomials
+* [juicebox_secret_sharing](rust/secret_sharing/README.md) – A generic implementation of Shamir's Secret Sharing utilizing Lagrange Basis Polynomials

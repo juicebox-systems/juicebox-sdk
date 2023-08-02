@@ -1,7 +1,7 @@
 use crate::{types::UserSecretEncryptionKeySeed, UserInfo};
 use argon2::{Algorithm, Argon2, Params, ParamsBuilder, Version};
-use juicebox_api::types::{RegistrationVersion, SecretBytesVec, UserSecretAccessKey};
 use juicebox_marshalling::to_be4;
+use juicebox_realm_api::types::{RegistrationVersion, SecretBytesVec, UserSecretAccessKey};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -109,7 +109,7 @@ impl Pin {
 
 #[cfg(test)]
 mod tests {
-    use juicebox_api::types::RegistrationVersion;
+    use juicebox_realm_api::types::RegistrationVersion;
 
     use crate::{
         pin::{Pin, PinHashingMode},

@@ -1072,26 +1072,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "juicebox_api"
-version = "0.1.1"
-dependencies = [
- "blake2",
- "curve25519-dalek",
- "digest",
- "ed25519-dalek",
- "elliptic-curve",
- "hex",
- "juicebox_marshalling",
- "juicebox_noise",
- "juicebox_oprf",
- "rand_core",
- "serde",
- "sha2",
- "subtle",
- "zeroize",
-]
-
-[[package]]
 name = "juicebox_demo_cli"
 version = "0.1.1"
 dependencies = [
@@ -1119,8 +1099,8 @@ version = "0.1.1"
 dependencies = [
  "async-trait",
  "http",
- "juicebox_api",
  "juicebox_marshalling",
+ "juicebox_realm_api",
  "opentelemetry",
  "reqwest",
  "serde",
@@ -1177,12 +1157,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "juicebox_realm_api"
+version = "0.1.1"
+dependencies = [
+ "blake2",
+ "curve25519-dalek",
+ "digest",
+ "ed25519-dalek",
+ "elliptic-curve",
+ "hex",
+ "juicebox_marshalling",
+ "juicebox_noise",
+ "juicebox_oprf",
+ "rand_core",
+ "serde",
+ "sha2",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "juicebox_realm_auth"
 version = "0.1.1"
 dependencies = [
  "hex",
  "jsonwebtoken",
- "juicebox_api",
+ "juicebox_realm_api",
  "regex",
  "serde",
 ]
@@ -1200,12 +1200,12 @@ dependencies = [
  "futures",
  "hex",
  "instant",
- "juicebox_api",
  "juicebox_marshalling",
  "juicebox_networking",
  "juicebox_noise",
  "juicebox_oprf",
  "juicebox_process_group",
+ "juicebox_realm_api",
  "juicebox_realm_auth",
  "juicebox_secret_sharing",
  "juicebox_software_realm_runner",
@@ -1299,8 +1299,8 @@ name = "juicebox_software_realm_runner"
 version = "0.1.1"
 dependencies = [
  "hex",
- "juicebox_api",
  "juicebox_process_group",
+ "juicebox_realm_api",
  "reqwest",
  "serde_json",
  "tokio",
@@ -1313,7 +1313,7 @@ dependencies = [
  "clap 4.3.10",
  "hex",
  "jsonwebtoken",
- "juicebox_api",
+ "juicebox_realm_api",
  "juicebox_realm_auth",
  "thiserror",
 ]

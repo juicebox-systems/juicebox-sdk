@@ -20,11 +20,11 @@ use types::Session;
 pub use auth::AuthTokenManager;
 pub use configuration::Configuration;
 pub use delete::DeleteError;
+pub use juicebox_networking::http;
 /// A unique identifier for a [`Realm`].
 #[doc = "\n"] // add paragraph break before core crate comment
-pub use juicebox_api::types::RealmId;
-pub use juicebox_api::types::{AuthToken, Policy};
-pub use juicebox_networking::http;
+pub use juicebox_realm_api::types::RealmId;
+pub use juicebox_realm_api::types::{AuthToken, Policy};
 pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;

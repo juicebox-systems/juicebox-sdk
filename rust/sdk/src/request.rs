@@ -8,16 +8,16 @@ use x25519_dalek as x25519;
 
 use crate::auth;
 use crate::{http, types::Session, Client, Realm, Sleeper};
-use juicebox_api::{
+use juicebox_marshalling as marshalling;
+use juicebox_networking::rpc::{self, RpcError};
+use juicebox_noise::client as noise;
+use juicebox_realm_api::{
     requests::{
         ClientRequest, ClientRequestKind, ClientResponse, NoiseRequest, NoiseResponse,
         SecretsRequest, SecretsResponse,
     },
     types::SessionId,
 };
-use juicebox_marshalling as marshalling;
-use juicebox_networking::rpc::{self, RpcError};
-use juicebox_noise::client as noise;
 
 #[derive(Debug)]
 pub(crate) enum RequestError {

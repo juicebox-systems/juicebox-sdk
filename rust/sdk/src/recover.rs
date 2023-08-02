@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use subtle::ConstantTimeEq;
 use tracing::instrument;
 
-use juicebox_api::{
+use juicebox_oprf as oprf;
+use juicebox_realm_api::{
     requests::{
         Recover1Response, Recover2Request, Recover2Response, Recover3Request, Recover3Response,
         SecretsRequest, SecretsResponse,
@@ -15,7 +16,6 @@ use juicebox_api::{
         UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey, UserSecretEncryptionKeyScalarShare,
     },
 };
-use juicebox_oprf as oprf;
 use juicebox_secret_sharing::{recover_secret, RecoverSecretError, Share};
 
 use crate::{

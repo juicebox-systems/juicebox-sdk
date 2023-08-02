@@ -1,7 +1,7 @@
 use std::process::exit;
 
 use jsonwebtoken::errors::ErrorKind;
-use juicebox_api::types::{AuthToken, RealmId};
+use juicebox_realm_api::types::{AuthToken, RealmId};
 use juicebox_realm_auth::{
     creation::create_token,
     validation::{Error, Validator, MAX_LIFETIME_SECONDS},

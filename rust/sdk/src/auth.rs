@@ -2,7 +2,7 @@
 //! the authority to act as a particular user on a particular realm.
 
 use async_trait::async_trait;
-use juicebox_api::types::{AuthToken, RealmId};
+use juicebox_realm_api::types::{AuthToken, RealmId};
 use std::collections::HashMap;
 
 /// A trait representing generic management of tokens that grant

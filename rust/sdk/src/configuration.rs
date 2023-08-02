@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, ops::Deref};
 
 use crate::{PinHashingMode, Realm};
-use juicebox_api::types::RealmId;
+use juicebox_realm_api::types::RealmId;
 use juicebox_secret_sharing::Index;
 
 /// The parameters used to configure a [`Client`](crate::Client).

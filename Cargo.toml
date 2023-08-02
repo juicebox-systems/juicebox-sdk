@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "rust/api",
     "rust/cli/demo",
     "rust/cli/tokens",
     "rust/marshalling",
@@ -8,7 +7,8 @@ members = [
     "rust/noise",
     "rust/oprf",
     "rust/process_group",
-    "rust/realm_auth",
+    "rust/realm/api",
+    "rust/realm/auth",
     "rust/sdk",
     "rust/sdk/bridge",
     "rust/sdk/bridge/ffi",
@@ -30,13 +30,13 @@ authors = [
 ]
 
 [workspace.dependencies]
-juicebox_api = { path = "rust/api", version = "0.1.1" }
 juicebox_marshalling = { path = "rust/marshalling", version = "0.1.1" }
 juicebox_networking = { path = "rust/networking", version = "0.1.1" }
 juicebox_noise = { path = "rust/noise", version = "0.1.1" }
 juicebox_oprf = { path = "rust/oprf", version = "0.1.1" }
 juicebox_process_group = { path = "rust/process_group", version = "0.1.1" }
-juicebox_realm_auth = { path = "rust/realm_auth", version = "0.1.1" }
+juicebox_realm_api = { path = "rust/realm/api", version = "0.1.1" }
+juicebox_realm_auth = { path = "rust/realm/auth", version = "0.1.1" }
 juicebox_secret_sharing = { path = "rust/secret_sharing", version = "0.1.1" }
 juicebox_sdk = { path = "rust/sdk", version = "0.1.1" }
 juicebox_sdk_bridge = { path = "rust/sdk/bridge", version = "0.1.1" }

@@ -2,7 +2,7 @@ use futures::future::join_all;
 use tracing::instrument;
 
 use crate::{auth, http, request::RequestError, Client, Realm, Sleeper};
-use juicebox_api::requests::{DeleteResponse, SecretsRequest, SecretsResponse};
+use juicebox_realm_api::requests::{DeleteResponse, SecretsRequest, SecretsResponse};
 
 /// Error return type for [`Client::delete`].
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]

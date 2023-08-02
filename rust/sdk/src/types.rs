@@ -12,13 +12,13 @@ use std::fmt::{self, Debug};
 
 use url::Url;
 
-use juicebox_api::types::{
-    EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockKey,
-    UnlockKeyCommitment,
-};
 use juicebox_marshalling::to_be4;
 use juicebox_noise::client as noise;
 use juicebox_oprf as oprf;
+use juicebox_realm_api::types::{
+    EncryptedUserSecret, RealmId, SecretBytesArray, SecretBytesVec, SessionId, UnlockKey,
+    UnlockKeyCommitment,
+};
 
 /// A remote service that the client interacts with directly.
 ///

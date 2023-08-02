@@ -1,5 +1,5 @@
 use jsonwebtoken::{self, Algorithm, DecodingKey, TokenData, Validation};
-use juicebox_api::types::RealmId;
+use juicebox_realm_api::types::RealmId;
 use serde::Deserialize;
 
 use super::{AuthKey, AuthKeyVersion, AuthToken, Claims};

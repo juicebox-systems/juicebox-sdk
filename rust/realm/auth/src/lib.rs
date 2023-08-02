@@ -1,4 +1,4 @@
-use juicebox_api::types::{AuthToken, RealmId, SecretBytesVec};
+use juicebox_realm_api::types::{AuthToken, RealmId, SecretBytesVec};
 
 pub mod creation;
 pub mod validation;
