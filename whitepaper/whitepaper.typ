@@ -46,7 +46,7 @@ When adding a _Realm_ to your configuration, some important questions to ask are
 Configurations of realms are used in _threshold_-based operations. A _threshold_ is a definition of how many realms must participate for a secret to be recovered. Configuring a $"threshold" < n$ allows increased availability of secrets when using a configuration with a larger size since not all realms are required to be operational or in agreement for the operation to succeed.
 
 == Realms <Realms>
-A _Realm_ is a service capable of storing a distributed share of a user's secret. The following sections describe the two types of realms that we have implemented and the _trust boundaries_ associated with each type.
+A _Realm_ is a service capable of storing a distributed share of a user's secret. This section describe the two types of realms that we have implemented and the _trust boundaries_ associated with each type.
 
 A _Realm_ is defined by the following information:
 
@@ -54,11 +54,9 @@ A _Realm_ is defined by the following information:
 / address: \ The fully qualified network address for connecting to the service.
 / publicKey: \ An optional 32-byte public key used to establish secure communications for hardware realms, where the realm controls a matching private key. See @Realm_Communication for more details.
 
-=== Hardware Realms
-This is a type of realm backed by secure hardware — specifically a hardware security module (HSM). Hardware realms provide tight _trust boundaries_ as only the HSM and the code it executes must be trusted. This difference is visible in @Figure_1.
+A _hardware realm_ is a type of realm backed by secure hardware — specifically a hardware security module (HSM). Hardware realms provide tight _trust boundaries_ as only the HSM and the code it executes must be trusted. This difference is visible in @Figure_1.
 
-=== Software Realms
-This is a type of realm that runs on commodity hardware in common cloud providers. When paired with hardware realms, they are a valuable low-cost tool for increasing the number of _trust boundaries_ within a configuration.
+A _software realm_ is a type of realm that runs on commodity hardware in common cloud providers. When paired with hardware realms, they are a valuable low-cost tool for increasing the number of _trust boundaries_ within a configuration.
 
 == Tenants
 Each _Realm_ allows the storage and recovery of secrets from users spanning multiple organizational boundaries. We refer to each of these organizational boundaries as a _tenant_, and the protocol as defined ensures that any individual tenant can only perform operations on user secrets within their organizational boundary. We utilize this multi-tenanted approach for realms as it reduces the costs of running realms by dividing the costs of operation across multiple tenants.
@@ -106,7 +104,7 @@ A ZKP is a cryptographic primitive that enables one party to demonstrate the tru
 
 For this paper, we will define a ZKP with the following abstract functions:
 
-/ $"OprfProofGenerate"("privateKey", "publicKey", "blindedInput", "blindedOutput")$: \ Returns a _proof_ capable of validating that a server performed an _OprfBlindEvaluate_ with a trusted _privateKey_, without revealing the _privateKey_.
+/ $"OprfProofGenerate"("privateKey", "publicKey", "blindedInput", "blindedOutput")$: \ Returns a _proof_ demonstrating that a server performed an _OprfBlindEvaluate_ with a trusted _privateKey_, without revealing the _privateKey_.
 / $"OprfProofVerify"("proof", "publicKey", "blindedInput", "blindedOutput")$: \ Validates a _proof_ to confirm that a server generated the _blindedOutput_ from the _blindedInput_ using the _privateKey_ associated with a trusted _publicKey_.
 
 == Digital Signature Algorithm (DSA)
@@ -125,7 +123,7 @@ In addition to the previously established _OPRF_, _SSS_, _T-OPRF_, and _ZKP_ pri
 / $"Encrypt"("encryptionKey", "plaintext", "nonce")$: \ Returns an authenticated encryption of _plaintext_ with _encryptionKey_. The encryption is performed with the given _nonce_.
 / $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: \ Returns the authenticated decryption of _ciphertext_ with _encryptionKey_. The decryption is performed with the given _nonce_.
 / $"KDF"("data", "salt", "info")$: \ Returns a fixed 64-byte value that is unique to the input _data_, _salt_, and _info_.
-/ $"MAC"("key", "*inputs")$: \ Returns a 32-byte tag by combining the _key_ with the provided _inputs_. Each provided input is length-separated.
+/ $"MAC"("key", "*inputs")$: \ Returns a 32-byte tag by combining the _key_ with the provided _inputs_. The _MAC_ function should encode the inputs unambiguously.
 / $"Random"(n)$: \ Returns _n_ random bytes. The _Random_ function should ensure the generation of random data with high entropy, suitable for cryptographic purposes.
 / $"Scalar"("seed")$: \ Returns a scalar created from a 64-byte seed value.
 / $"PublicKey"("scalar")$: \ Computes the _point_ representing the public key for a given _scalar_.
@@ -137,10 +135,10 @@ The following sections contain Python code that demonstrates the work performed 
 
 For this code, we assume that the protocol client has been appropriately configured with:
 - _n_ mutually distrusting realms, each of which will be referred to as _Realm#sub[i]_
-- $"threshold <= n"$ indicating how many realms must be available for recovery to succeed
+- $"threshold"lt.eq"n"$ indicating how many realms must be available for recovery to succeed
 
-== Realm#sub[i] State
-_Realm#sub[i]_ will store a record indexed by the combination of the registering user's identifier (UID, as defined in @Authentication) and their _tenant_. This ensures that a given _tenant_ may only authorize operations for its users.
+== Realm State
+_Realm#sub[i]_ will store a record indexed by the combination of the registering user's identifier (UID, as defined in @Authentication) and their _tenant_'s name. This ensures that a given _tenant_ may only authorize operations for its users.
 
 This record can exist in one of three states:
 
@@ -152,12 +150,12 @@ A user transitions into the _NoGuesses_ state when the number of _attemptedGuess
 
 In the _Registered_ state, the following additional information is stored corresponding to the registration:
 
-/ version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _Realms_. The version is random so that a malicious realm can't force a client to run out of versions.
+/ version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _Realms_. The version is random so that a malicious realm can't force a client to run out of versions. The version is also used as a salt that is combined with the user's PIN.
 / oprfPrivateKeys#sub[i]: \ A realm-specific OPRF private key derived by secret sharing a random root key.
 / unlockKeyCommitment: \ A 32-byte value derived during registration from the OPRF result used to verify the _unlockKey_.
 / oprfSignedPublicKey#sub[i]: \ A signed public key that corresponds to the _oprfPrivateKeys#sub[i]_ for this realm. Wraps the _publicKey_, a _signature_, and the public _verifyingKey_ for the _signingKey_ used to generate the _signature_.
 / unlockKeyTag#sub[i]: \ A tag unique to this _Realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of the _PIN_ and be granted access to the secret.
-/ encryptionKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the `encryptionKey` for the user's secret. Even if _threshold_ shares were recovered, the _encryptionKey_ cannot be derived without knowing the user's _PIN_.
+/ encryptionKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the _encryptionKey_ for the user's secret. Even if _threshold_ shares were recovered, the _encryptionKey_ cannot be derived without knowing the user's _PIN_.
 / encryptedSecret: \ A copy of the user's encrypted secret.
 / encryptedSecretCommitment#sub[i]: \ A MAC derived from the _unlockKey_, _Realm#sub[id]_, encryptionKeyScalarShares#sub[i], and _encryptedSecret_. During recovery, the client can reconstruct this MAC to verify if _Realm#sub[i]_ has returned a valid share and secret.
 / allowedGuesses: \ The maximum number of guesses allowed before the registration is permanently deleted by the _Realm#sub[i]_.
@@ -226,7 +224,8 @@ The following demonstrates the work a client performs to prepare a new registrat
                                       encryptedSecret)[0:16]
                                   for realm, share in zip(realms, encryptionKeyScalarShares)]
 
-    unlockKeyTags = [MAC(unlockKey, realm.id)[0:16] for realm in realms]
+    unlockKeyTags = [MAC(unlockKey, "Unlock Key Tag", realm.id)[0:16]
+                     for realm in realms]
 
     return (
         version,
@@ -244,7 +243,6 @@ A _register2_ request is then sent from the client to each _Realm#sub[i]_ that c
 - version
 - oprfPrivateKeys#sub[i]
 - unlockKeyCommitment
-- verifyingKey
 - oprfSignedPublicKeys#sub[i]
 - encryptionKeyScalarShares#sub[i]
 - encryptedSecret
@@ -297,7 +295,7 @@ An _OK_ response from this phase should always be expected to return the followi
 Once a client has completed Phase 1 on at least _threshold_ _Realm#sub[i]_ that agree on _version_, it will proceed to Phase 2 for those realms. If no realms are in agreement, the client will assume that the user is _NotRegistered_ on any realm.
 
 === Phase 2 Recovery <Recovery_Phase_2>
-The purpose of Phase 2 is to increment the _attemptedGuesses_ for the user and recover the _maskedUnlockKeyScalarShares_ stored during registration, along with the _OPRF_ result required to unmask them and reconstruct the _unlockKey_.
+The purpose of Phase 2 is to increment the _attemptedGuesses_ for the user and get the _OPRF_ results required to reconstruct the _unlockKey_.
 
 By design, a client cannot recover the user's secret by performing Phase 2 alone. This ensures that each realm has an opportunity to audit the recovery attempt in Phase 2, before the client may gain access to the user's secret in Phase 3.
 
@@ -365,11 +363,13 @@ An _OK_ response from this phase should always be expected to return the followi
 
 This phase will proceed until a client has completed it on at least _threshold_ _Realm#sub[i]_ that:
 + agree on an _unlockKeyCommitment_ and _verifyingKey_ for the _oprfSignedPublicKeys_
-+ have a valid _oprfSignedPublicKeys#sub[i]_:
++ each have a valid _oprfSignedPublicKeys#sub[i]_:
+  #v(-0.5em)
   ```python
     VerifySignature(oprfSignedPublicKey)
   ```
-+ have a valid _blindedResultProof_ for the _blindedResult_:
++ each have a valid _blindedResultProof_ for the _blindedResult_:
+  #v(-0.5em)
   ```python
     OprfProofVerify(
       blindedResultProof,
@@ -418,7 +418,8 @@ The following demonstrates the work a client performs to prepare for Phase 3:
 
 ```python
   def PrepareRecovery3(realms, unlockKey):
-    unlockKeyTags = [MAC(unlockKey, realm.id) for realm in realms]
+    unlockKeyTags = [MAC(unlockKey, "Unlock Key Tag", realm.id)
+                     for realm in realms]
     return unlockKeyTags
 ```
 
@@ -576,7 +577,7 @@ The protocol utilizes T-OPRFs based on 2HashTDH as defined by Jarecki _et al._ @
 The protocol utilizes ZKPs to allow a client to verify the server used a specific private key during the execution of the protocol. Our implementation of these proofs specifically utilizes a Chaum-Pedersen DLEQ with a Fiat-Shamir transform, as defined by Jarecki _et al._ @JKK14. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
 
 == DSA
-The protocol utilizes a cryptographic signature to validate the public key used by each _realm_. We utilize Edwards-curve Digital Signature Algorithm (EdDSA) @Josefsson_Liusvaara_2017.
+The protocol utilizes a cryptographic signature to validate the public key used by each _realm_. We utilize Ed25519, an Edwards-curve Digital Signature Algorithm (EdDSA) @Josefsson_Liusvaara_2017.
 
 == KDF
 The protocol relies on a _KDF_ function to add entropy to the user's _PIN_. When an expensive _KDF_ is utilized, this provides an additional layer of protection for low entropy PINs if a _threshold_ of realms were to be compromised. For this reason, we utilize _Argon2_ @Biryukov_Dinu_Khovratovich_2015.

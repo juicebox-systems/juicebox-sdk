@@ -23,7 +23,7 @@
 
   set enum(indent: 1.5em)
   set list(indent: 1.5em)
-  set terms(separator: [: ])
+  set terms(separator: [*:* ])
 
   v(8em)
 
