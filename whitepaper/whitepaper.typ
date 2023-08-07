@@ -7,7 +7,7 @@
     (name: "Nora Trapp", affiliation: "Juicebox Systems, Inc"),
     (name: "Diego Ongaro", affiliation: "Juicebox Systems, Inc"),
   ),
-  date: "August 4, 2023",
+  date: "August 7, 2023",
   version: "Revision 7",
   abstract: [Existing secret management techniques demand users memorize complex passwords, store convoluted recovery phrases, or place their trust in a specific service or hardware provider. We have designed a novel protocol that combines existing cryptographic techniques to eliminate these complications and reduce user complexity to recalling a short PIN. Our protocol specifically focuses on a distributed approach to secret storage that leverages _Oblivious Pseudorandom Functions_ (OPRFs) and a _Secret-Sharing Scheme_ (SSS) combined with self-destructing secrets to minimize the trust placed in any singular server. Additionally, our approach allows for servers distributed across organizations, eliminating the need to trust a singular service operator. We have built an open-source implementation of the client and server sides of this new protocol, the latter of which has variants for running on commodity hardware and secure hardware.],
   bibliography-file: "references.bib",
@@ -30,9 +30,9 @@ Specifically, this protocol:
 Juicebox provides open-source implementations for both the client and server on GitHub @Juicebox_Github.
 
 = Overview
-A protocol client distributes their secrets across _n_ mutually distrusting services that implement the _Juicebox Protocol_. For this paper, we will refer to each service that a secret can be distributed to as an abstract _Realm_, elaborated upon in @Realms.
+A protocol client distributes their secrets across _n_ mutually distrusting services that implement the _Juicebox Protocol_. For this paper, we will refer to each service that a secret can be distributed to as an abstract _realm_, elaborated upon in @Realms.
 
-The overall security of the protocol is directly related to the set of _n_ realms you configure your client with. Adding a _Realm_ to your configuration generally results in a net increase in security.
+The overall security of the protocol is directly related to the set of _n_ realms you configure your client with. Adding a _realm_ to your configuration generally results in a net increase in security.
 
 #figure(
   image("juicebox-diagram.png"),
@@ -40,17 +40,18 @@ The overall security of the protocol is directly related to the set of _n_ realm
 ) <Figure_1>
 
 When adding a _Realm_ to your configuration, some important questions to ask are:
-- Who has access to the data stored on that _Realm_? (referred to as a _trust boundary_ going forward)
-- Does that _trust boundary_ overlap with other realms in your configuration? If so, adding this _Realm_ may reduce your overall security.
+- Who has access to the data stored on that _realm_? (referred to as a _trust boundary_ going forward)
+- Does that _trust boundary_ overlap with other realms in your configuration? If so, adding this _realm_ may reduce your overall security.
 
 Configurations of realms are used in _threshold_-based operations. A _threshold_ is a definition of how many realms must participate for a secret to be recovered. Configuring a $"threshold" < n$ allows increased availability of secrets when using a configuration with a larger size since not all realms are required to be operational or in agreement for the operation to succeed.
 
 == Realms <Realms>
-A _Realm_ is a service capable of storing a distributed share of a user's secret. This section describe the two types of realms that we have implemented and the _trust boundaries_ associated with each type.
+A _Realm_ is a service capable of storing a distributed share of a user's secret. This section describes the two types of realms that we have implemented and the _trust boundaries_ associated with each type.
 
 A _Realm_ is defined by the following information:
 
 / id: \ A 16-byte identifier uniquely representing this realm across all configured realms.
+/ index: \ An integer from _1..N_ that uniquely identifies the realm's position in a configuration.
 / address: \ The fully qualified network address for connecting to the service.
 / publicKey: \ An optional 32-byte public key used to establish secure communications for hardware realms, where the realm controls a matching private key. See @Realm_Communication for more details.
 
@@ -64,6 +65,14 @@ Each _Realm_ allows the storage and recovery of secrets from users spanning mult
 = Cryptographic Primitives
 As a prerequisite to defining the protocol, we must define several cryptographic primitives that the protocol relies upon. Each of these is abstractly described, as the fundamental details of their implementation may evolve. For specific algorithms that we recommend as of the writing of this paper, see @Cryptographic_Implementation.
 
+== Secret-Sharing Scheme (SSS) <SSS>
+A secret-sharing scheme is a cryptographic primitive that allows a secret to be divided into multiple shares, which are then distributed among different participants. Only by collecting a minimum number of shares — typically determined by a _threshold_ specified during share creation — can the original secret be reconstructed. This approach provides a way to securely distribute and protect sensitive information by splitting it into multiple fragments that individually reveal nothing about the original secret.
+
+For this paper, we will define the following abstract functions for creating and reconstructing shares:
+
+/ $"CreateShares"(n, "threshold", "secret")$: \ Distributes a _secret_ into an ordered list of _n_ _shares_ that can be recovered when _threshold_ are provided.
+/ $"RecoverShares"("indexedShares")$: \ Recovers a _secret_ from _y_ _indexedShares_ where each contains a corresponding _index_ from _1..N_ and _share_. If an invalid combination of shares is provided, an incorrect _secret_ will be returned that is indistinguishable from random.
+
 == Oblivious Pseudorandom Functions (OPRFs)
 An OPRF is a cryptographic primitive that enables a server to securely evaluate a function on a client's input. This evaluation ensures the server learns nothing about the client's input and the client learns nothing about the server's key beyond the output of the function.
 
@@ -74,14 +83,6 @@ For this paper, we will define an OPRF exchange with the following abstract func
 / $"OprfFinalize"("blindedResult", "blindingFactor", "input")$: \ Performs the finalization step to unblind the _blindedResult_ using the _blindingFactor_ and the _input_ and returns the _result_.
 / $"OprfEvaluate"("key", "input")$: \ Computes the unblinded _result_ directly bypassing the oblivious exchange.
 
-== Secret-Sharing Scheme (SSS) <SSS>
-A secret-sharing scheme is a cryptographic primitive that allows a secret to be divided into multiple shares, which are then distributed among different participants. Only by collecting a minimum number of shares — typically determined by a _threshold_ specified during share creation — can the original secret be reconstructed. This approach provides a way to securely distribute and protect sensitive information by splitting it into multiple fragments that individually reveal nothing about the original secret.
-
-For this paper, we will define the following abstract functions for creating and reconstructing shares:
-
-/ $"CreateShares"(n, "threshold", "secret")$: \ Distributes a _secret_ into an ordered list of _n_ _shares_ that can be recovered when _threshold_ are provided.
-/ $"RecoverShares"("indexedShares")$: \ Recovers a _secret_ from _y_ _indexedShares_ where each contains a corresponding _index_ from _1..N_ and _share_. If an invalid combination of shares is provided, an incorrect _secret_ will be returned that is indistinguishable from random.
-
 == Threshold OPRFs (T-OPRFs)
 A T-OPRF combines OPRFs and a secret-sharing scheme into a hybrid primitive that facilitates a highly-efficient oblivious exchange of an _input_ across a _threshold_ set of servers, allowing the computation of a single secret _result_ without revealing that _result_ to the servers. The correctness of the _result_ can be verified utilizing a _commitment_ computed during evaluation and finalization.
 
@@ -90,7 +91,7 @@ For this paper, we will define a T-OPRF exchange with the following abstract fun
 / $"TOprfKeyShares"(n, "threshold", "rootKey")$: \ Returns _n_ shares of a _rootKey_ with the specified _threshold_. Each key share is sent to one server. This function is an alias of _CreateShares_.
 / $"TOprfBlind"("input")$: \ Performs the blinding step for the _input_ value and returns the _blindedInput_ and _blindingFactor_. This _blindedInput_ is sent from the client to each server. This function is an alias of _OprfBlind_.
 / $"TOprfBlindEvaluate"("keyShare", "blindedInput")$: \ Performs the evaluation step for the _blindedInput_ and returns the _blindedResult_. This _blindedResult_ is sent from each server to the client. This function is an alias of _OprfBlindEvaluate_.
-/ $"TOprfFinalize"("blindedResults", "blindingFactor", "input")$: \ Performs the finalization step to unblind the set of _blindedResults_ returned from at least _threshold_ servers and returns a _result_ and a _commitment_ that can be used to validate that _result_ at a later point. If incorrect or insufficient shares of _blindedResults_ are present, the returned values will be indistinguishable from random. _TOprfFinalize_ can be implemented as _OprfFinalize(RecoverShares(blindedResults), blindingFactor, input)_ and splitting the _result_.
+/ $"TOprfFinalize"("indexedBlindedResults", "blindingFactor", "input")$: \ Performs the finalization step to unblind the set of _indexedBlindedResults_ returned from at least _threshold_ servers and returns a _result_ and a _commitment_ that can be used to validate that _result_ at a later point. If incorrect or insufficient shares of _indexedBlindedResults_ are present, the returned values will be indistinguishable from random. _TOprfFinalize_ can be implemented as _OprfFinalize(RecoverShares(indexedBlindedResults), blindingFactor, input)_ and splitting the _result_.
 / $"TOprfEvaluate"("rootKey", "input")$: \ Computes the unblinded _result_ and _commitment_ directly bypassing the oblivious exchange. The _commitment_ can be sent to the servers to validate the _result_ received from _TOprfFinalize_ at a later date. _TOprfEvaluate_ can be implemented as _OprfEvaluate(rootKey, input)_ and splitting the _result_.
 
 == Robust T-OPRFs with Zero-Knowledge Proofs (ZKPs)
@@ -107,24 +108,39 @@ A DSA is a cryptographic primitive that facilitates the generation and verificat
 For this paper, we will define a DSA with the following abstract functions:
 
 / $"NewSigningKey()"$: \ Returns a random private _signingKey_.
-/ $"GenerateSignature"("signingKey", "message", "info")$: \ Signs the given _message_ and _info_ using the _signingKey_ and returns a _signedMessage_ that contains the _signature_, _verifyingKey_, and original _message_.
-/ $"VerifySignature"("signedMessage", "info")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_ and _info_.
+/ $"GenerateSignature"("signingKey", "message", "context")$: \ Signs the combined _message_ and _context_ using the _signingKey_ and returns a _signedMessage_ that contains the _signature_, _verifyingKey_, and original _message_.
+/ $"VerifySignature"("signedMessage", "context")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_ and _context_.
 
 == Additional Primitives
-In addition to the previously established _OPRF_, _SSS_, _T-OPRF_, and _ZKP_ primitives, the following common primitives are necessary to define the protocol:
+In addition to the previously established primitives, the following common primitives are necessary to define the protocol:
 
 / $"Encrypt"("encryptionKey", "plaintext", "nonce")$: \ Returns an authenticated encryption of _plaintext_ with _encryptionKey_. The encryption is performed with the given _nonce_.
-/ $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: \ Returns the authenticated decryption of _ciphertext_ with _encryptionKey_. The decryption is performed with the given _nonce_.
+/ $"Decrypt"("encryptionKey", "ciphertext", "nonce")$: \ Returns the authenticated decryption of _ciphertext_ with _encryptionKey_ or an _error_ if decryption fails. The decryption is performed with the given _nonce_.
 / $"KDF"("data", "salt", "info")$: \ Returns a fixed 64-byte value that is unique to the input _data_, _salt_, and _info_.
-/ $"MAC"(n, "key", "*inputs")$: \ Returns an n-byte tag by combining the _key_ with the provided _inputs_. The _MAC_ function should encode the inputs unambiguously.
+/ $"MAC"(n, "key", "*inputs")$: \ Returns an _n_-byte tag by combining the _key_ with the provided _inputs_. The _MAC_ function should encode the inputs unambiguously.
 / $"Random"(n)$: \ Returns _n_ random bytes. The _Random_ function should ensure the generation of random data with high entropy, suitable for cryptographic purposes.
 / $"Scalar"("seed")$: \ Returns a scalar created from a 64-byte seed value.
 / $"PublicKey"("scalar")$: \ Computes the _point_ representing the public key for a given _scalar_.
 
 = Protocol
-The _Juicebox Protocol_ can be abstracted to three simple operations — _register_, _recover_, and _delete_.
+The _Juicebox Protocol_ can be abstracted to three simple operations:
 
-Utilizing the previously defined primitives, the protocol specifically aims to:
+/ Register: A two-phase operation that a new user takes to store a PIN-protected secret. A registration operation is also performed to change a user's PIN or register a new secret for an existing user.
+
++ In phase 1, the client checks that at least _y_ realms are available to store the user's secret, where $y >= "threshold"$.
++ In phase 2, the client prepares and updates the registration _state_ on each Realm#sub[i].
+
+/ Recover: A three-phase operation that an existing user takes to recover a PIN-protected secret.
+
++ In phase 1, the client checks that a _threshold_ of realms with consensus on _version_ is available to recover the secret.
++ In phase 2, the client performs a T-OPRF exchange on the identified realms using an _input_ derived from the user's _PIN_.
++ In phase 3, the client uses the T-OPRF _result_ to derive tags for each realm that proves it knows the correct _PIN_. Then, each realm returns information that the client uses to reconstruct the user's secret.
+
+/ Delete: A single-phase operation that reverts a user's registration state to _NotRegistered_.
+
+== Functionality
+
+The protocol uses the above operations, along with the previously defined primitives, to provide the following functionality:
 
 / Prevent online brute-force attacks: \ Realms limit the number of unsuccessful recovery attempts to prevent online brute-force attacks against the user's _PIN_ (and OPRF key shares). Each realm independently increments an attempted guess count in phase 2 of recovery and disallows recoveries beyond the limit specified during registration. This counter is reset to zero in phase 3 of recovery if the client proves it knows the correct _PIN_.
 / Audit events: \ In phase 2 of recovery, a threshold of realms can log that a recovery is being attempted. For a successful recovery, a _threshold_ of realms can log during phase 3 that the client proved it knew the correct _PIN_ before the client could access their secret.
@@ -162,11 +178,6 @@ In the _Registered_ state, the following additional information is stored corres
 / attemptedGuesses#sub[i]: \ The number of times recovery has been attempted on _Realm#sub[i]_ without success. Starts at 0 and increases on recovery attempts, then reset to 0 on successful recoveries.
 
 == Registration
-Registration is a two-phase operation that a new user takes to store a PIN-protected secret. A registration operation is also performed to change a user's PIN or register a new secret for an existing user.
-
-+ In phase 1, the client checks that at least _y_ realms are available to store the user's secret, where $y >= "threshold"$.
-+ In phase 2, the client prepares and updates the registration _state_ on each Realm#sub[i].
-
 The registration operations are exposed by the client in the following form:
 
 $ "error" = "register"("pin", "secret", "allowedGuesses", "userInfo") $
@@ -264,12 +275,6 @@ A _Realm_ should always be expected to respond _OK_ to this request unless a tra
 The registration operation completes successfully with at least _y_ _OK_ responses.
 
 == Recovery <Recovery>
-Recovery is a three-phase operation that an existing user takes to recover a PIN-protected secret.
-
-+ In phase 1, the client checks that a _threshold_ of realms with consensus on _version_ is available to recover the secret.
-+ In phase 2, the client performs a T-OPRF exchange on the identified realms using an _input_ derived from the user's _PIN_.
-+ In phase 3, the client uses the T-OPRF _result_ to derive tags for each realm that proves it knows the correct _PIN_. Then, each realm returns information that the client uses to reconstruct the user's secret.
-
 The recovery operations are exposed by the client in the following form:
 
 $ "secret", "error" = "recover"("pin", "userInfo") $
@@ -345,10 +350,9 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 
       blindedResult = TOprfBlindEvaluate(state.oprfPrivateKey, request.blindedAccessKey)
       blindedResultProof = TOprfProofGenerate(state.oprfPrivateKey,
-                            state.oprfPublicKey,
-                            request.blindedAccessKey,
-                            blindedResult
-                          )
+                                              state.oprfPublicKey,
+                                              request.blindedAccessKey,
+                                              blindedResult)
 
       state.attemptedGuesses += 1
 
@@ -390,7 +394,7 @@ This phase will proceed until a client has completed it on at least _threshold_ 
     )
   ```
 
-If this cannot be completed on _threshold_ realms, the client must assume a fault on the realms and may need to re-register or try again later.
+If this cannot be completed on _threshold_ realms, the client may need to re-register or try again later.
 
 If completed successfully, the client will attempt to recover the _unlockKey_.
 
@@ -403,10 +407,13 @@ The following demonstrates the work the client performs to reconstruct and valid
     unlockKeyCommitment,
     blindedResults,
     allowedGuesses,
-    attemptedGuesses
+    attemptedGuesses,
+    realms
   ):
+    indexedBlindedResults = [(realm.index, result)
+                             for realm, result in zip(realms, blindedResults)]
     ourUnlockKeyCommitment, unlockKey = TOprfFinalize(
-      blindedResults,
+      indexedBlindedResults,
       blindingFactor,
       accessKey
     )
@@ -482,11 +489,10 @@ The following demonstrates the work a client performs to do so:
                     threshold):
     indexedEncryptionKeyScalarShares = []
 
-    for index, (share, commitment, realm) in
-      enumerate(zip(encryptionKeyScalarShares,
-                    encryptedSecretCommitments,
-                    realms),
-                start=1):
+    for share, commitment, realm in
+      zip(encryptionKeyScalarShares,
+          encryptedSecretCommitments,
+          realms):
       ourCommitment = MAC(16,
                           unlockKey,
                           "Encrypted Secret Commitment",
@@ -494,7 +500,7 @@ The following demonstrates the work a client performs to do so:
                           share,
                           encryptedSecret)
       if ConstantTimeEquals(ourCommitment, commitment):
-        indexedEncryptionKeyScalarShares.append((index, share))
+        indexedEncryptionKeyScalarShares.append((realm.index, share))
 
     if len(validEncryptionKeyScalarShares) < threshold:
       return Error.Assertion()
@@ -510,8 +516,6 @@ The following demonstrates the work a client performs to do so:
 ```
 
 == Deletion
-Delete is a single-phase operation that reverts a user's registration state to _NotRegistered_.
-
 The delete operation is exposed by the client in the following form:
 $ "error" = "delete"() $
 
