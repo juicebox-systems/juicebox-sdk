@@ -107,8 +107,8 @@ A DSA is a cryptographic primitive that facilitates the generation and verificat
 For this paper, we will define a DSA with the following abstract functions:
 
 / $"NewSigningKey()"$: \ Returns a random private _signingKey_.
-/ $"GenerateSignature"("signingKey", "message")$: \ Signs the given _message_ using the _signingKey_ and returns the a _signedMessage_ that contains the _signature_, _verifyingKey_, and original _message_.
-/ $"VerifySignature"("signedMessage")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_.
+/ $"GenerateSignature"("signingKey", "message", "info")$: \ Signs the given _message_ and _info_ using the _signingKey_ and returns a _signedMessage_ that contains the _signature_, _verifyingKey_, and original _message_.
+/ $"VerifySignature"("signedMessage", "info")$: \ Verifies the _signature_ was created with the private _signingKey_ associated with the public _verifyingKey_ for the specified _message_ and _info_.
 
 == Additional Primitives
 In addition to the previously established _OPRF_, _SSS_, _T-OPRF_, and _ZKP_ primitives, the following common primitives are necessary to define the protocol:
@@ -132,7 +132,7 @@ Utilizing the previously defined primitives, the protocol specifically aims to:
 / Increase offline brute-force costs: \ As an additional layer of security, the client generates a unique salt per registration and combines this with the user's _PIN_ using a KDF. A portion of the KDF output is utilized as the T-OPRF input and as a seed for the key used to encrypt a user's secret. An adversary who has compromised a threshold of realms would need to additionally spend resources to brute-force each user's _PIN_ to access the secret. Using a resource-intensive KDF further increases the adversary's costs. The random salt also serves as the registration's version and is retrieved during phase 1 of recovery.
 / Exclude misbehaving realms: \ The protocol adds a layer of robustness to detect misbehaving realms and prevent them from interfering with recovery. This allows the client to proceed with recovery as long as a threshold number of correct realms are available, even if some realms are returning incorrect or adversarial results. It also allows the client to distinguish an incorrect PIN from incorrect realm behavior (otherwise, the T-OPRF _result_ appears incorrect for both cases). \ \ The protocol combines a few techniques to provide robustness:
 #set list(indent: 3em)
-- The client generates a signature of each realm's public OPRF key during registration, then discards the signing key (so that it cannot be used again). During phase 2 of recovery, the client identifies a _threshold_ of realms that agree on a verifying key with valid signatures for their public OPRF key corresponding to that verifying key.
+- The client generates a signature of each realm's public OPRF key and ID during registration, then discards the signing key (so that it cannot be used again). During phase 2 of recovery, the client identifies a _threshold_ of realms that agree on a verifying key with valid signatures for their public OPRF key corresponding to that verifying key.
 - Each realm generates a ZKP in phase 2 of recovery. The proof allows the client to verify that the realm computed its share of the T-OPRF consistently with its OPRF key share.
 - During registration, the client unobliviously evaluates the T-OPRF for the user's _PIN_ using the root OPRF key. A copy of the resulting public _commitment_ is stored with each realm. During phase 2 of recovery, the client identifies a threshold of realms that agree on a _commitment_ to recover from. It then verifies that the T-OPRF finalization produces a matching _commitment_. This prevents a colluding _threshold_ of realms from substituting different OPRF key shares and signatures without knowing the _PIN_.
 - The client stores a secondary _commitment_ based on the T-OPRF _result_, the encrypted secret, and that realm's share of the encryption key with each realm during registration. During phase 3, the client verifies that the information about the user's secret returned from each realm is consistent with the _commitment_ stored during registration.
@@ -208,8 +208,8 @@ The following demonstrates the work a client performs to prepare a new registrat
 
     signingKey = NewSigningKey()
 
-    oprfSignedPublicKeys = [GenerateSignature(signingKey, PublicKey(key))
-                            for key in oprfPrivateKeyShares]
+    oprfSignedPublicKeys = [GenerateSignature(signingKey, PublicKey(key), realm.id)
+                            for key, realm in zip(oprfPrivateKeyShares, realms)]
 
     encryptionKeyScalar = Scalar(Random(64))
     encryptionKeyScalarShares = CreateShares(len(realms),
@@ -377,7 +377,7 @@ This phase will proceed until a client has completed it on at least _threshold_ 
 + each have a valid _oprfSignedPublicKeys#sub[i]_:
   #v(-0.5em)
   ```python
-    VerifySignature(oprfSignedPublicKey)
+    VerifySignature(oprfSignedPublicKey, realm.id)
   ```
 + each have a valid _blindedResultProof_ for the _blindedResult_:
   #v(-0.5em)
