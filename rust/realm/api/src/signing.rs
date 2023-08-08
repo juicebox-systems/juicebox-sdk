@@ -1,18 +1,22 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use ed25519_dalek::{Signature, SignatureError, Signer, SigningKey, VerifyingKey};
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 
-use juicebox_marshalling::bytes;
+use juicebox_marshalling::{bytes, to_be2};
 use juicebox_oprf as oprf;
 
-use crate::types::SecretBytesArray;
+use crate::types::{RealmId, SecretBytesArray};
 
 pub fn sign_public_key(
     public_key: oprf::PublicKey,
+    realm_id: &RealmId,
     signing_key: &OprfSigningKey,
 ) -> OprfSignedPublicKey {
-    let signature = signing_key.0.sign(public_key.as_bytes());
+    let signature = signing_key.0.sign(&signature_msg(realm_id, &public_key));
     OprfSignedPublicKey {
         public_key,
         verifying_key: signing_key.verifying_key(),
@@ -50,7 +54,7 @@ pub struct OprfSignedPublicKey {
 }
 
 impl OprfSignedPublicKey {
-    pub fn verify(&self) -> Result<(), SignatureError> {
+    pub fn verify(&self, realm_id: &RealmId) -> Result<(), SignatureError> {
         VerifyingKey::from(
             self.verifying_key
                 .0
@@ -58,8 +62,18 @@ impl OprfSignedPublicKey {
                 .ok_or(SignatureError::default())?,
         )
         .verify_strict(
-            self.public_key.as_bytes(),
+            &signature_msg(realm_id, &self.public_key),
             &Signature::from(self.signature.expose_secret()),
         )
     }
+}
+
+fn signature_msg(realm_id: &RealmId, public_key: &oprf::PublicKey) -> Vec<u8> {
+    [
+        &to_be2(realm_id.0.len()),
+        realm_id.0.as_slice(),
+        &to_be2(public_key.as_bytes().len()),
+        public_key.as_bytes(),
+    ]
+    .concat()
 }

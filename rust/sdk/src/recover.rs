@@ -331,7 +331,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         };
 
         oprf_signed_public_key
-            .verify()
+            .verify(&realm.id)
             .map_err(|_| RecoverError::Assertion)?;
 
         oprf::verify_proof(

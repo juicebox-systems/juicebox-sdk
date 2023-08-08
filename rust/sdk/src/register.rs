@@ -1,4 +1,5 @@
 use rand::rngs::OsRng;
+use std::iter::zip;
 use tracing::instrument;
 
 use juicebox_oprf as oprf;
@@ -72,10 +73,12 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
 
         let signing_key = OprfSigningKey::new_random(&mut OsRng);
 
-        let oprf_signed_public_keys: Vec<OprfSignedPublicKey> = oprf_private_key_shares
-            .iter()
-            .map(|private_key| sign_public_key(private_key.to_public_key(), &signing_key))
-            .collect();
+        let oprf_signed_public_keys: Vec<OprfSignedPublicKey> =
+            zip(&oprf_private_key_shares, &self.configuration.realms)
+                .map(|(private_key, realm)| {
+                    sign_public_key(private_key.to_public_key(), &realm.id, &signing_key)
+                })
+                .collect();
 
         let oprf_result = oprf::unoblivious_evaluate(&oprf_private_key, access_key.expose_secret());
 
