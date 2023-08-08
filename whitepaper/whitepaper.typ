@@ -39,16 +39,16 @@ The overall security of the protocol is directly related to the set of _n_ realm
   caption: [A configuration for a fictional tenant "Acme" demonstrating various realm types, operators, and their trust boundaries.],
 ) <Figure_1>
 
-When adding a _Realm_ to your configuration, some important questions to ask are:
+When adding a _realm_ to your configuration, some important questions to ask are:
 - Who has access to the data stored on that _realm_? (referred to as a _trust boundary_ going forward)
 - Does that _trust boundary_ overlap with other realms in your configuration? If so, adding this _realm_ may reduce your overall security.
 
 Configurations of realms are used in _threshold_-based operations. A _threshold_ is a definition of how many realms must participate for a secret to be recovered. Configuring a $"threshold" < n$ allows increased availability of secrets when using a configuration with a larger size since not all realms are required to be operational or in agreement for the operation to succeed.
 
 == Realms <Realms>
-A _Realm_ is a service capable of storing a distributed share of a user's secret. This section describes the two types of realms that we have implemented and the _trust boundaries_ associated with each type.
+A _realm_ is a service capable of storing a distributed share of a user's secret. This section describes the two types of realms that we have implemented and the _trust boundaries_ associated with each type.
 
-A _Realm_ is defined by the following information:
+A _realm_ is defined by the following information:
 
 / id: \ A 16-byte identifier uniquely representing this realm across all configured realms.
 / index: \ An integer from _1..N_ that uniquely identifies the realm's position in a configuration.
@@ -60,7 +60,7 @@ A _hardware realm_ is a type of realm backed by secure hardware — specifically
 A _software realm_ is a type of realm that runs on commodity hardware in common cloud providers. When paired with hardware realms, they are a valuable low-cost tool for increasing the number of _trust boundaries_ within a configuration.
 
 == Tenants
-Each _Realm_ allows the storage and recovery of secrets from users spanning multiple organizational boundaries. We refer to each of these organizational boundaries as a _tenant_, and the protocol as defined ensures that any individual tenant can only perform operations on user secrets within their organizational boundary. We utilize this multi-tenanted approach for realms as it reduces the costs of running realms by dividing the costs of operation across multiple tenants.
+Each _realm_ allows the storage and recovery of secrets from users spanning multiple organizational boundaries. We refer to each of these organizational boundaries as a _tenant_, and the protocol as defined ensures that any individual tenant can only perform operations on user secrets within their organizational boundary. We utilize this multi-tenanted approach for realms as it reduces the costs of running realms by dividing the costs of operation across multiple tenants.
 
 = Cryptographic Primitives
 As a prerequisite to defining the protocol, we must define several cryptographic primitives that the protocol relies upon. Each of these is abstractly described, as the fundamental details of their implementation may evolve. For specific algorithms that we recommend as of the writing of this paper, see @Cryptographic_Implementation.
@@ -123,12 +123,12 @@ In addition to the previously established primitives, the following common primi
 / $"PublicKey"("scalar")$: \ Computes the _point_ representing the public key for a given _scalar_.
 
 = Protocol
-The _Juicebox Protocol_ can be abstracted to three simple operations:
+The _Juicebox Protocol_ can be abstracted into three simple operations:
 
 / Register: A two-phase operation that a new user takes to store a PIN-protected secret. A registration operation is also performed to change a user's PIN or register a new secret for an existing user.
 
 + In phase 1, the client checks that at least _y_ realms are available to store the user's secret, where $y >= "threshold"$.
-+ In phase 2, the client prepares and updates the registration _state_ on each Realm#sub[i].
++ In phase 2, the client prepares and updates the registration _state_ on each _realm#sub[i]_.
 
 / Recover: A three-phase operation that an existing user takes to recover a PIN-protected secret.
 
@@ -158,24 +158,24 @@ _Realm#sub[i]_ will store a record indexed by the combination of the registering
 
 This record can exist in one of three states:
 
-/ NotRegistered: \ The user has no existing registration with this _Realm_. This is the default state if a user has never communicated with the _Realm_.
-/ Registered: \ The user has registered secret information with this _Realm_ and can still attempt to recover that registration.
-/ NoGuesses: \ The user has registered secret information with this _Realm_, but can no longer attempt to recover that registration.
+/ NotRegistered: \ The user has no existing registration with this _realm_. This is the default state if a user has never communicated with the _realm_.
+/ Registered: \ The user has registered secret information with this _realm_ and can still attempt to recover that registration.
+/ NoGuesses: \ The user has registered secret information with this _realm_, but can no longer attempt to recover that registration.
 
 A user transitions into the _NoGuesses_ state when the number of _attemptedGuesses_ on their registration equals or exceeds their _allowedGuesses_, self-destructing the registered data.
 
 In the _Registered_ state, the following additional information is stored corresponding to the registration:
 
-/ version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _Realms_. The version is random so that a malicious realm can't force a client to run out of versions. The version is also used as a salt that is combined with the user's PIN.
+/ version: \ A 16-byte value that uniquely identifies this registration for this user across all configured _realms_. The version is random so that a malicious realm can't force a client to run out of versions. The version is also used as a salt that is combined with the user's PIN.
 / oprfPrivateKeys#sub[i]: \ A realm-specific OPRF private key derived by secret sharing a random root key.
 / unlockKeyCommitment: \ A 32-byte value derived during registration from the OPRF result used to verify the _unlockKey_.
 / oprfSignedPublicKey#sub[i]: \ A signed public key that corresponds to the _oprfPrivateKeys#sub[i]_ for this realm. Wraps the _publicKey_, a _signature_, and the public _verifyingKey_ for the _signingKey_ used to generate the _signature_.
-/ unlockKeyTag#sub[i]: \ A tag unique to this _Realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of the _PIN_ and be granted access to the secret.
+/ unlockKeyTag#sub[i]: \ A tag unique to this _realm#sub[i]_ derived during registration from the _unlockKey_. The client will reconstruct this tag during recovery to prove knowledge of the _PIN_ and be granted access to the secret.
 / encryptionKeyScalarShares#sub[i]: \ A single share of the random scalar used to derive the _encryptionKey_ for the user's secret. Even if _threshold_ shares were recovered, the _encryptionKey_ cannot be derived without knowing the user's _PIN_.
 / encryptedSecret: \ A copy of the user's encrypted secret.
-/ encryptedSecretCommitment#sub[i]: \ A MAC derived from the _unlockKey_, _Realm#sub[id]_, encryptionKeyScalarShares#sub[i], and _encryptedSecret_. During recovery, the client can reconstruct this MAC to verify if _Realm#sub[i]_ has returned a valid share and secret.
-/ allowedGuesses: \ The maximum number of guesses allowed before the registration is permanently deleted by the _Realm#sub[i]_.
-/ attemptedGuesses#sub[i]: \ The number of times recovery has been attempted on _Realm#sub[i]_ without success. Starts at 0 and increases on recovery attempts, then reset to 0 on successful recoveries.
+/ encryptedSecretCommitment#sub[i]: \ A MAC derived from the _unlockKey_, _realm#sub[id]_, encryptionKeyScalarShares#sub[i], and _encryptedSecret_. During recovery, the client can reconstruct this MAC to verify if _realm#sub[i]_ has returned a valid share and secret.
+/ allowedGuesses: \ The maximum number of guesses allowed before the registration is permanently deleted by the _realm#sub[i]_.
+/ attemptedGuesses#sub[i]: \ The number of times recovery has been attempted on _realm#sub[i]_ without success. Starts at 0 and increases on recovery attempts, then reset to 0 on successful recoveries.
 
 == Registration
 The registration operations are exposed by the client in the following form:
@@ -191,13 +191,13 @@ $ "error" = "register"("pin", "secret", "allowedGuesses", "userInfo") $
 The following sections contain Python code that demonstrates in detail the work performed by each phase.
 
 For this code, we assume that the protocol client has been appropriately configured with:
-- _n_ mutually distrusting realms, each of which will be referred to as _Realm#sub[i]_
+- _n_ mutually distrusting realms, each of which will be referred to as _realm#sub[i]_
 - $"threshold" <= n$ indicating how many realms must be available for recovery to succeed
 
 === Phase 1 Registration
-An empty _register1_ request is sent from the client to each _Realm#sub[i]_.
+An empty _register1_ request is sent from the client to each _realm#sub[i]_.
 
-A _Realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
+A _realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
 
 Once a client has completed _Phase 1_ on _y_ realms, it will proceed to Phase 2.
 
@@ -257,7 +257,7 @@ The following demonstrates the work a client performs to prepare a new registrat
     )
 ```
 
-A _register2_ request is then sent from the client to each _Realm#sub[i]_ that contains the prepared:
+A _register2_ request is then sent from the client to each _realm#sub[i]_ that contains the prepared:
 - version
 - oprfPrivateKeys#sub[i]
 - unlockKeyCommitment
@@ -268,9 +268,9 @@ A _register2_ request is then sent from the client to each _Realm#sub[i]_ that c
 - unlockKeyTags#sub[i]
 - allowedGuesses
 
-Upon receipt of a _register2_ request, _Realm#sub[i]_ creates or overwrites the user's registration state with the corresponding values from the request and resets the _attemptedGuesses_ to 0.
+Upon receipt of a _register2_ request, _realm#sub[i]_ creates or overwrites the user's registration state with the corresponding values from the request and resets the _attemptedGuesses_ to 0.
 
-A _Realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
+A _realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
 
 The registration operation completes successfully with at least _y_ _OK_ responses.
 
@@ -287,13 +287,13 @@ $ "secret", "error" = "recover"("pin", "userInfo") $
 The following sections contain Python code that demonstrates in detail the work performed by each phase.
 
 For this code, we assume that the protocol client has been appropriately configured with:
-- _n_ mutually distrusting realms, each of which will be referred to as _Realm#sub[i]_
+- _n_ mutually distrusting realms, each of which will be referred to as _realm#sub[i]_
 - $"threshold" <= n$ indicating how many realms must be available for recovery to succeed
 
 === Phase 1 Recovery
-An empty _recover1_ request is sent from the client to each _Realm#sub[i]_.
+An empty _recover1_ request is sent from the client to each _realm#sub[i]_.
 
-The following demonstrates the work a _Realm#sub[i]_ performs to process the request:
+The following demonstrates the work a _realm#sub[i]_ performs to process the request:
 
 ```python
   def Recovery1(state, request):
@@ -312,7 +312,7 @@ The following demonstrates the work a _Realm#sub[i]_ performs to process the req
 An _OK_ response from this phase should always be expected to return the following information from the user's registration:
 - version
 
-Once a client has completed Phase 1 on at least _threshold_ _Realm#sub[i]_ that agree on _version_, it will proceed to Phase 2 for those realms. If no realms are in agreement, the client will assume that the user is _NotRegistered_ on any realm.
+Once a client has completed Phase 1 on at least _threshold_ _realm#sub[i]_ that agree on _version_, it will proceed to Phase 2 for those realms. If no realms are in agreement, the client will assume that the user is _NotRegistered_ on any realm.
 
 === Phase 2 Recovery <Recovery_Phase_2>
 The following demonstrates the work a client performs to prepare for Phase 2:
@@ -333,11 +333,11 @@ The following demonstrates the work a client performs to prepare for Phase 2:
     )
 ```
 
-A _recover2_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
+A _recover2_ request is then sent from the client to each _realm#sub[i]_ that contains the previously determined:
 - version
 - blindedAccessKey
 
-The following demonstrates the work a _Realm#sub[i]_ performs to process the request:
+The following demonstrates the work a _realm#sub[i]_ performs to process the request:
 
 ```python
   def Recovery2(state, request):
@@ -376,7 +376,7 @@ An _OK_ response from this phase should always be expected to return the followi
 - allowedGuesses
 - attemptedGuesses
 
-This phase will proceed until a client has completed it on at least _threshold_ _Realm#sub[i]_ that:
+This phase will proceed until a client has completed it on at least _threshold_ _realm#sub[i]_ that:
 + agree on an _unlockKeyCommitment_ and _verifyingKey_ for the _oprfSignedPublicKeys_
 + each have a valid _oprfSignedPublicKeys#sub[i]_:
   #v(-0.5em)
@@ -421,7 +421,7 @@ The following demonstrates the work the client performs to reconstruct and valid
     if ConstantTimeEquals(ourUnlockKeyCommitment, unlockKeyCommitment):
       return unlockKey
     else:
-      guessesRemaining = allowedGuesses - attemptedGuesses
+      guessesRemaining = min([x - y for x, y in zip(allowedGuesses, attemptedGuesses)])
       return Error.InvalidPin(guessesRemaining)
 ```
 
@@ -437,11 +437,11 @@ The following demonstrates the work a client performs to prepare for Phase 3:
     return unlockKeyTags
 ```
 
-A _recover3_ request is then sent from the client to each _Realm#sub[i]_ that contains the previously determined:
+A _recover3_ request is then sent from the client to each _realm#sub[i]_ that contains the previously determined:
 - version
 - unlockKeyTags#sub[i]
 
-The following demonstrates the work a _Realm#sub[i]_ performs to process the request:
+The following demonstrates the work a _realm#sub[i]_ performs to process the request:
 
 ```python
   def Recovery3(state, request):
@@ -525,33 +525,33 @@ This operation does not require the user's _PIN_ as a user can always register a
 
 === Phase 1 Deletion
 
-An empty _delete_ request is sent from the client to each _Realm#sub[i]_.
+An empty _delete_ request is sent from the client to each _realm#sub[i]_.
 
-Upon receipt of a _delete_ request, _Realm#sub[i]_ sets the user's registration state to _NotRegistered_.
+Upon receipt of a _delete_ request, _realm#sub[i]_ sets the user's registration state to _NotRegistered_.
 
-A _Realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
+A _realm_ should always be expected to respond _OK_ to this request unless a transient network error occurs.
 
 == Authentication <Authentication>
-To enforce _tenant_ boundaries and prevent unauthorized clients from self-destructing a user's secret, a given _Realm#sub[i]_ requires authentication proving that a user has permission to perform operations.
+To enforce _tenant_ boundaries and prevent unauthorized clients from self-destructing a user's secret, a given _realm#sub[i]_ requires authentication proving that a user has permission to perform operations.
 
-A _Realm#sub[i]_ aims to know as little as possible about users and consequently relies on individual tenants to determine whether or not a user is allowed to perform operations.
+A _realm#sub[i]_ aims to know as little as possible about users and consequently relies on individual tenants to determine whether or not a user is allowed to perform operations.
 
 To delegate this control to tenants, a realm _operator_ must generate a random 32-byte signing key ($
-"signingKey" = "Random"(32)$) for each _tenant_ they wish to access their _Realm#sub[i]_. This signing key should be provided an integer version _v_ and the tenant should be provided a consistent alphanumeric name _tenantName_ that is shared by both the realm _operator_ and the _tenant_.
+"signingKey" = "Random"(32)$) for each _tenant_ they wish to access their _realm#sub[i]_. This signing key should be provided an integer version _v_ and the tenant should be provided a consistent alphanumeric name _tenantName_ that is shared by both the realm _operator_ and the _tenant_.
 
 Given this information, a _tenant_ must vend a signed JSON Web Token (JWT) @Jones_Bradley_Sakimura_2015 to grant a given user access to the realm.
 
-The header of this JWT must contain a _kid_ field of _tenantName:v_ so that the _Realm#sub[i]_ knows which version _v_ of _tenantName_'s signing key to validate against.
+The header of this JWT must contain a _kid_ field of _tenantName:v_ so that the _realm#sub[i]_ knows which version _v_ of _tenantName_'s signing key to validate against.
 
-The claims of this JWT must contain an _iss_ field equivalent to _tenantName_ and a _sub_ field that represents a persistent user identifier (UID) the realm can use for storing secrets. Additionally, an _aud_ field must be present and contain a single hex-string equivalent to the _Realm#sub[i(id)]_ a token is valid for.
+The claims of this JWT must contain an _iss_ field equivalent to _tenantName_ and a _sub_ field that represents a persistent user identifier (UID) the realm can use for storing secrets. Additionally, an _aud_ field must be present and contain a single hex-string equivalent to the _realm#sub[i(id)]_ a token is valid for.
 
-A _Realm#sub[i]_ must reject any connections that:
+A _realm#sub[i]_ must reject any connections that:
 + Don't contain an authentication token
 + Aren't signed with a known signing key for a given _tenantName_ and version _v_ matching the _kid_
-+ Don't have an _aud_ exactly matching their _Realm#sub[i(id)]_
++ Don't have an _aud_ exactly matching their _realm#sub[i(id)]_
 + Don't contain an _iss_ matching the _tenantName_ in the _kid_
 
-The operations defined in the prior sections assume all requests contain valid authentication tokens for a given _Realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _Realm_.
+The operations defined in the prior sections assume all requests contain valid authentication tokens for a given _realm#sub[i]_ or that an _InvalidAuthentication_ (401) error is returned by the _realm_.
 
 = Security Considerations
 == Threshold Configuration
@@ -560,7 +560,7 @@ While any $"threshold" <= n$ is valid, we recommend a $"threshold" > n/2$ which 
 Additionally, a $"threshold > 1"$ (and consequently $n > 1$) should always be used, as the security guarantees this protocol provides only apply when secrets are distributed across multiple realms.
 
 == Hardware Realms
-We specifically utilize HSMs that are programmable with non-volatile memory. Encapsulating the protocol operations within the hardware's trusted execution environment (TEE) assures that a malicious operator has no avenue of access. Non-volatile memory is required to prevent an operator from rolling back _Realm_ state, which could prevent the self-destruction of secrets. The HSMs we use also allow some authorized form of programming, such that an operator can prove that a specific and verifiable version of the protocol is being executed within the TEE.
+We specifically utilize HSMs that are programmable with non-volatile memory. Encapsulating the protocol operations within the hardware's trusted execution environment (TEE) assures that a malicious operator has no avenue of access. Non-volatile memory is required to prevent an operator from rolling back _realm_ state, which could prevent the self-destruction of secrets. The HSMs we use also allow some authorized form of programming, such that an operator can prove that a specific and verifiable version of the protocol is being executed within the TEE.
 
 Hardware realms assume that a combination of relatively opaque hardware and firmware is secure, which — outside of the _Juicebox Protocol_ — makes them not ideal as a standalone secret storage solution. However, when used in configuration with other types of realms — including hardware realms from other vendors — these risks can be mitigated.
 
@@ -568,25 +568,25 @@ Hardware realms assume that a combination of relatively opaque hardware and firm
 Since these realms only control an encrypted share of a user's secret, we believe it is an acceptable tradeoff that they require extending the _trust boundary_ to include the realm's _operator_ and _hosting provider_. It is important to recognize that given the limited number of distinct _hosting providers_ currently operating, overuse of such realms can potentially put too much secret information in one party's control and jeopardize user secrets.
 
 == Realm Communication <Realm_Communication>
-Communication with a _Realm_ always occurs over a secure protocol that ensures the confidentiality and integrity of requests while limiting the possibility of replay attacks. Towards this end, all requests to a realm are made over TLS.
+Communication with a _realm_ always occurs over a secure protocol that ensures the confidentiality and integrity of requests while limiting the possibility of replay attacks. Towards this end, all requests to a realm are made over TLS.
 
-Hardware Realms terminate this TLS connection outside of their _trust boundary_. This allows a single load balancer to service multiple HSMs but necessitates an additional layer of secure communication between the client and the HSM. For this layer, we use the _Noise Protocol_ @Perrin_2018 with an NK-handshake pattern with the realm's _public key_. Specifically, we use the protocol name `Noise_NK_25519_ChaChaPoly_BLAKE2s`.
+Hardware realms terminate this TLS connection outside of their _trust boundary_. This allows a single load balancer to service multiple HSMs but necessitates an additional layer of secure communication between the client and the HSM. For this layer, we use the _Noise Protocol_ @Perrin_2018 with an NK-handshake pattern with the realm's _public key_. Specifically, we use the protocol name `Noise_NK_25519_ChaChaPoly_BLAKE2s`.
 
 == Low-Entropy PINs
 While the protocol provides strong security guarantees for low entropy PINs, using a higher entropy PIN provides increased security if a _threshold_ of realms was compromised.
 
 == Salting
-The _register_ and _recover_ operations accept a _userInfo_ argument that is mixed into the _salt_ before passing it to the _KDF_. Using a known constant, like the UID, for this value can prevent a malicious _Realm_ from returning a fixed _salt_ with a pre-computed password table.
+The _register_ and _recover_ operations accept a _userInfo_ argument that is mixed into the _salt_ before passing it to the _KDF_. Using a known constant, like the UID, for this value can prevent a malicious _realm_ from returning a fixed _salt_ with a pre-computed password table.
 
 = Recommended Cryptographic Algorithms <Cryptographic_Implementation>
+
+== SSS
+The protocol relies on a secret-sharing scheme to ensure a _realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979 over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023.
 
 == OPRFs
 The protocol utilizes OPRFs based on 2HashDH as defined by Jarecki _et al._ @JKK14. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
 
-== SSS
-The protocol relies on a secret-sharing scheme to ensure a _Realm_ does not gain access to the user's secret. We utilize the scheme defined by Shamir @Shamir_1979 over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023.
-
-=== T-OPRFs
+== T-OPRFs
 The protocol utilizes T-OPRFs based on 2HashTDH as defined by Jarecki _et al._ @JKKX17. These operations are performed over the Ristretto255 group @Valence_Grigg_Hamburg_Lovecruft_Tankersley_Valsorda_2023 and utilize the SHA-512 hashing algorithm @Hansen_Eastlake_2011.
 
 == Robust OPRFs with ZKPs
