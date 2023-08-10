@@ -71,7 +71,7 @@ extension URLRequest {
 
         setValue(
             String(cString: juicebox_sdk_version()),
-            forHTTPHeaderField: "Juicebox-Version"
+            forHTTPHeaderField: "X-Juicebox-Version"
         )
 
         if let headers = juicebox.headers.data {

@@ -149,7 +149,7 @@ class Client private constructor (
                     )
 
                     urlConnection.setRequestProperty(
-                        "Juicebox-Version",
+                        "X-Juicebox-Version",
                         Native.sdkVersion()
                     )
 
