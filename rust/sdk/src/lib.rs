@@ -24,7 +24,7 @@ pub use juicebox_networking::http;
 /// A unique identifier for a [`Realm`].
 #[doc = "\n"] // add paragraph break before core crate comment
 pub use juicebox_realm_api::types::RealmId;
-pub use juicebox_realm_api::types::{AuthToken, Policy};
+pub use juicebox_realm_api::types::{AuthToken, Policy, JUICEBOX_VERSION_HEADER};
 pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
@@ -159,16 +159,20 @@ where
 {
     /// Sets the [`http::Client`] to [`reqwest::Client`].
     pub fn reqwest(self) -> Self {
-        self.http(reqwest::Client::<LoadBalancerService>::new(
-            reqwest::ClientOptions {
-                user_agent: &format!("JuiceboxSdk-Rust/{}", VERSION),
-                ..reqwest::ClientOptions::default()
-            },
-        ))
+        self.reqwest_with_options(reqwest::ClientOptions::default())
     }
 
     /// Sets the [`http::Client`] to [`reqwest::Client`] with the supplied [`reqwest::ClientOptions`].
     pub fn reqwest_with_options(self, options: reqwest::ClientOptions) -> Self {
+        let mut options = options;
+        let user_agent = format!("JuiceboxSdk-Rust/{}", VERSION);
+        let mut default_headers = HashMap::from([
+            (JUICEBOX_VERSION_HEADER, VERSION),
+            ("User-Agent", &user_agent),
+        ]);
+        default_headers.extend(options.default_headers);
+        options.default_headers = default_headers;
+
         self.http(reqwest::Client::<LoadBalancerService>::new(options))
     }
 }

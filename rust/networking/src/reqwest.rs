@@ -16,7 +16,7 @@ use crate::{http, rpc};
 pub struct ClientOptions<'a> {
     pub additional_root_certs: Vec<Certificate>,
     pub timeout: Duration,
-    pub user_agent: &'a str,
+    pub default_headers: HashMap<&'a str, &'a str>,
 }
 
 impl<'a> Default for ClientOptions<'a> {
@@ -24,7 +24,10 @@ impl<'a> Default for ClientOptions<'a> {
         Self {
             additional_root_certs: Vec::new(),
             timeout: Duration::from_secs(30),
-            user_agent: concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")),
+            default_headers: HashMap::from([(
+                "User-Agent",
+                concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")),
+            )]),
         }
     }
 }
@@ -42,8 +45,18 @@ impl<F: rpc::Service> Client<F> {
     pub fn new(options: ClientOptions) -> Self {
         let mut b = reqwest::Client::builder()
             .timeout(options.timeout)
-            .user_agent(options.user_agent)
             .use_rustls_tls();
+
+        let mut default_headers = reqwest::header::HeaderMap::new();
+        for (key, value) in options.default_headers {
+            if let (Ok(header_name), Ok(header_value)) =
+                (HeaderName::from_str(key), HeaderValue::from_str(value))
+            {
+                default_headers.append(header_name, header_value);
+            }
+        }
+        b = b.default_headers(default_headers);
+
         for c in options.additional_root_certs {
             b = b.add_root_certificate(c);
         }

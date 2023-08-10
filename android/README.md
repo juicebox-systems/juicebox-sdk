@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'xyz.juicebox:sdk:0.1.1'
+  implementation 'xyz.juicebox:sdk:0.2.0'
 }
 ```
 
@@ -25,7 +25,7 @@ dependencies {
 <dependency>
   <groupId>xyz.juicebox</groupId>
   <artifactId>sdk</artifactId>
-  <version>0.1.1</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 

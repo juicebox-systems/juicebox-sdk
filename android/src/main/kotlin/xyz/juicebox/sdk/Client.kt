@@ -148,6 +148,11 @@ class Client private constructor (
                         "JuiceboxSdk-Android/${Native.sdkVersion()}"
                     )
 
+                    urlConnection.setRequestProperty(
+                        "X-Juicebox-Version",
+                        Native.sdkVersion()
+                    )
+
                     request.headers?.forEach {
                         urlConnection.setRequestProperty(it.name, it.value)
                     }

@@ -16,19 +16,23 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 pub enum RegisterError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth = 0,
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired = 1,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 1,
+    Assertion = 2,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 2,
+    Transient = 3,
 }
 
 impl From<sdk::RegisterError> for RegisterError {
     fn from(value: sdk::RegisterError) -> Self {
         match value {
             sdk::RegisterError::InvalidAuth => Self::InvalidAuth,
+            sdk::RegisterError::UpgradeRequired => Self::UpgradeRequired,
             sdk::RegisterError::Assertion => Self::Assertion,
             sdk::RegisterError::Transient => Self::Transient,
         }
@@ -56,13 +60,16 @@ pub enum RecoverErrorReason {
     NotRegistered = 1,
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth = 2,
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired = 3,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 3,
+    Assertion = 4,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 4,
+    Transient = 5,
 }
 
 #[cfg(feature = "wasm")]
@@ -95,6 +102,10 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::InvalidAuth,
                 guesses_remaining: std::ptr::null(),
             },
+            sdk::RecoverError::UpgradeRequired => Self {
+                reason: RecoverErrorReason::UpgradeRequired,
+                guesses_remaining: std::ptr::null(),
+            },
             sdk::RecoverError::Assertion => Self {
                 reason: RecoverErrorReason::Assertion,
                 guesses_remaining: std::ptr::null(),
@@ -122,19 +133,23 @@ impl Drop for RecoverError {
 pub enum DeleteError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth = 0,
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired = 1,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 1,
+    Assertion = 2,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 2,
+    Transient = 3,
 }
 
 impl From<sdk::DeleteError> for DeleteError {
     fn from(value: sdk::DeleteError) -> Self {
         match value {
             sdk::DeleteError::InvalidAuth => DeleteError::InvalidAuth,
+            sdk::DeleteError::UpgradeRequired => DeleteError::UpgradeRequired,
             sdk::DeleteError::Assertion => DeleteError::Assertion,
             sdk::DeleteError::Transient => DeleteError::Transient,
         }

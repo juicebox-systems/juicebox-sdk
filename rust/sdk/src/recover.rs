@@ -44,6 +44,10 @@ pub enum RecoverError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -245,6 +249,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         realm: &Realm,
     ) -> Result<(RegistrationVersion, Realm), RecoverError> {
         match self.make_request(realm, SecretsRequest::Recover1).await {
+            Err(RequestError::UpgradeRequired) => Err(RecoverError::UpgradeRequired),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::Transient) => Err(RecoverError::Transient),
@@ -292,6 +297,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             unlock_key_commitment,
             guesses_remaining,
         ) = match recover2_request.await {
+            Err(RequestError::UpgradeRequired) => return Err(RecoverError::UpgradeRequired),
             Err(RequestError::Transient) => return Err(RecoverError::Transient),
             Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
@@ -383,6 +389,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         );
 
         match recover3_request.await {
+            Err(RequestError::UpgradeRequired) => Err(RecoverError::UpgradeRequired),
             Err(RequestError::Transient) => Err(RecoverError::Transient),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),

@@ -2,7 +2,7 @@ Pod::Spec.new do |s|
   s.name             = 'JuiceboxSdk'
   s.license          = 'MIT'
   s.author           = { 'Nora Trapp' => 'nora@juicebox.me' }
-  s.version          = '0.1.1'
+  s.version          = '0.2.0'
   s.summary          = 'A Swift wrapper library for interfacing with the Juicebox service.'
 
   s.homepage         = 'https://github.com/juicebox-systems/juicebox-sdk'

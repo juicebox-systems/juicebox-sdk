@@ -23,6 +23,12 @@ enum class RecoverError {
     INVALID_AUTH,
 
     /**
+     * The SDK software is too old to communicate with this realm and
+     * must be upgraded.
+     */
+    UPGRADE_REQUIRED,
+
+    /**
      * A software error has occurred. This request should not be retried
      * with the same parameters. Verify your inputs, check for software
      * updates and try again.

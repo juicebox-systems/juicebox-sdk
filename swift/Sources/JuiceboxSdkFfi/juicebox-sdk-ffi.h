@@ -17,16 +17,21 @@ typedef enum {
    */
   JuiceboxDeleteErrorInvalidAuth = 0,
   /**
+   * The SDK software is too old to communicate with this realm
+   * and must be upgraded.
+   */
+  JuiceboxDeleteErrorUpgradeRequired = 1,
+  /**
    * A software error has occurred. This request should not be retried
    * with the same parameters. Verify your inputs, check for software
    * updates and try again.
    */
-  JuiceboxDeleteErrorAssertion = 1,
+  JuiceboxDeleteErrorAssertion = 2,
   /**
    * A transient error in sending or receiving requests to a realm.
    * This request may succeed by trying again with the same parameters.
    */
-  JuiceboxDeleteErrorTransient = 2,
+  JuiceboxDeleteErrorTransient = 3,
 } JuiceboxDeleteError;
 
 typedef enum {
@@ -67,16 +72,21 @@ typedef enum {
    */
   JuiceboxRecoverErrorReasonInvalidAuth = 2,
   /**
+   * The SDK software is too old to communicate with this realm
+   * and must be upgraded.
+   */
+  JuiceboxRecoverErrorReasonUpgradeRequired = 3,
+  /**
    * A software error has occurred. This request should not be retried
    * with the same parameters. Verify your inputs, check for software
    * updates and try again.
    */
-  JuiceboxRecoverErrorReasonAssertion = 3,
+  JuiceboxRecoverErrorReasonAssertion = 4,
   /**
    * A transient error in sending or receiving requests to a realm.
    * This request may succeed by trying again with the same parameters.
    */
-  JuiceboxRecoverErrorReasonTransient = 4,
+  JuiceboxRecoverErrorReasonTransient = 5,
 } JuiceboxRecoverErrorReason;
 
 /**
@@ -88,16 +98,21 @@ typedef enum {
    */
   JuiceboxRegisterErrorInvalidAuth = 0,
   /**
+   * The SDK software is too old to communicate with this realm
+   * and must be upgraded.
+   */
+  JuiceboxRegisterErrorUpgradeRequired = 1,
+  /**
    * A software error has occurred. This request should not be retried
    * with the same parameters. Verify your inputs, check for software
    * updates and try again.
    */
-  JuiceboxRegisterErrorAssertion = 1,
+  JuiceboxRegisterErrorAssertion = 2,
   /**
    * A transient error in sending or receiving requests to a realm.
    * This request may succeed by trying again with the same parameters.
    */
-  JuiceboxRegisterErrorTransient = 2,
+  JuiceboxRegisterErrorTransient = 3,
 } JuiceboxRegisterError;
 
 typedef struct JuiceboxAuthTokenManager JuiceboxAuthTokenManager;
