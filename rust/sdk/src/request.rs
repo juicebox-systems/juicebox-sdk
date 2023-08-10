@@ -24,6 +24,10 @@ pub(crate) enum RequestError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired,
+
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient,
@@ -40,6 +44,7 @@ impl From<RpcError> for RequestError {
             RpcError::Network => Self::Transient,
             RpcError::HttpStatus(code) => match code {
                 401 => Self::InvalidAuth,
+                426 => Self::UpgradeRequired,
                 _ => Self::Transient,
             },
             RpcError::Serialization(_) => Self::Assertion,

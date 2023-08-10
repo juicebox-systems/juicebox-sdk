@@ -30,6 +30,10 @@ pub enum RegisterError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -142,6 +146,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     async fn register1_on_realm(&self, realm: &Realm) -> Result<(), RegisterError> {
         match self.make_request(realm, SecretsRequest::Register1).await {
+            Err(RequestError::UpgradeRequired) => Err(RegisterError::UpgradeRequired),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),
@@ -161,6 +166,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             .make_request(realm, SecretsRequest::Register2(Box::new(request)))
             .await
         {
+            Err(RequestError::UpgradeRequired) => Err(RegisterError::UpgradeRequired),
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),

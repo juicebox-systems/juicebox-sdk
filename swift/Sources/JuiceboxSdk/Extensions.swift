@@ -69,6 +69,11 @@ extension URLRequest {
             forHTTPHeaderField: "User-Agent"
         )
 
+        setValue(
+            String(cString: juicebox_sdk_version()),
+            forHTTPHeaderField: "Juicebox-Version"
+        )
+
         if let headers = juicebox.headers.data {
             Array(UnsafeBufferPointer(start: headers, count: juicebox.headers.length)).map {
                 (String(cString: $0.name), String(cString: $0.value))

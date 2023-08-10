@@ -18,6 +18,8 @@ use zeroize::Zeroize;
 
 use juicebox_marshalling::{bytes, to_be4};
 
+pub const JUICEBOX_VERSION_HEADER: &str = "Juicebox-Version";
+
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecretBytesArray<const N: usize>(#[serde(with = "bytes")] [u8; N]);
 

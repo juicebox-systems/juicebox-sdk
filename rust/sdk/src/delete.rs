@@ -10,6 +10,10 @@ pub enum DeleteError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
 
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    UpgradeRequired,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -39,6 +43,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         let delete_result = self.make_request(realm, SecretsRequest::Delete).await;
 
         match delete_result {
+            Err(RequestError::UpgradeRequired) => Err(DeleteError::UpgradeRequired),
             Err(RequestError::Transient) => Err(DeleteError::Transient),
             Err(RequestError::Assertion) => Err(DeleteError::Assertion),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),

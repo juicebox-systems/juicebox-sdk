@@ -12,6 +12,9 @@ import JuiceboxSdkFfi
 public enum DeleteError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    case upgradeRequired
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -23,6 +26,7 @@ public enum DeleteError: Error {
     init(_ error: JuiceboxDeleteError) {
         switch error {
         case JuiceboxDeleteErrorInvalidAuth: self = .invalidAuth
+        case JuiceboxDeleteErrorUpgradeRequired: self = .upgradeRequired
         case JuiceboxDeleteErrorAssertion: self = .assertion
         case JuiceboxDeleteErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
@@ -41,6 +45,9 @@ public enum RecoverError: Error {
     case notRegistered
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    case upgradeRequired
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -55,6 +62,7 @@ public enum RecoverError: Error {
                 .invalidPin(guessesRemaining: error.guesses_remaining.pointee)
         case JuiceboxRecoverErrorReasonNotRegistered: self = .notRegistered
         case JuiceboxRecoverErrorReasonInvalidAuth: self = .invalidAuth
+        case JuiceboxRecoverErrorReasonUpgradeRequired: self = .upgradeRequired
         case JuiceboxRecoverErrorReasonAssertion: self = .assertion
         case JuiceboxRecoverErrorReasonTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
@@ -66,6 +74,9 @@ public enum RecoverError: Error {
 public enum RegisterError: Error {
     /// A realm rejected the `Client`'s auth token.
     case invalidAuth
+    /// The SDK software is too old to communicate with this realm
+    /// and must be upgraded.
+    case upgradeRequired
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -77,6 +88,7 @@ public enum RegisterError: Error {
     init(_ error: JuiceboxRegisterError) {
         switch error {
         case JuiceboxRegisterErrorInvalidAuth: self = .invalidAuth
+        case JuiceboxRegisterErrorUpgradeRequired: self = .upgradeRequired
         case JuiceboxRegisterErrorAssertion: self = .assertion
         case JuiceboxRegisterErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")

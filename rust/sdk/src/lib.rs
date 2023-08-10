@@ -24,7 +24,7 @@ pub use juicebox_networking::http;
 /// A unique identifier for a [`Realm`].
 #[doc = "\n"] // add paragraph break before core crate comment
 pub use juicebox_realm_api::types::RealmId;
-pub use juicebox_realm_api::types::{AuthToken, Policy};
+pub use juicebox_realm_api::types::{AuthToken, Policy, JUICEBOX_VERSION_HEADER};
 pub use pin::{Pin, PinHashingMode};
 pub use recover::RecoverError;
 pub use register::RegisterError;
@@ -161,7 +161,10 @@ where
     pub fn reqwest(self) -> Self {
         self.http(reqwest::Client::<LoadBalancerService>::new(
             reqwest::ClientOptions {
-                user_agent: &format!("JuiceboxSdk-Rust/{}", VERSION),
+                default_headers: HashMap::from([
+                    (JUICEBOX_VERSION_HEADER, VERSION),
+                    ("User-Agent", &format!("JuiceboxSdk-Rust/{}", VERSION)),
+                ]),
                 ..reqwest::ClientOptions::default()
             },
         ))

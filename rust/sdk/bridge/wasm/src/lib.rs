@@ -43,6 +43,10 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::InvalidAuth,
                 guesses_remaining: None,
             },
+            sdk::RecoverError::UpgradeRequired => Self {
+                reason: RecoverErrorReason::UpgradeRequired,
+                guesses_remaining: None,
+            },
             sdk::RecoverError::InvalidPin { guesses_remaining } => Self {
                 reason: RecoverErrorReason::InvalidPin,
                 guesses_remaining: Some(guesses_remaining),
@@ -266,6 +270,11 @@ impl sdk::http::Client for HttpClient {
             js_request
                 .headers()
                 .set("User-Agent", &format!("JuiceboxSdk-WASM/{}", sdk::VERSION))
+                .unwrap();
+
+            js_request
+                .headers()
+                .set(sdk::JUICEBOX_VERSION_HEADER, sdk::VERSION)
                 .unwrap();
 
             request.headers.iter().for_each(|(name, value)| {

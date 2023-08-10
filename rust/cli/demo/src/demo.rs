@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use juicebox_sdk::{
     reqwest::ClientOptions, AuthToken, Client, ClientBuilder, Configuration, Pin, Policy, RealmId,
-    RecoverError, UserInfo, UserSecret,
+    RecoverError, UserInfo, UserSecret, JUICEBOX_VERSION_HEADER, VERSION,
 };
 
 /// A Rust demo of the SDK.
@@ -56,6 +56,10 @@ async fn main() {
         .auth_token_manager(auth_tokens)
         .reqwest_with_options(ClientOptions {
             additional_root_certs: lb_certs,
+            default_headers: HashMap::from([
+                (JUICEBOX_VERSION_HEADER, VERSION),
+                ("User-Agent", &format!("JuiceboxSdk-RustDemo/{}", VERSION)),
+            ]),
             ..ClientOptions::default()
         })
         .tokio_sleeper()
