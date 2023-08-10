@@ -17,13 +17,13 @@ cargo add juicebox_sdk
 Or add the following line to your Cargo.toml:
 
 ```
-juicebox_sdk = "0.1.1"
+juicebox_sdk = "0.2.0"
 ```
 
 Additionally, you may wish to enable the `tokio` or `reqwest` [features](#features) to simplify usage:
 
 ```
-juicebox_sdk = { version = "0.1.1", features = ["tokio", "reqwest"] }
+juicebox_sdk = { version = "0.2.0", features = ["tokio", "reqwest"] }
 ```
 
 ### Usage
