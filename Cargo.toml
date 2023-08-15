@@ -57,12 +57,12 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 cbindgen = "0.24.3"
 ciborium = { version = "0.2.0", default-features = false }
 criterion = "0.5.1"
-curve25519-dalek = { version = "4.0.0-rc.3", features = [
+curve25519-dalek = { version = "4.0", features = [
     "digest",
     "rand_core",
 ] }
 digest = { version = "0.10.6" }
-ed25519-dalek = { version = "2.0.0-rc.3", default-features = false, features = [
+ed25519-dalek = { version = "2.0", default-features = false, features = [
     "rand_core",
 ] }
 elliptic-curve = { version = "0.13.5", features = ["hash2curve"] }
@@ -120,7 +120,7 @@ web-sys = { version = "0.3.4", features = [
     "Response",
     "Window",
 ] }
-x25519-dalek = { version = "2.0.0-rc.3", features = [
+x25519-dalek = { version = "2.0", features = [
     "reusable_secrets",
     "serde",
     "static_secrets",
