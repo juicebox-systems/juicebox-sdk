@@ -13,7 +13,6 @@ rand_core = { workspace = true }
 serde = { workspace = true }
 sha2 = { workspace = true }
 subtle = { workspace = true }
-tracing = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]

@@ -45,7 +45,10 @@ juicebox_sdk_jni = { path = "rust/sdk/bridge/jni", version = "0.2.0" }
 juicebox_sdk_wasm = { path = "rust/sdk/bridge/wasm", version = "0.2.0" }
 juicebox_software_realm_runner = { path = "rust/software_realm_runner", version = "0.2.0" }
 
-argon2 = "0.5.0"
+argon2 = { version = "0.5.0", default-features = false, features = [
+    "alloc",
+    "zeroize",
+] }
 async-trait = "0.1.64"
 base64 = "0.21.0"
 blake2 = { version = "0.10.6", default-features = false }
@@ -57,15 +60,11 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
 cbindgen = "0.24.3"
 ciborium = { version = "0.2.0", default-features = false }
 criterion = "0.5.1"
-curve25519-dalek = { version = "4.0", features = [
-    "digest",
-    "rand_core",
-] }
+curve25519-dalek = { version = "4.0", features = ["digest", "rand_core"] }
 digest = { version = "0.10.6" }
 ed25519-dalek = { version = "2.0", default-features = false, features = [
     "rand_core",
 ] }
-elliptic-curve = { version = "0.13.5", features = ["hash2curve"] }
 futures = { version = "0.3.25" }
 futures-channel = { version = " 0.3.28" }
 getrandom = "0.2.8"

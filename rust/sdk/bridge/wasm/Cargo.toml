@@ -12,14 +12,16 @@ crate-type = ["cdylib"]
 async-trait = { workspace = true }
 console_error_panic_hook = { workspace = true }
 futures-channel = { workspace = true }
-getrandom = { workspace = true, features = ["js"] }
+getrandom = { workspace = true, features = [
+    # getrandom is pulled in indirectly (via curve25519-dalek) and needs the
+    # "js" feature to build.
+    "js",
+] }
 instant = { workspace = true, features = ["wasm-bindgen"] }
 js-sys = { workspace = true }
 juicebox_sdk = { workspace = true }
 juicebox_sdk_bridge = { workspace = true, features = ["wasm"] }
-serde = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-url = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }

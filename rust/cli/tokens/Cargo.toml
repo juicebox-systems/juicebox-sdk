@@ -15,4 +15,3 @@ hex = { workspace = true, features = ["std"] }
 jsonwebtoken = { workspace = true }
 juicebox_realm_api = { workspace = true }
 juicebox_realm_auth = { workspace = true }
-thiserror = { workspace = true }

@@ -6,11 +6,8 @@ authors.workspace = true
 edition = "2021"
 
 [dependencies]
-async-trait = { workspace = true }
 juicebox_sdk = { workspace = true }
 tokio = { workspace = true, optional = true }
-url = { workspace = true }
-uuid = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 [features]
