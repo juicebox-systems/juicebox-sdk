@@ -116,12 +116,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "base16ct"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
-
-[[package]]
 name = "base64"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -454,18 +448,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crypto-bigint"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf4c2f4e1afd912bc40bfd6fed5d9dc1f288e0ba01bfcc835cc5bc3eb13efe15"
-dependencies = [
- "generic-array",
- "rand_core",
- "subtle",
- "zeroize",
-]
-
-[[package]]
 name = "crypto-common"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -557,23 +539,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
-name = "elliptic-curve"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "968405c8fdc9b3bf4df0a6638858cc0b52462836ab6b1c87377785dd09cf1c0b"
-dependencies = [
- "base16ct",
- "crypto-bigint",
- "digest",
- "ff",
- "generic-array",
- "group",
- "rand_core",
- "subtle",
- "zeroize",
-]
-
-[[package]]
 name = "encoding_rs"
 version = "0.8.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -621,16 +586,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e51093e27b0797c359783294ca4f0a911c270184cb10f85783b118614a1501be"
 dependencies = [
  "instant",
-]
-
-[[package]]
-name = "ff"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
-dependencies = [
- "rand_core",
- "subtle",
 ]
 
 [[package]]
@@ -751,7 +706,6 @@ checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
- "zeroize",
 ]
 
 [[package]]
@@ -761,21 +715,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "group"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
-dependencies = [
- "ff",
- "rand_core",
- "subtle",
 ]
 
 [[package]]
@@ -1081,7 +1022,6 @@ dependencies = [
  "reqwest",
  "serde_json",
  "tokio",
- "tracing 0.2.0",
 ]
 
 [[package]]
@@ -1143,7 +1083,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "subtle",
- "tracing 0.2.0",
  "zeroize",
 ]
 
@@ -1164,14 +1103,12 @@ dependencies = [
  "curve25519-dalek",
  "digest",
  "ed25519-dalek",
- "elliptic-curve",
  "hex",
  "juicebox_marshalling",
  "juicebox_noise",
  "juicebox_oprf",
  "rand_core",
  "serde",
- "sha2",
  "subtle",
  "zeroize",
 ]
@@ -1225,11 +1162,8 @@ dependencies = [
 name = "juicebox_sdk_bridge"
 version = "0.2.0"
 dependencies = [
- "async-trait",
  "juicebox_sdk",
  "tokio",
- "url",
- "uuid",
  "wasm-bindgen",
 ]
 
@@ -1243,7 +1177,6 @@ dependencies = [
  "juicebox_sdk",
  "juicebox_sdk_bridge",
  "libc",
- "tokio",
  "url",
  "uuid",
 ]
@@ -1258,7 +1191,6 @@ dependencies = [
  "jni",
  "juicebox_sdk",
  "juicebox_sdk_bridge",
- "tokio",
  "url",
  "uuid",
 ]
@@ -1270,14 +1202,11 @@ dependencies = [
  "async-trait",
  "console_error_panic_hook",
  "futures-channel",
- "getrandom",
  "instant",
  "js-sys",
  "juicebox_sdk",
  "juicebox_sdk_bridge",
- "serde",
  "serde-wasm-bindgen",
- "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -1315,7 +1244,6 @@ dependencies = [
  "jsonwebtoken",
  "juicebox_realm_api",
  "juicebox_realm_auth",
- "thiserror",
 ]
 
 [[package]]

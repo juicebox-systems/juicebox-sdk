@@ -15,7 +15,6 @@ futures = { workspace = true }
 libc = { workspace = true }
 juicebox_sdk = { workspace = true }
 juicebox_sdk_bridge = { workspace = true, features = ["tokio"] }
-tokio = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 
