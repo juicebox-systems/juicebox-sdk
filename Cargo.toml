@@ -45,7 +45,10 @@ juicebox_sdk_jni = { path = "rust/sdk/bridge/jni", version = "0.2.0" }
 juicebox_sdk_wasm = { path = "rust/sdk/bridge/wasm", version = "0.2.0" }
 juicebox_software_realm_runner = { path = "rust/software_realm_runner", version = "0.2.0" }
 
-argon2 = "0.5.0"
+argon2 = { version = "0.5.0", default-features = false, features = [
+    "alloc",
+    "zeroize",
+] }
 async-trait = "0.1.64"
 base64 = "0.21.0"
 blake2 = { version = "0.10.6", default-features = false }
