@@ -2094,7 +2094,7 @@ dependencies = [
 [[package]]
 name = "tracing"
 version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
+source = "git+https://github.com/tokio-rs/tracing?rev=a0126b2e2d465e8e6d514acdf128fcef5b863d27#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
 dependencies = [
  "cfg-if",
  "pin-project-lite",
@@ -2105,7 +2105,7 @@ dependencies = [
 [[package]]
 name = "tracing-attributes"
 version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
+source = "git+https://github.com/tokio-rs/tracing?rev=a0126b2e2d465e8e6d514acdf128fcef5b863d27#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2124,7 +2124,7 @@ dependencies = [
 [[package]]
 name = "tracing-core"
 version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
+source = "git+https://github.com/tokio-rs/tracing?rev=a0126b2e2d465e8e6d514acdf128fcef5b863d27#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
 dependencies = [
  "once_cell",
 ]
@@ -2132,7 +2132,7 @@ dependencies = [
 [[package]]
 name = "tracing-log"
 version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
+source = "git+https://github.com/tokio-rs/tracing?rev=a0126b2e2d465e8e6d514acdf128fcef5b863d27#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
 dependencies = [
  "log",
  "once_cell",
@@ -2142,7 +2142,7 @@ dependencies = [
 [[package]]
 name = "tracing-opentelemetry"
 version = "0.16.0"
-source = "git+https://github.com/tokio-rs/tracing#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
+source = "git+https://github.com/tokio-rs/tracing?rev=a0126b2e2d465e8e6d514acdf128fcef5b863d27#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
 dependencies = [
  "async-trait",
  "once_cell",
@@ -2156,7 +2156,7 @@ dependencies = [
 [[package]]
 name = "tracing-subscriber"
 version = "0.3.0"
-source = "git+https://github.com/tokio-rs/tracing#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
+source = "git+https://github.com/tokio-rs/tracing?rev=a0126b2e2d465e8e6d514acdf128fcef5b863d27#a0126b2e2d465e8e6d514acdf128fcef5b863d27"
 dependencies = [
  "sharded-slab",
  "thread_local",
