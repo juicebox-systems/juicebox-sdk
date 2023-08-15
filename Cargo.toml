@@ -100,7 +100,7 @@ sha2 = { version = "0.10.7", default-features = false }
 thiserror = "1.0.40"
 tokio = { version = "1.25.0", features = ["sync", "time"] }
 # We need https://github.com/tokio-rs/tracing/pull/2335 to quiet down error return
-# values in tokio::instrument, which is not yet unreleased.
+# values in tokio::instrument, which is not yet released.
 tracing = { git = "https://github.com/tokio-rs/tracing", rev = "a0126b2e2d465e8e6d514acdf128fcef5b863d27", default-features = false, features = [
     "alloc",
     "attributes",
