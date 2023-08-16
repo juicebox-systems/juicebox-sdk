@@ -16,6 +16,3 @@ juicebox_sdk = { workspace = true }
 juicebox_sdk_bridge = { workspace = true, features = ["tokio"] }
 url = { workspace = true }
 uuid = { workspace = true }
-
-[build-dependencies]
-cbindgen = { workspace = true }

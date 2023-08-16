@@ -1188,7 +1188,6 @@ name = "juicebox_sdk_jni"
 version = "0.2.0"
 dependencies = [
  "async-trait",
- "cbindgen",
  "futures",
  "jni",
  "juicebox_sdk",
