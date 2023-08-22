@@ -28,11 +28,12 @@ jobs:
     - name: Show cargo package versions before cache unpack
       run: cargo install --list && cbindgen -V && which cbindgen
 
-    - name: Install Rust stable toolchain
+    - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
+        default: true
         profile: minimal
-        toolchain: stable
+        toolchain: 1.71
 
     - name: Show cargo package versions before cache unpack
       run: cargo install --list && cbindgen -V && which cbindgen
@@ -44,7 +45,7 @@ jobs:
       run: cargo install --list && cbindgen -V && which cbindgen
 
     - name: Install cbindgen
-      run: cargo +stable install cbindgen --version 0.24.3 --force
+      run: cargo install cbindgen --version 0.24.3 --force
 
     - name: Show cargo package versions
       run: cargo install --list && cbindgen -V && which cbindgen
@@ -56,9 +57,6 @@ jobs:
       run: swift test -v
       working-directory: swift
 
-    - name: Show cargo package versions after tests
-      run: cargo install --list && cbindgen -V && which cbindgen
-
   swift-pod:
     name: Swift Pod
     runs-on: macOS-latest
@@ -69,7 +67,10 @@ jobs:
         run: swiftlint lint --strict --reporter github-actions-logging
         working-directory: swift
 
-      - run: rustup toolchain install stable --profile minimal --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.71 --profile minimal --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+          rustup default 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -83,13 +84,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust stable toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          components: rustfmt, clippy
-          override: 'true'
+          components: rustfmt, clippy, rust-src
+          default: true
           profile: minimal
-          toolchain: stable
+          toolchain: 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -141,16 +142,12 @@ jobs:
           args: -p juicebox_sdk software_realm --features software_realm_tests
           command: test
 
-      - name: Install nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2023-05-01
-          components: rust-src
-
       - name: Build no_std
         uses: actions-rs/cargo@v1
+        env:
+          # Enable nightly features on stable cargo/rustc for build-std.
+          RUSTC_BOOTSTRAP: 1
         with:
-          toolchain: nightly-2023-05-01
           args: -p juicebox_realm_api -p juicebox_marshalling -p juicebox_noise -p juicebox_secret_sharing -p juicebox_oprf -Z build-std=core,alloc --target x86_64-unknown-linux-gnu
           command: build
 
@@ -161,7 +158,10 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - run: rustup toolchain install stable --profile minimal --target aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.71 --profile minimal --target aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+          rustup default 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -183,13 +183,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust stable toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          components: rustfmt, clippy
-          override: 'true'
+          default: true
           profile: minimal
-          toolchain: stable
+          toolchain: 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
