@@ -12,9 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: >-
-          rustup toolchain install stable --profile minimal --target
-          aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.71 --profile minimal --target \
+            aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+          rustup default 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -41,13 +43,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust stable toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          components: rustfmt, clippy
-          override: 'true'
+          default: true
           profile: minimal
-          toolchain: stable
+          toolchain: 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -81,9 +82,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: >-
-          rustup toolchain install stable --profile minimal --target
-          x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.71 --profile minimal --target \
+            x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+          rustup default 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2

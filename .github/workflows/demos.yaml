@@ -14,12 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust stable toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          override: 'true'
+          default: true
           profile: minimal
-          toolchain: stable
+          toolchain: 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -46,12 +46,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust stable toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          override: 'true'
+          default: true
           profile: minimal
-          toolchain: stable
+          toolchain: 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -86,12 +86,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust stable toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          override: 'true'
+          default: true
           profile: minimal
-          toolchain: stable
+          toolchain: 1.71
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2

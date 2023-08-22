@@ -9,7 +9,9 @@ Register and recover PIN-protected secrets on behalf of a particular user.
 This library wraps a Rust FFI layer. To use it, you must [install rust](https://www.rust-lang.org/tools/install) and the appropriate targets:
 
 ```sh
-rustup +stable target add x86_64-apple-ios aarch64-apple-ios aarch64-apple-ios-sim
+rustup toolchain install 1.71 --profile minimal
+rustup default 1.71
+rustup target add x86_64-apple-ios aarch64-apple-ios aarch64-apple-ios-sim
 ```
 
 #### Cocoa Pods

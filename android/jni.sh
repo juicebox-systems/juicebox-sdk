@@ -67,7 +67,7 @@ for target in "${TARGETS[@]}"; do
 
     if ! (rustup target list --installed | grep -q "${CARGO_BUILD_TARGET}"); then
         echo "error: ${CARGO_BUILD_TARGET} not installed" >&2
-        printf "get it by running: \n\trustup +${RUSTUP_TOOLCHAIN:-stable} target add ${CARGO_BUILD_TARGET}\n" >&2
+        printf "get it by running: \n\trustup target add ${CARGO_BUILD_TARGET}\n" >&2
         exit 1
     fi
 
