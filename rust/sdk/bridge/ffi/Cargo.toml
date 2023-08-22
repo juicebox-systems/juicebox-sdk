@@ -3,6 +3,7 @@ name = "juicebox_sdk_ffi"
 version.workspace = true
 license.workspace = true
 authors.workspace = true
+rust-version.workspace = true
 edition = "2021"
 build = "build.rs"
 
