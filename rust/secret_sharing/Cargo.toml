@@ -8,8 +8,7 @@ edition = "2021"
 
 [dependencies]
 curve25519-dalek = { workspace = true }
-itertools = { workspace = true }
 rand_core = { workspace = true }
 
 [dev-dependencies]
-rand = { workspace = true, features = ["getrandom"] }
+itertools = { workspace = true }

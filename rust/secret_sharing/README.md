@@ -4,14 +4,12 @@ A `Secret` trait is exposed that types can conform to in order to support secret
 
 Support for using scalars and points of the Ristretto255 group as `Secret` values is built-in.
 
-Additionally, this implementation supports combinatorial recovery of shares which can be used as a rudimentary method for combating adversarial shares, provided the user has some way to validate the final recovered _secret_ value.
-
 # Usage
 
 ```rust
 # let rng = &mut rand_core::OsRng;
 use curve25519_dalek::scalar::Scalar;
-use juicebox_secret_sharing::{create_shares, recover_secret, recover_secret_combinatorially, Secret, Share};
+use juicebox_secret_sharing::{create_shares, recover_secret, Secret, Share};
 
 let secret = Scalar::random(rng);
 let threshold = 5;
@@ -44,16 +42,4 @@ let malicious_scalar_shares: Vec<_> = scalar_shares
         s
     })
     .collect();
-
-// Combinatorial recovery
-let recover_combinatorial_secret = recover_secret_combinatorially(&malicious_scalar_shares, threshold, |potential_secret| {
-    // In practice, this validation should be against a public MAC or Hash of the secret value
-    if potential_secret == secret {
-        Some(potential_secret)
-    } else {
-        None
-    }
-}).unwrap();
-
-assert_eq!(secret, recover_combinatorial_secret);
 ```
