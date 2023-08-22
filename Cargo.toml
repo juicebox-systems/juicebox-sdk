@@ -104,7 +104,6 @@ tracing = { version = "0.1.37", default-features = false, features = [
 ] }
 tracing-opentelemetry = "0.20.0"
 url = { version = "2.4.0", features = ["serde"] }
-uuid = { version = "1.4.1", features = ["v4"] }
 wasm-bindgen = { version = "0.2.87", features = ["serde"] }
 wasm-bindgen-futures = "0.4.37"
 wasm-bindgen-test = "0.3.37"
