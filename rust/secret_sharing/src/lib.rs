@@ -8,7 +8,6 @@ use core::iter::{repeat_with, Sum};
 use core::ops::{Add, Mul};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::RistrettoPoint;
-use itertools::Itertools;
 use rand_core::{CryptoRng, RngCore};
 
 /// A type that can be transformed into or recovered from
@@ -119,38 +118,6 @@ pub fn recover_secret<S: Secret>(shares: &[Share<S>]) -> Result<S, RecoverSecret
         .sum()
 }
 
-#[derive(Debug)]
-pub enum RecoverSecretCombinatoriallyError {
-    NoValidCombinations,
-}
-
-/// Attempts to recover from each `threshold` combination of shares, giving
-/// the caller an attempt to validate the resulting secret after each recovery,
-/// e.g. by comparing it to a known MAC computed before the original shares
-/// were produced. This allows recovery from a set of shares that may potentially
-/// contain invalid shares, but still have enough material to recover the secret.
-pub fn recover_secret_combinatorially<Validator, S: Secret, T>(
-    shares: &[Share<S>],
-    threshold: u32,
-    validator: Validator,
-) -> Result<T, RecoverSecretCombinatoriallyError>
-where
-    Validator: Fn(S) -> Option<T>,
-{
-    if shares.len() < threshold as usize {
-        return Err(RecoverSecretCombinatoriallyError::NoValidCombinations);
-    }
-
-    for shares in shares.iter().cloned().combinations(threshold as usize) {
-        if let Ok(secret) = recover_secret(&shares) {
-            if let Some(result) = validator(secret) {
-                return Ok(result);
-            }
-        };
-    }
-    Err(RecoverSecretCombinatoriallyError::NoValidCombinations)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,41 +216,6 @@ mod tests {
                 assert!(reconstructed_secret.is_ok());
                 assert_eq!(reconstructed_secret.unwrap(), secret);
             }
-        });
-    }
-
-    #[test]
-    fn test_recover_combinatorially() {
-        enumerate_counts_and_thresholds(10, |count, threshold| {
-            let secret = Scalar::random(&mut OsRng);
-
-            let generated_shares: Vec<_> =
-                create_shares(&secret, threshold, count, &mut OsRng).collect();
-
-            let recover_shares: Vec<_> = generated_shares
-                .into_iter()
-                .enumerate()
-                .map(|(i, s)| {
-                    if i < (count - threshold) as usize {
-                        return Share {
-                            index: s.index,
-                            secret: Scalar::random(&mut OsRng),
-                        };
-                    }
-                    s
-                })
-                .collect();
-
-            let reconstructed_secret =
-                recover_secret_combinatorially(&recover_shares, threshold, |s| {
-                    if s == secret {
-                        Some(s)
-                    } else {
-                        None
-                    }
-                });
-            assert!(reconstructed_secret.is_ok());
-            assert_eq!(reconstructed_secret.unwrap(), secret);
         });
     }
 

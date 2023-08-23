@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
 use juicebox_sdk as sdk;
 use libc::c_char;
+use rand_core::{OsRng, RngCore};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::mem::take;
 use std::sync::Mutex;
-use uuid::Uuid;
 
 use crate::array::{ManagedArray, UnmanagedArray};
 
@@ -76,7 +76,8 @@ impl From<sdk::http::Request> for HttpRequest {
             None => UnmanagedArray::null(),
         };
         let headers = ManagedArray::from(request.headers).to_unmanaged();
-        let id = *Uuid::new_v4().as_bytes();
+        let mut id = [0u8; 16];
+        OsRng.fill_bytes(&mut id);
 
         HttpRequest {
             id,

@@ -6,9 +6,9 @@ use jni::{
     JNIEnv, JavaVM,
 };
 use juicebox_sdk as sdk;
+use rand_core::{OsRng, RngCore};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use uuid::Uuid;
 
 use crate::{
     jni_array, jni_object, jni_signature,
@@ -53,7 +53,8 @@ impl sdk::http::Client for HttpClient {
                 .new_object(java_request_class, jni_signature!(() => JNI_VOID_TYPE), &[])
                 .unwrap();
 
-            let id = *Uuid::new_v4().as_bytes();
+            let mut id = [0u8; 16];
+            OsRng.fill_bytes(&mut id);
 
             {
                 let mut request_map = self.request_map.lock().unwrap();
