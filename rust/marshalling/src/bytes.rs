@@ -117,7 +117,17 @@ impl Bytes for Vec<u8> {
                 A: serde::de::SeqAccess<'de>,
             {
                 let mut buf: Vec<u8> = match seq.size_hint() {
-                    Some(hint) => Vec::with_capacity(hint),
+                    Some(hint) => {
+                        // The input data might claim there's a giant array of
+                        // integers coming up, but then it might not deliver.
+                        // We don't want to over-allocate too much memory, and
+                        // we can't see how many bytes are left in the input.
+                        //
+                        // `serde` normally applies a limit of 1 MiB in its
+                        // private `cautious` function. This is more
+                        // conservative to suit our use case.
+                        Vec::with_capacity(hint.min(1024))
+                    }
                     None => Vec::new(),
                 };
                 while let Some(x) = seq.next_element()? {
@@ -277,5 +287,33 @@ mod tests {
         assert_eq!(33, serialized.len());
         let output: BytesVec = from_slice(&serialized).unwrap();
         assert_eq!(input, output.0);
+    }
+
+    #[test]
+    fn test_vec_bytes_giant_truncated() {
+        let serialized = [
+            0x5b, // byte string with u64 length
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // len
+            0x00, 0x00, 0x00, // bytes
+        ];
+        assert_eq!(
+            "Deserialization error: Io(EndOfFile(()))",
+            from_slice::<BytesVec>(&serialized).unwrap_err().to_string()
+        );
+    }
+
+    // This test really needs the cap on `hint` or it'll try to allocate more
+    // memory than has ever been made.
+    #[test]
+    fn test_vec_bytes_from_inefficient_giant_truncated() {
+        let serialized = [
+            0x9b, // array with u64 length
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // len
+            0x00, 0x00, 0x00, // ints
+        ];
+        assert_eq!(
+            "Deserialization error: Io(EndOfFile(()))",
+            from_slice::<BytesVec>(&serialized).unwrap_err().to_string()
+        );
     }
 }
