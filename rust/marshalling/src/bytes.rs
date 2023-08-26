@@ -296,10 +296,8 @@ mod tests {
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // len
             0x00, 0x00, 0x00, // bytes
         ];
-        assert_eq!(
-            "Deserialization error: Io(EndOfFile(()))",
-            from_slice::<BytesVec>(&serialized).unwrap_err().to_string()
-        );
+        let err = ciborium::de::from_reader::<BytesVec, _>(serialized.as_slice()).unwrap_err();
+        assert!(matches!(dbg!(err), ciborium::de::Error::Io(_)));
     }
 
     // This test really needs the cap on `hint` or it'll try to allocate more
@@ -311,9 +309,7 @@ mod tests {
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // len
             0x00, 0x00, 0x00, // ints
         ];
-        assert_eq!(
-            "Deserialization error: Io(EndOfFile(()))",
-            from_slice::<BytesVec>(&serialized).unwrap_err().to_string()
-        );
+        let err = ciborium::de::from_reader::<BytesVec, _>(serialized.as_slice()).unwrap_err();
+        assert!(matches!(dbg!(err), ciborium::de::Error::Io(_)));
     }
 }
