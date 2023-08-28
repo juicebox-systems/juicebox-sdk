@@ -117,7 +117,7 @@ impl Bytes for Vec<u8> {
                 A: serde::de::SeqAccess<'de>,
             {
                 let mut buf: Vec<u8> = match seq.size_hint() {
-                    Some(hint) => {
+                    Some(hint) if hint > 1024 => {
                         // The input data might claim there's a giant array of
                         // integers coming up, but then it might not deliver.
                         // We don't want to over-allocate too much memory, and
@@ -126,8 +126,9 @@ impl Bytes for Vec<u8> {
                         // `serde` normally applies a limit of 1 MiB in its
                         // private `cautious` function. This is more
                         // conservative to suit our use case.
-                        Vec::with_capacity(hint.min(1024))
+                        Vec::with_capacity(1024)
                     }
+                    Some(hint) => Vec::with_capacity(hint),
                     None => Vec::new(),
                 };
                 while let Some(x) = seq.next_element()? {
