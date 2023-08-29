@@ -72,7 +72,8 @@ hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "0.2.9"
-instant = "0.1.12"
+# Simon audited instant 0.1.12 in Aug 2023.
+instant = "=0.1.12"
 itertools = { version = "0.11.0", default-features = false, features = [
     "use_alloc",
 ] }
