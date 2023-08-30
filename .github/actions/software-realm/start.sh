@@ -17,7 +17,7 @@ function ASCIItoHEX() {
   echo -n "$@" | xxd -p | tr -d '\n'
 }
 
-if [[ $COUNT == 0 || -z $COUNT ]]; then
+if [[ -z ${COUNT:-} || $COUNT == 0 ]]; then
   echo "Invalid or missing COUNT"
   exit 1
 fi

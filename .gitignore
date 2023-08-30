@@ -1,4 +1,6 @@
-/target
+/.github/actions/software-realm/outputs
+/.github/actions/software-realm/pids
 /.vscode
 /swift/.build
 /swift/.swiftpm
+/target
