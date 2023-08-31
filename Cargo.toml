@@ -58,7 +58,8 @@ chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
     "alloc",
 ] }
 cbindgen = "0.24.5"
-ciborium = { version = "0.2.1", default-features = false }
+# Diego audited ciborium 0.2.1 in Aug 2023.
+ciborium = { version = "=0.2.1", default-features = false }
 criterion = "0.5.1"
 curve25519-dalek = { version = "4.0", features = ["digest", "rand_core"] }
 digest = { version = "0.10.7" }
@@ -68,7 +69,8 @@ ed25519-dalek = { version = "2.0", default-features = false, features = [
 futures = { version = "0.3.28" }
 futures-channel = { version = "0.3.28" }
 getrandom = "0.2.10"
-hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+# Google and Mozilla audited hex 0.4.3 (`cargo vet`).
+hex = { version = "=0.4.3", default-features = false, features = ["alloc"] }
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "0.2.9"
