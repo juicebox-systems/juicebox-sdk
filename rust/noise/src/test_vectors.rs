@@ -220,7 +220,9 @@ fn test_vector(vector: &TestVector) -> bool {
 
     let mut messages = vector.messages.iter().skip(2);
     loop {
-        let Some(request) = messages.next() else { break };
+        let Some(request) = messages.next() else {
+            break;
+        };
         let ciphertext = client
             .encrypt(&hex_decode(&request.payload))
             .expect("client encrypt transport request");
@@ -239,7 +241,9 @@ fn test_vector(vector: &TestVector) -> bool {
             "server receive transport request"
         );
 
-        let Some(response) = messages.next() else { break };
+        let Some(response) = messages.next() else {
+            break;
+        };
         let ciphertext = server
             .encrypt(&hex_decode(&response.payload))
             .expect("server encrypt transport response");

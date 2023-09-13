@@ -14,7 +14,6 @@ pub struct RunnerArgs {
 pub struct Runner;
 
 impl Runner {
-
     // Returns true if the software realm was successfully started.
     pub async fn run(pg: &mut ProcessGroup, args: &RunnerArgs) -> bool {
         println!(
@@ -22,15 +21,17 @@ impl Runner {
             args.id, args.port
         );
         let mut child = Command::new("jb-sw-realm")
-                .arg("-id")
-                .arg(hex::encode(args.id.0))
-                .arg("-port")
-                .arg(args.port.to_string())
-                .stdout(Stdio::null())
-                .env(
-                    "TENANT_SECRETS",
-                    serde_json::to_string(&args.secrets).unwrap(),
-                ).spawn().expect("failed to launch jb-sw-realm");
+            .arg("-id")
+            .arg(hex::encode(args.id.0))
+            .arg("-port")
+            .arg(args.port.to_string())
+            .stdout(Stdio::null())
+            .env(
+                "TENANT_SECRETS",
+                serde_json::to_string(&args.secrets).unwrap(),
+            )
+            .spawn()
+            .expect("failed to launch jb-sw-realm");
 
         for _ in 0..100 {
             match reqwest::get(format!("http://0.0.0.0:{}", args.port)).await {
