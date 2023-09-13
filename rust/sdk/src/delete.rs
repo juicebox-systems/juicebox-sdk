@@ -1,4 +1,6 @@
 use futures::future::join_all;
+use std::error::Error;
+use std::fmt::{Debug, Display};
 use tracing::instrument;
 
 use crate::{auth, http, request::RequestError, Client, Realm, Sleeper};
@@ -23,6 +25,14 @@ pub enum DeleteError {
     /// This request may succeed by trying again with the same parameters.
     Transient,
 }
+
+impl Display for DeleteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Error for DeleteError {}
 
 impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     pub(crate) async fn perform_delete(&self) -> Result<(), DeleteError> {

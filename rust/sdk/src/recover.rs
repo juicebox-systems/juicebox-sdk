@@ -1,6 +1,8 @@
 use curve25519_dalek::{RistrettoPoint, Scalar};
 use rand::rngs::OsRng;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Debug, Display};
 use subtle::ConstantTimeEq;
 use tracing::instrument;
 
@@ -57,6 +59,14 @@ pub enum RecoverError {
     /// This request may succeed by trying again with the same parameters.
     Transient,
 }
+
+impl Display for RecoverError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Error for RecoverError {}
 
 impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     pub(crate) async fn perform_recover(
@@ -157,7 +167,11 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         // key to recover from.
         assert!(oprf_blinded_result_shares_by_commitment_and_verifying_key.len() <= 1);
 
-        let Some(((unlock_key_commitment, _), oprf_blinded_result_shares_and_guesses_remaining)) = oprf_blinded_result_shares_by_commitment_and_verifying_key.into_iter().next() else {
+        let Some(((unlock_key_commitment, _), oprf_blinded_result_shares_and_guesses_remaining)) =
+            oprf_blinded_result_shares_by_commitment_and_verifying_key
+                .into_iter()
+                .next()
+        else {
             return Err(RecoverError::Assertion);
         };
 
@@ -227,7 +241,11 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         // be one or none realms with consensus on an encrypted secret to recover from.
         assert!(encryption_key_scalar_shares_by_encrypted_secret.len() <= 1);
 
-        let Some((encrypted_secret, encryption_key_scalar_shares)) = encryption_key_scalar_shares_by_encrypted_secret.into_iter().next() else {
+        let Some((encrypted_secret, encryption_key_scalar_shares)) =
+            encryption_key_scalar_shares_by_encrypted_secret
+                .into_iter()
+                .next()
+        else {
             return Err(RecoverError::Assertion);
         };
 

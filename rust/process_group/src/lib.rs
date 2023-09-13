@@ -27,6 +27,10 @@ impl ProcessGroup {
         }
     }
 
+    pub fn add(&mut self, child: Child) {
+        self.0.lock().unwrap().push_front(ProcessKiller(child));
+    }
+
     pub fn kill(&mut self) {
         let children = self.0.lock().unwrap().split_off(0);
         info!("waiting for {} child processes to exit", children.len());

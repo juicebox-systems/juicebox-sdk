@@ -1,6 +1,8 @@
 use futures::{stream::FuturesUnordered, StreamExt};
 use instant::Instant;
 use rand::{rngs::OsRng, RngCore};
+use std::error::Error;
+use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::{collections::HashMap, time::Duration};
 use tracing::instrument;
@@ -19,7 +21,7 @@ use juicebox_realm_api::{
     types::SessionId,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RequestError {
     /// A realm rejected the `Client`'s auth token.
     InvalidAuth,
@@ -32,11 +34,19 @@ pub(crate) enum RequestError {
     /// This request may succeed by trying again with the same parameters.
     Transient,
 
-    /// A software error has occured. This request should not be retried
+    /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software,
     /// updates and try again.
     Assertion,
 }
+
+impl Display for RequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Error for RequestError {}
 
 impl From<RpcError> for RequestError {
     fn from(e: RpcError) -> Self {

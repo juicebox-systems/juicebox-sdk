@@ -15,7 +15,6 @@ mod software_realm {
 
     async fn create_realm(pg: &mut ProcessGroup) -> (AuthToken, Realm) {
         let id = RealmId::new_random(&mut OsRng);
-        let port: u16 = OsRng.gen_range(10000..=65535);
 
         let auth_key: String = OsRng
             .sample_iter(&Alphanumeric)
@@ -33,15 +32,28 @@ mod software_realm {
             .map(char::from)
             .collect();
 
-        Runner::run(
-            pg,
-            &RunnerArgs {
-                id,
-                port,
-                secrets: HashMap::from([(issuer.clone(), HashMap::from([(1, auth_key.clone())]))]),
-            },
-        )
-        .await;
+        async fn start(id: RealmId, auth_key: &str, issuer: &str, pg: &mut ProcessGroup) -> u16 {
+            for _tries in 0..3 {
+                let port: u16 = OsRng.gen_range(10000..=65535);
+                if Runner::run(
+                    pg,
+                    &RunnerArgs {
+                        id,
+                        port,
+                        secrets: HashMap::from([(
+                            issuer.to_owned(),
+                            HashMap::from([(1, auth_key.to_owned())]),
+                        )]),
+                    },
+                )
+                .await
+                {
+                    return port;
+                }
+            }
+            panic!("failed to start software realm after multiple attempts");
+        }
+        let port = start(id, &auth_key, &issuer, pg).await;
 
         let token = create_token(
             &Claims {
