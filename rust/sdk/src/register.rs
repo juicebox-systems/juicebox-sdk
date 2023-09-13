@@ -1,4 +1,6 @@
 use rand::rngs::OsRng;
+use std::error::Error;
+use std::fmt::{Debug, Display};
 use std::iter::zip;
 use tracing::instrument;
 
@@ -43,6 +45,14 @@ pub enum RegisterError {
     /// This request may succeed by trying again with the same parameters.
     Transient,
 }
+
+impl Display for RegisterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Error for RegisterError {}
 
 impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     pub(crate) async fn perform_register(
