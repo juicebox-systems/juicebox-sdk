@@ -46,22 +46,22 @@ juicebox_sdk_jni = { path = "rust/sdk/bridge/jni", version = "0.2.0" }
 juicebox_sdk_wasm = { path = "rust/sdk/bridge/wasm", version = "0.2.0" }
 juicebox_software_realm_runner = { path = "rust/software_realm_runner", version = "0.2.0" }
 
-argon2 = { version = "0.5.1", default-features = false, features = [
+argon2 = { version = "0.5.2", default-features = false, features = [
     "alloc",
     "zeroize",
 ] }
 async-trait = "0.1.73"
 blake2 = { version = "0.10.6", default-features = false }
-clap = { version = "4.3.21", features = ["derive"] }
+clap = { version = "4.4.4", features = ["derive"] }
 console_error_panic_hook = "0.1.7"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
     "alloc",
 ] }
-cbindgen = "0.24.5"
+cbindgen = "0.26.0"
 # Diego audited ciborium 0.2.1 in Aug 2023.
 ciborium = { version = "=0.2.1", default-features = false }
 criterion = "0.5.1"
-curve25519-dalek = { version = "4.0", features = ["digest", "rand_core"] }
+curve25519-dalek = { version = "4.1", features = ["digest", "rand_core"] }
 digest = { version = "0.10.7" }
 ed25519-dalek = { version = "2.0", default-features = false, features = [
     "rand_core",
@@ -82,31 +82,31 @@ itertools = { version = "0.11.0", default-features = false, features = [
 jni = "0.21.1"
 jsonwebtoken = { version = "8.3.0", default-features = false }
 js-sys = "0.3.64"
-libc = "0.2.147"
-nix = { version = "0.26.2", default-features = false, features = ["signal"] }
+libc = "0.2.148"
+nix = { version = "0.27.1", default-features = false, features = ["signal"] }
 opentelemetry = { version = "0.20.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
 rand_chacha = { version = "0.3.1", default-features = false }
 regex = "1.9"
-reqwest = { version = "0.11.18", default-features = false, features = [
+reqwest = { version = "0.11.20", default-features = false, features = [
     "rustls-tls",
 ] }
-serde = { version = "1.0.185", default-features = false, features = [
+serde = { version = "1.0.188", default-features = false, features = [
     "alloc",
     "derive",
 ] }
-serde_json = "1.0.105"
-serde-wasm-bindgen = "0.5"
+serde_json = "1.0.107"
+serde-wasm-bindgen = "0.6"
 subtle = { version = "2.5.0", default-features = false }
 sha2 = { version = "0.10.7", default-features = false }
-thiserror = "1.0.46"
-tokio = { version = "1.31.0", features = ["sync", "time"] }
+thiserror = "1.0.48"
+tokio = { version = "1.32.0", features = ["sync", "time"] }
 tracing = { version = "0.1.37", default-features = false, features = [
     "attributes",
 ] }
-tracing-opentelemetry = "0.20.0"
-url = { version = "2.4.0", features = ["serde"] }
+tracing-opentelemetry = "0.21.0"
+url = { version = "2.4.1", features = ["serde"] }
 wasm-bindgen = { version = "0.2.87", features = ["serde"] }
 wasm-bindgen-futures = "0.4.37"
 wasm-bindgen-test = "0.3.37"
