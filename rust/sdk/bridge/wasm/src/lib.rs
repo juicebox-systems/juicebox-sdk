@@ -332,6 +332,8 @@ struct WasmSleeper;
 
 #[async_trait]
 impl Sleeper for WasmSleeper {
+    // Clippy's recommendation to switch the Arc to Rc doesn't seem right here.
+    #[allow(clippy::arc_with_non_send_sync)]
     async fn sleep(&self, duration: Duration) {
         let (send, recv) = oneshot::channel();
         let ok = {
