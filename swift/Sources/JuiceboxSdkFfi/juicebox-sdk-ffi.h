@@ -128,9 +128,14 @@ typedef struct {
   size_t length;
 } JuiceboxUnmanagedConfigurationArray;
 
-typedef void (*JuiceboxAuthTokenGetCallbackFn)(JuiceboxAuthTokenManager *context, uint64_t context_id, const char *auth_token);
+typedef void (*JuiceboxAuthTokenGetCallbackFn)(JuiceboxAuthTokenManager *context,
+                                               uint64_t context_id,
+                                               const char *auth_token);
 
-typedef void (*JuiceboxAuthTokenGetFn)(const JuiceboxAuthTokenManager *context, uint64_t context_id, const uint8_t (*realm_id)[16], JuiceboxAuthTokenGetCallbackFn callback);
+typedef void (*JuiceboxAuthTokenGetFn)(const JuiceboxAuthTokenManager *context,
+                                       uint64_t context_id,
+                                       const uint8_t (*realm_id)[16],
+                                       JuiceboxAuthTokenGetCallbackFn callback);
 
 typedef struct {
   const char *name;
@@ -162,9 +167,12 @@ typedef struct {
   JuiceboxUnmanagedDataArray body;
 } JuiceboxHttpResponse;
 
-typedef void (*JuiceboxHttpResponseFn)(JuiceboxHttpClient *context, const JuiceboxHttpResponse *response);
+typedef void (*JuiceboxHttpResponseFn)(JuiceboxHttpClient *context,
+                                       const JuiceboxHttpResponse *response);
 
-typedef void (*JuiceboxHttpSendFn)(const JuiceboxHttpClient *context, const JuiceboxHttpRequest *request, JuiceboxHttpResponseFn callback);
+typedef void (*JuiceboxHttpSendFn)(const JuiceboxHttpClient *context,
+                                   const JuiceboxHttpRequest *request,
+                                   JuiceboxHttpResponseFn callback);
 
 typedef struct {
   uint8_t id[16];
@@ -243,7 +251,8 @@ void juicebox_client_register(JuiceboxClient *client,
                               JuiceboxUnmanagedDataArray secret,
                               JuiceboxUnmanagedDataArray info,
                               uint16_t num_guesses,
-                              void (*response)(const void *context, const JuiceboxRegisterError *error));
+                              void (*response)(const void *context,
+                                               const JuiceboxRegisterError *error));
 
 /**
  * Retrieves a PIN-protected secret from the configured realms, or falls
@@ -254,7 +263,9 @@ void juicebox_client_recover(JuiceboxClient *client,
                              const void *context,
                              JuiceboxUnmanagedDataArray pin,
                              JuiceboxUnmanagedDataArray info,
-                             void (*response)(const void *context, JuiceboxUnmanagedDataArray secret, const JuiceboxRecoverError *error));
+                             void (*response)(const void *context,
+                                              JuiceboxUnmanagedDataArray secret,
+                                              const JuiceboxRecoverError *error));
 
 /**
  * Deletes the registered secret for this user, if any.
