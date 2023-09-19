@@ -6,7 +6,9 @@ on:
       - main
   workflow_dispatch: {}
 
-
+env:
+  INSTALL_RUST_VERSION: "1.72"
+  
 jobs:
   whitepaper:
     name: Whitepaper
@@ -91,7 +93,7 @@ jobs:
         with:
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -129,9 +131,9 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install 1.71 --profile minimal --target \
+          rustup toolchain install ${{ env.INSTALL_RUST_VERSION }} --profile minimal --target \
             aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-          rustup default 1.71
+          rustup default ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -177,7 +179,7 @@ jobs:
         with:
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2

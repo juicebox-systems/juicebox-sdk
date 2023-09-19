@@ -17,6 +17,8 @@ on:
     - main
   workflow_dispatch: {}
 
+env:
+  INSTALL_RUST_VERSION: "1.72"
 
 jobs:
   swift-package:
@@ -33,7 +35,7 @@ jobs:
       with:
         default: true
         profile: minimal
-        toolchain: 1.71
+        toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
     - name: Show cargo package versions before cache unpack
       run: cargo install --list && cbindgen -V && which cbindgen
@@ -69,8 +71,8 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install 1.71 --profile minimal --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
-          rustup default 1.71
+          rustup toolchain install ${{ env.INSTALL_RUST_VERSION }} --profile minimal --target x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
+          rustup default ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -90,7 +92,7 @@ jobs:
           components: rustfmt, clippy, rust-src
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -160,8 +162,8 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install 1.71 --profile minimal --target aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-          rustup default 1.71
+          rustup toolchain install ${{ env.INSTALL_RUST_VERSION }} --profile minimal --target aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+          rustup default ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -188,7 +190,7 @@ jobs:
         with:
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2

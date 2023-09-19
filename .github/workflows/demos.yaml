@@ -7,6 +7,9 @@ on:
     - main
   workflow_dispatch: {}
 
+env:
+  INSTALL_RUST_VERSION: "1.72"
+   
 jobs:
   rust:
     name: Rust
@@ -19,7 +22,7 @@ jobs:
         with:
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -51,7 +54,7 @@ jobs:
         with:
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -91,7 +94,7 @@ jobs:
         with:
           default: true
           profile: minimal
-          toolchain: 1.71
+          toolchain: ${{ env.INSTALL_RUST_VERSION }}
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2

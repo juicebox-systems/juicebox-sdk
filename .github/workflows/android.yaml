@@ -13,6 +13,9 @@ name: Manual CI
 on:
   workflow_dispatch: {}
 
+env:
+  INSTALL_RUST_VERSION: "1.72"
+   
 jobs:
   android:
     name: Android
@@ -22,8 +25,8 @@ jobs:
 
     - name: Install Rust
       run: |
-        rustup toolchain install 1.71 --profile minimal --target aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-        rustup default 1.71
+        rustup toolchain install ${{ env.INSTALL_RUST_VERSION }} --profile minimal --target aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+        rustup default ${{ env.INSTALL_RUST_VERSION }}
 
     - name: Use Rust Cache
       uses: Swatinem/rust-cache@v2
