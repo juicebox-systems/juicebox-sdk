@@ -47,7 +47,8 @@ jobs:
       run: cargo install --list && cbindgen -V && which cbindgen
 
     - name: Install cbindgen
-      run: cargo install cbindgen --version 0.24.3 --force
+      # keep this version in sync with the one in Cargo.toml
+      run: cargo install cbindgen --version 0.26.0 --force
 
     - name: Show cargo package versions
       run: cargo install --list && cbindgen -V && which cbindgen
