@@ -33,6 +33,9 @@ enum Command {
         /// The integer version of the signing key.
         #[arg(value_parser = parse_auth_key_version)]
         version: AuthKeyVersion,
+        /// The scope(s) to include in the token.
+        #[arg(default_value = "")]
+        scope: String,
     },
 
     /// Validate an auth token for a tenant.
@@ -64,12 +67,14 @@ fn main() {
             realm,
             key,
             version,
+            scope,
         } => {
             let token = create_token(
                 &Claims {
                     issuer: tenant,
                     subject: user,
                     audience: realm,
+                    scope,
                 },
                 &key,
                 version,
@@ -94,6 +99,7 @@ fn main() {
                     issuer,
                     subject,
                     audience: _,
+                    scope: _,
                 }) => {
                     if issuer != tenant {
                         warnings.push(format!(
@@ -152,6 +158,7 @@ fn main() {
                             t, tenant
                         ));
                     }
+
                     if v != version {
                         warnings.push(format!(
                             "unexpected `version` in `kid` ({} != {})",

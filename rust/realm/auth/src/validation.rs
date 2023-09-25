@@ -11,6 +11,7 @@ struct InternalClaims {
     aud: String,
     exp: u64, // seconds since Unix epoch
     nbf: u64, // seconds since Unix epoch
+    scope: Option<String>,
 }
 
 #[derive(Debug)]
@@ -81,6 +82,7 @@ impl Validator {
             issuer: claims.iss,
             subject: claims.sub,
             audience: realm_id,
+            scope: claims.scope.unwrap_or_default(),
         })
     }
 }

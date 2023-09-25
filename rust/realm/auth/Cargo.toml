@@ -13,3 +13,6 @@ jsonwebtoken = { workspace = true }
 juicebox_realm_api = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

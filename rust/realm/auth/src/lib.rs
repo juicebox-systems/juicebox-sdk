@@ -33,10 +33,15 @@ pub struct Claims {
     pub subject: String,
     /// Realm ID.
     pub audience: RealmId,
+    /// Space separated list of scopes. see https://www.rfc-editor.org/rfc/rfc8693.html
+    pub scope: String,
 }
 
 #[cfg(test)]
 mod tests {
+    use jsonwebtoken::{DecodingKey, TokenData, Validation};
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -46,6 +51,49 @@ mod tests {
             issuer: String::from("tenant"),
             subject: String::from("mario"),
             audience: realm_id,
+            scope: String::from(""),
+        };
+        let key = AuthKey::from(b"it's-a-me!".to_vec());
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
+        let validator = validation::Validator::new(realm_id);
+        assert_eq!(
+            validator.parse_key_id(&token).unwrap(),
+            (String::from("tenant"), AuthKeyVersion(32))
+        );
+        assert_eq!(validator.validate(&token, &key).unwrap(), claims);
+    }
+
+    #[test]
+    fn test_token_empty_scope_is_not_serialized() {
+        let realm_id = RealmId([5; 16]);
+        let claims = Claims {
+            issuer: String::from("tenant"),
+            subject: String::from("mario"),
+            audience: realm_id,
+            scope: String::from(""),
+        };
+        let key = AuthKey::from(b"it's-a-me!".to_vec());
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
+        let mut v = Validation::new(jsonwebtoken::Algorithm::HS256);
+        v.leeway = 60;
+        let p: TokenData<HashMap<String, serde_json::Value>> = jsonwebtoken::decode(
+            token.0.expose_secret(),
+            &DecodingKey::from_secret(key.0.expose_secret()),
+            &v,
+        )
+        .unwrap();
+        assert!(p.claims.contains_key("iss"));
+        assert!(!p.claims.contains_key("scope"));
+    }
+
+    #[test]
+    fn test_token_scope() {
+        let realm_id = RealmId([5; 16]);
+        let claims = Claims {
+            issuer: String::from("tenant"),
+            subject: String::from("mario"),
+            audience: realm_id,
+            scope: String::from("audit"),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
@@ -80,6 +128,7 @@ mod tests {
             issuer: String::from("tenant"),
             subject: String::from("mario"),
             audience: realm_id,
+            scope: String::from(""),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
         let token = creation::create_token_at(&claims, &key, AuthKeyVersion(32), 1400);
@@ -99,6 +148,7 @@ mod tests {
             issuer: String::from("tenant"),
             subject: String::from("mario"),
             audience: realm_id,
+            scope: String::from(""),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
@@ -120,6 +170,7 @@ mod tests {
             issuer: String::from("tenant"),
             subject: String::from("mario"),
             audience: realm_id_token,
+            scope: String::from(""),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
@@ -148,6 +199,7 @@ mod tests {
                         aud: &hex::encode(realm_id.0),
                         exp: get_current_timestamp() + 60 * 10,
                         nbf: get_current_timestamp() - 10,
+                        scope: "",
                     },
                     &EncodingKey::from_secret(key.expose_secret()),
                 )
