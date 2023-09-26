@@ -60,6 +60,7 @@ mod software_realm {
                 issuer,
                 subject,
                 audience: id,
+                scope: String::from(""),
             },
             &AuthKey::from(auth_key.into_bytes()),
             AuthKeyVersion(1),
