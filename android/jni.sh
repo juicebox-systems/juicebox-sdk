@@ -55,9 +55,20 @@ ANDROID_LIB_DIR=android/libs
 TARGETS=("aarch64-linux-android arm64-v8a" "armv7-linux-androideabi armeabi-v7a" "x86_64-linux-android x86_64" "i686-linux-android x86")
 
 ANDROID_TOOLCHAIN_DIR=$(echo "${ANDROID_NDK_HOME}"/toolchains/llvm/prebuilt/*/bin/)
+export AR_aarch64_linux_android="${ANDROID_TOOLCHAIN_DIR}/llvm-ar"
+export CC_aarch64_linux_android="${ANDROID_TOOLCHAIN_DIR}/aarch64-linux-android21-clang"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_TOOLCHAIN_DIR}/aarch64-linux-android21-clang"
+
+export AR_armv7_linux_androideabi="${ANDROID_TOOLCHAIN_DIR}/llvm-ar"
+export CC_armv7_linux_androideabi="${ANDROID_TOOLCHAIN_DIR}/armv7a-linux-androideabi21-clang"
 export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${ANDROID_TOOLCHAIN_DIR}/armv7a-linux-androideabi21-clang"
+
+export AR_x86_64_linux_android="${ANDROID_TOOLCHAIN_DIR}/llvm-ar"
+export CC_x86_64_linux_android="${ANDROID_TOOLCHAIN_DIR}/x86_64-linux-android21-clang"
 export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="${ANDROID_TOOLCHAIN_DIR}/x86_64-linux-android21-clang"
+
+export AR_i686_linux_android="${ANDROID_TOOLCHAIN_DIR}/llvm-ar"
+export CC_i686_linux_android="${ANDROID_TOOLCHAIN_DIR}/i686-linux-android21-clang"
 export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="${ANDROID_TOOLCHAIN_DIR}/i686-linux-android21-clang"
 
 for target in "${TARGETS[@]}"; do
