@@ -17,7 +17,7 @@ mod types;
 use configuration::CheckedConfiguration;
 use types::Session;
 
-pub use auth::AuthTokenManager;
+pub use auth::{AuthTokenGenerator, AuthTokenManager, UserId};
 pub use configuration::Configuration;
 pub use delete::DeleteError;
 pub use juicebox_networking::http;
