@@ -2,12 +2,13 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use juicebox_realm_api::types::{AuthToken, RealmId, SecretBytesVec};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod creation;
 pub mod validation;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 /// An integer version for an [`AuthKey`] secret.
 pub struct AuthKeyVersion(pub u64);
 
