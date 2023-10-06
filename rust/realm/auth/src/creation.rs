@@ -43,7 +43,7 @@ pub(super) fn create_token_at(
                 aud: &hex::encode(claims.audience.0),
                 exp: now + 60 * 10,
                 nbf: now - 10,
-                scope: &claims.scope,
+                scope: claims.scope.map(|s| s.as_str()).unwrap_or_default(),
             },
             &EncodingKey::from_secret(key.expose_secret()),
         )

@@ -1,8 +1,9 @@
 use jsonwebtoken::{self, Algorithm, DecodingKey, TokenData, Validation};
-use juicebox_realm_api::types::RealmId;
 use serde::Deserialize;
+use std::str::FromStr;
 
-use super::{AuthKey, AuthKeyVersion, AuthToken, Claims};
+use super::{AuthKey, AuthKeyVersion, AuthToken, Claims, Scope};
+use juicebox_realm_api::types::RealmId;
 
 #[derive(Debug, Deserialize)]
 struct InternalClaims {
@@ -14,30 +15,43 @@ struct InternalClaims {
     scope: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     Jwt(jsonwebtoken::errors::Error),
     LifetimeTooLong,
     BadKeyId,
     BadAudience,
+    BadScope(String),
+    MissingScope,
 }
 
 pub struct Validator {
     validation: Validation,
     // This is exposed to support unit testing.
     pub max_lifetime_seconds: Option<u64>,
+    require_scope: Require,
+}
+
+pub enum Require {
+    /// The provided scope must match this.
+    Scope(Scope),
+    /// The provided scope must match this, or may be completely missing.
+    ScopeOrMissing(Scope),
+    /// There are no restrictions on scope.
+    Any,
 }
 
 pub const MAX_LIFETIME_SECONDS: u64 = 60 * 60 * 24;
 
 impl Validator {
-    pub fn new(realm_id: RealmId) -> Self {
+    pub fn new(realm_id: RealmId, require_scope: Require) -> Self {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.set_audience(&[hex::encode(realm_id.0)]);
         validation.set_required_spec_claims(&["exp", "nbf", "aud", "iss", "sub"]);
         Self {
             validation,
             max_lifetime_seconds: Some(MAX_LIFETIME_SECONDS),
+            require_scope,
         }
     }
 
@@ -77,12 +91,33 @@ impl Validator {
         };
 
         let realm_id = RealmId(audience.try_into().map_err(|_| Error::BadAudience)?);
+        let scope = match claims.scope {
+            Some(scopes) => Scope::from_str(&scopes)
+                .map_err(|_| Error::BadScope(scopes))
+                .map(Some),
+            None => Ok(None),
+        }?;
+        match (&scope, &self.require_scope) {
+            (None, Require::Scope(_)) => return Err(Error::MissingScope),
+            (None, Require::ScopeOrMissing(_)) => {}
+            (_, Require::Any) => {}
+            (Some(actual), Require::Scope(req)) => {
+                if actual != req {
+                    return Err(Error::MissingScope);
+                }
+            }
+            (Some(actual), Require::ScopeOrMissing(req)) => {
+                if actual != req {
+                    return Err(Error::MissingScope);
+                }
+            }
+        }
 
         Ok(Claims {
             issuer: claims.iss,
             subject: claims.sub,
             audience: realm_id,
-            scope: claims.scope.unwrap_or_default(),
+            scope,
         })
     }
 }

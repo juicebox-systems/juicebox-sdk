@@ -32,7 +32,7 @@ Arguments:
   <REALM>    The ID of the realm, as a hex string, that the token should be valid for
   <KEY>      The key, as a hex string, that the token should be signed with
   <VERSION>  The integer version of the signing key
-  [SCOPE]    The scope(s) to include in the token [default: ]
+  [SCOPE]    The scope to include in the token [default: user]
 
 Options:
   -h, --help  Print help
