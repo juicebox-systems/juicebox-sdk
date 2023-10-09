@@ -24,7 +24,7 @@ Options:
 Create an auth token for a given tenant.
 
 ```
-Usage: tokens create <USER> <TENANT> <REALM> <KEY> <VERSION>
+Usage: tokens create <USER> <TENANT> <REALM> <KEY> <VERSION> [SCOPE]
 
 Arguments:
   <USER>     An alphanumeric user ID that this token should be valid for
@@ -32,6 +32,7 @@ Arguments:
   <REALM>    The ID of the realm, as a hex string, that the token should be valid for
   <KEY>      The key, as a hex string, that the token should be signed with
   <VERSION>  The integer version of the signing key
+  [SCOPE]    The scope to include in the token [default: user]
 
 Options:
   -h, --help  Print help

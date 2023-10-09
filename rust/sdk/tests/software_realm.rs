@@ -3,7 +3,7 @@ mod software_realm {
     use juicebox_networking::reqwest;
     use juicebox_networking::rpc::LoadBalancerService;
     use juicebox_process_group::ProcessGroup;
-    use juicebox_realm_auth::{creation::create_token, AuthKey, AuthKeyVersion, Claims};
+    use juicebox_realm_auth::{creation::create_token, AuthKey, AuthKeyVersion, Claims, Scope};
     use juicebox_sdk::{AuthToken, RealmId, RecoverError, TokioSleeper, *};
     use juicebox_software_realm_runner::{Runner, RunnerArgs};
     use rand::distributions::Alphanumeric;
@@ -60,6 +60,7 @@ mod software_realm {
                 issuer,
                 subject,
                 audience: id,
+                scope: Some(Scope::User),
             },
             &AuthKey::from(auth_key.into_bytes()),
             AuthKeyVersion(1),

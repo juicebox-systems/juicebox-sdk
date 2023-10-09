@@ -4,8 +4,8 @@ use jsonwebtoken::errors::ErrorKind;
 use juicebox_realm_api::types::{AuthToken, RealmId};
 use juicebox_realm_auth::{
     creation::create_token,
-    validation::{Error, Validator, MAX_LIFETIME_SECONDS},
-    AuthKey, AuthKeyVersion, Claims,
+    validation::{Error, Require, Validator, MAX_LIFETIME_SECONDS},
+    AuthKey, AuthKeyVersion, Claims, Scope,
 };
 
 use clap::{command, Parser, Subcommand};
@@ -33,6 +33,9 @@ enum Command {
         /// The integer version of the signing key.
         #[arg(value_parser = parse_auth_key_version)]
         version: AuthKeyVersion,
+        /// The scope to include in the token.
+        #[arg(default_value_t)]
+        scope: Scope,
     },
 
     /// Validate an auth token for a tenant.
@@ -64,12 +67,14 @@ fn main() {
             realm,
             key,
             version,
+            scope,
         } => {
             let token = create_token(
                 &Claims {
                     issuer: tenant,
                     subject: user,
                     audience: realm,
+                    scope: Some(scope),
                 },
                 &key,
                 version,
@@ -87,13 +92,14 @@ fn main() {
             let mut errors: Vec<String> = vec![];
             let mut warnings: Vec<String> = vec![];
 
-            let validator = Validator::new(realm);
+            let validator = Validator::new(realm, Require::AnyScopeOrMissing);
 
             match validator.validate(&token, &key) {
                 Ok(Claims {
                     issuer,
                     subject,
                     audience: _,
+                    scope,
                 }) => {
                     if issuer != tenant {
                         warnings.push(format!(
@@ -107,6 +113,10 @@ fn main() {
                             subject, user
                         ));
                     }
+                    if scope.is_none() {
+                        warnings.push(format!("no 'scope' supplied in token. \
+                        A scope (one of {}) will soon be required.", Scope::strings().join(", ")))
+                    }
                 }
                 Err(Error::BadKeyId) => {
                     // checked below
@@ -118,6 +128,9 @@ fn main() {
                 Err(Error::BadAudience) => errors.push(
                     "unable to parse `aud` in `claims`. verify your `aud` is a string of hex bytes"
                         .to_string(),
+                ),
+                Err(Error::BadScope) => errors.push(
+                    format!("provided scope is not valid or missing. Should be one of {}", Scope::strings().join(", "))
                 ),
                 Err(Error::Jwt(e)) => match e.into_kind() {
                     ErrorKind::InvalidToken => errors.push(
@@ -152,6 +165,7 @@ fn main() {
                             t, tenant
                         ));
                     }
+
                     if v != version {
                         warnings.push(format!(
                             "unexpected `version` in `kid` ({} != {})",
