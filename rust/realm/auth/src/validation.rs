@@ -21,8 +21,7 @@ pub enum Error {
     LifetimeTooLong,
     BadKeyId,
     BadAudience,
-    BadScope(String),
-    MissingScope,
+    BadScope,
 }
 
 pub struct Validator {
@@ -38,7 +37,7 @@ pub enum Require {
     /// The provided scope must match this, or may be completely missing.
     ScopeOrMissing(Scope),
     /// There are no restrictions on scope.
-    Any,
+    AnyScopeOrMissing,
 }
 
 pub const MAX_LIFETIME_SECONDS: u64 = 60 * 60 * 24;
@@ -93,22 +92,22 @@ impl Validator {
         let realm_id = RealmId(audience.try_into().map_err(|_| Error::BadAudience)?);
         let scope = match claims.scope {
             Some(scopes) => Scope::from_str(&scopes)
-                .map_err(|_| Error::BadScope(scopes))
+                .map_err(|_| Error::BadScope)
                 .map(Some),
             None => Ok(None),
         }?;
         match (&scope, &self.require_scope) {
-            (None, Require::Scope(_)) => return Err(Error::MissingScope),
+            (None, Require::Scope(_)) => return Err(Error::BadScope),
             (None, Require::ScopeOrMissing(_)) => {}
-            (_, Require::Any) => {}
+            (_, Require::AnyScopeOrMissing) => {}
             (Some(actual), Require::Scope(req)) => {
                 if actual != req {
-                    return Err(Error::MissingScope);
+                    return Err(Error::BadScope);
                 }
             }
             (Some(actual), Require::ScopeOrMissing(req)) => {
                 if actual != req {
-                    return Err(Error::MissingScope);
+                    return Err(Error::BadScope);
                 }
             }
         }

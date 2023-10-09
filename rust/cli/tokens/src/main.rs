@@ -92,7 +92,7 @@ fn main() {
             let mut errors: Vec<String> = vec![];
             let mut warnings: Vec<String> = vec![];
 
-            let validator = Validator::new(realm, Require::Any);
+            let validator = Validator::new(realm, Require::AnyScopeOrMissing);
 
             match validator.validate(&token, &key) {
                 Ok(Claims {
@@ -115,7 +115,7 @@ fn main() {
                     }
                     if scope.is_none() {
                         warnings.push(format!("no 'scope' supplied in token. \
-                        A scope (one of {}) will soon be required.", Scope::strings().join(",")))
+                        A scope (one of {}) will soon be required.", Scope::strings().join(", ")))
                     }
                 }
                 Err(Error::BadKeyId) => {
@@ -129,12 +129,9 @@ fn main() {
                     "unable to parse `aud` in `claims`. verify your `aud` is a string of hex bytes"
                         .to_string(),
                 ),
-                Err(Error::BadScope(scope)) => errors.push(
-                    format!("provided scope of '{scope}' is not valid. Should be one of {}", Scope::strings().join(","))
+                Err(Error::BadScope) => errors.push(
+                    format!("provided scope is not valid or missing. Should be one of {}", Scope::strings().join(", "))
                 ),
-                Err(Error::MissingScope) =>
-                    unreachable!("should never get this error when Require::Any is set for the validator"),
-
                 Err(Error::Jwt(e)) => match e.into_kind() {
                     ErrorKind::InvalidToken => errors.push(
                         "provided token does not have valid jwt shape, is it a jwt?".to_string(),

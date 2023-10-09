@@ -132,7 +132,7 @@ mod tests {
             scope: Some(Scope::User),
         };
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
-        assert_eq!(validator.validate(&token, &key), Err(Error::MissingScope));
+        assert_eq!(validator.validate(&token, &key), Err(Error::BadScope));
 
         let claims = Claims {
             issuer: String::from("tenant"),
@@ -141,7 +141,7 @@ mod tests {
             scope: None,
         };
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
-        assert_eq!(validator.validate(&token, &key), Err(Error::MissingScope));
+        assert_eq!(validator.validate(&token, &key), Err(Error::BadScope));
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::Audit));
         assert_eq!(validator.validate(&token, &key), Ok(claims));
@@ -173,8 +173,8 @@ mod tests {
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::User));
         assert_eq!(
-            validator.validate(&mint("auditor"), &key),
-            Err(Error::BadScope(String::from("auditor")))
+            validator.validate(&mint(Some("auditor")), &key),
+            Err(Error::BadScope)
         );
     }
 
@@ -273,7 +273,7 @@ mod tests {
                         aud: &hex::encode(realm_id.0),
                         exp: get_current_timestamp() + 60 * 10,
                         nbf: get_current_timestamp() - 10,
-                        scope: "",
+                        scope: None,
                     },
                     &EncodingKey::from_secret(key.expose_secret()),
                 )
@@ -281,7 +281,7 @@ mod tests {
             )
         };
 
-        let validator = validation::Validator::new(realm_id, Require::Any);
+        let validator = validation::Validator::new(realm_id, Require::AnyScopeOrMissing);
         validator.validate(&mint("tenant:32"), &key).unwrap();
         assert_eq!(
             format!("{:?}", validator.validate(&mint("ten:ant:32"), &key)),

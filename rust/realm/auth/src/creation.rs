@@ -11,8 +11,8 @@ pub(super) struct InternalClaims<'a> {
     pub aud: &'a str,
     pub exp: u64, // seconds since Unix epoch
     pub nbf: u64, // seconds since Unix epoch
-    #[serde(skip_serializing_if = "str::is_empty")]
-    pub scope: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<&'a str>,
 }
 
 pub fn create_token(claims: &Claims, key: &AuthKey, key_version: AuthKeyVersion) -> AuthToken {
@@ -43,7 +43,7 @@ pub(super) fn create_token_at(
                 aud: &hex::encode(claims.audience.0),
                 exp: now + 60 * 10,
                 nbf: now - 10,
-                scope: claims.scope.map(|s| s.as_str()).unwrap_or_default(),
+                scope: claims.scope.map(|s| s.as_str()),
             },
             &EncodingKey::from_secret(key.expose_secret()),
         )
