@@ -20,7 +20,7 @@ public final class Client {
     /// it's recommended you maintain some form of cache for tokens and do not fetch
     /// a fresh token for every request. Said cache should be invalidated if any operation
     /// returns an `InvalidAuth` error.
-    public static var fetchAuthTokenCallback: ((_ realmId: RealmId) -> String?)?
+    public static var fetchAuthTokenCallback: ((_ realmId: RealmId) -> AuthToken?)?
 
     #if !os(Linux)
     /// The file path of any certificate files you wish to pin realm connections against.
@@ -52,7 +52,7 @@ public final class Client {
      */
     public init(
         configuration: Configuration,
-        authTokens: [RealmId: String]? = nil,
+        authTokens: [RealmId: AuthToken]? = nil,
         previousConfigurations: [Configuration] = []
     ) {
         self.configuration = configuration
@@ -267,8 +267,8 @@ let authTokenGet: JuiceboxAuthTokenGetFn = { context, contextId, realmId, callba
     }
 
     if let authToken = fetchFn(RealmId(raw: realmId.pointee)) {
-        authToken.withCString { authTokenCString in
-            callback(context, contextId, authTokenCString)
+        authToken.withUnsafeFfi { authTokenFfi in
+            callback(context, contextId, authTokenFfi)
         }
     } else {
         callback(context, contextId, nil)

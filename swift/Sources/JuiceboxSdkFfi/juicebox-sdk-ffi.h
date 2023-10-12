@@ -115,6 +115,10 @@ typedef enum {
   JuiceboxRegisterErrorTransient = 3,
 } JuiceboxRegisterError;
 
+typedef struct JuiceboxAuthToken JuiceboxAuthToken;
+
+typedef struct JuiceboxAuthTokenGenerator JuiceboxAuthTokenGenerator;
+
 typedef struct JuiceboxAuthTokenManager JuiceboxAuthTokenManager;
 
 typedef struct JuiceboxClient JuiceboxClient;
@@ -130,7 +134,7 @@ typedef struct {
 
 typedef void (*JuiceboxAuthTokenGetCallbackFn)(JuiceboxAuthTokenManager *context,
                                                uint64_t context_id,
-                                               const char *auth_token);
+                                               const JuiceboxAuthToken *auth_token);
 
 typedef void (*JuiceboxAuthTokenGetFn)(const JuiceboxAuthTokenManager *context,
                                        uint64_t context_id,
@@ -192,6 +196,11 @@ typedef struct {
    */
   const uint16_t *guesses_remaining;
 } JuiceboxRecoverError;
+
+typedef struct {
+  uint8_t realm_id[16];
+  uint8_t user_id[16];
+} JuiceboxAuthTokenParameters;
 
 /**
  * Constructs a new opaque `JuiceboxClient`.
@@ -273,5 +282,16 @@ void juicebox_client_recover(JuiceboxClient *client,
 void juicebox_client_delete(JuiceboxClient *client,
                             const void *context,
                             void (*response)(const void *context, const JuiceboxDeleteError *error));
+
+JuiceboxAuthTokenGenerator *juicebox_auth_token_generator_create_from_json(const char *json);
+
+void juicebox_auth_token_generator_destroy(JuiceboxAuthTokenGenerator *generator);
+
+const JuiceboxAuthToken *juicebox_auth_token_generator_vend(JuiceboxAuthTokenGenerator *generator,
+                                                            JuiceboxAuthTokenParameters parameters);
+
+const JuiceboxAuthToken *juicebox_auth_token_create(const char *token_cstr);
+
+void juicebox_auth_token_destroy(JuiceboxAuthToken *token);
 
 #endif /* JUICEBOX_FFI_H_ */
