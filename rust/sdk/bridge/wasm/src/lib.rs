@@ -394,22 +394,6 @@ impl sdk::AuthTokenManager for WasmAuthTokenManager {
 }
 
 #[wasm_bindgen]
-pub struct UserId(sdk::UserId);
-
-#[wasm_bindgen]
-impl UserId {
-    #[wasm_bindgen(constructor)]
-    pub fn new(hex: String) -> Self {
-        UserId(sdk::UserId::from_str(&hex).unwrap())
-    }
-
-    #[wasm_bindgen]
-    pub fn random() -> Self {
-        UserId(sdk::UserId::new_random())
-    }
-}
-
-#[wasm_bindgen]
 pub struct AuthTokenGenerator(sdk::AuthTokenGenerator);
 
 #[wasm_bindgen]
@@ -447,14 +431,20 @@ impl AuthTokenGenerator {
         Self(sdk::AuthTokenGenerator::from_json(&json_string).expect("invalid generator json"))
     }
 
-    pub fn vend(&self, realm_id: Vec<u8>, user_id: Vec<u8>) -> String {
+    #[wasm_bindgen]
+    pub fn vend(&self, realm_id: &str, user_id: &str) -> String {
         self.0
             .vend(
-                &sdk::RealmId(realm_id.try_into().unwrap()),
-                &sdk::UserId(user_id.try_into().unwrap()),
+                &sdk::RealmId::from_str(realm_id).unwrap(),
+                &sdk::UserId::from_str(user_id).unwrap(),
             )
             .expose_secret()
             .to_string()
+    }
+
+    #[wasm_bindgen]
+    pub fn random_user_id() -> String {
+        hex::encode(sdk::UserId::new_random().0).to_string()
     }
 }
 

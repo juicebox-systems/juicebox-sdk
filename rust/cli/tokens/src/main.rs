@@ -1,6 +1,5 @@
 use std::process::exit;
 
-use jsonwebtoken::errors::ErrorKind;
 use juicebox_realm_api::types::{AuthToken, RealmId};
 use juicebox_realm_auth::{
     creation::create_token,
@@ -9,6 +8,7 @@ use juicebox_realm_auth::{
 };
 
 use clap::{command, Parser, Subcommand};
+use jwt_simple::JWTError;
 
 /// A CLI tool for validation and creation of auth tokens.
 #[derive(Parser)]
@@ -132,27 +132,30 @@ fn main() {
                 Err(Error::BadScope) => errors.push(
                     format!("provided scope is not valid or missing. Should be one of {}", Scope::strings().join(", "))
                 ),
-                Err(Error::Jwt(e)) => match e.into_kind() {
-                    ErrorKind::InvalidToken => errors.push(
+                Err(Error::BadIssuer) => errors.push(
+                    format!("provided issuer is not valid or missing. Should be {}", tenant)
+                ),
+                Err(Error::BadSubject) => errors.push(
+                    format!("provided subject is not valid or missing. Should be {}", user)
+                ),
+                Err(Error::Jwt(e)) => match e.downcast::<JWTError>() {
+                    Ok(JWTError::NotJWT) => errors.push(
                         "provided token does not have valid jwt shape, is it a jwt?".to_string(),
                     ),
-                    ErrorKind::InvalidSignature => {
+                    Ok(JWTError::InvalidSignature) => {
                         errors.push("token signed with incorrect key".to_string())
                     }
-                    ErrorKind::ExpiredSignature => errors.push(
+                    Ok(JWTError::TokenHasExpired) => errors.push(
                         "token has expired, verify the `exp` field in your `claims`.".to_string(),
                     ),
-                    ErrorKind::ImmatureSignature => errors.push(
+                    Ok(JWTError::TokenNotValidYet) => errors.push(
                         "token not yet valid, verify the `nbf` field in your `claims`.".to_string(),
                     ),
-                    ErrorKind::InvalidAudience => errors.push(format!(
+                    Ok(JWTError::RequiredAudienceMismatch) => errors.push(format!(
                         "invalid `aud` in `claims`. (expected `aud` of {})",
                         hex::encode(realm.0)
                     )),
-                    ErrorKind::MissingRequiredClaim(claim) => {
-                        errors.push(format!("missing `{}` in `claims`", claim))
-                    }
-                    ErrorKind::InvalidAlgorithm => errors.push("invalid `algorithm` in `header`. verify you are using HS256 to sign your token.".to_string()),
+                    Ok(JWTError::AlgorithmMismatch) => errors.push("invalid `algorithm` in `header`. verify you are using HS256 to sign your token.".to_string()),
                     e => errors.push(format!("unexpected issuer parsing jwt {:?}", e)),
                 },
             }
