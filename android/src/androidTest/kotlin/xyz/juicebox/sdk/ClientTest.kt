@@ -58,6 +58,37 @@ class ClientTest {
     }
 
     @Test
+    fun testAuthTokenGenerator() {
+        val generator = AuthTokenGenerator("""
+          {
+            "key": "0668e97c5d282a08d4251255541845e2d78b78b9438e1562b51d9cf4e099be53",
+            "tenant": "acme",
+            "version": 1
+          }
+        """)
+        val realmId = RealmId("000102030405060708090A0B0C0D0E0F")
+        val userId = UserId.random()
+        val client = Client(
+            Configuration(
+                realms = arrayOf(Realm(
+                    id = realmId,
+                    address = "https://httpbin.org/anything/"
+                )),
+                registerThreshold = 1,
+                recoverThreshold = 1,
+                pinHashingMode = PinHashingMode.FAST_INSECURE
+            )
+        )
+        Client.fetchAuthTokenCallback = { realmId -> generator.vend(realmId, userId) }
+        val exception = assertThrows(RegisterException::class.java) {
+            runBlocking {
+                client.register("test".toByteArray(), "secret".toByteArray(), "info".toByteArray(), 5)
+            }
+        }
+        assertEquals(RegisterError.ASSERTION, exception.error)
+    }
+
+    @Test
     fun testRegister() {
         val client = client("https://httpbin.org/anything/")
         val exception = assertThrows(RegisterException::class.java) {
@@ -103,7 +134,7 @@ class ClientTest {
                 recoverThreshold = 1,
                 pinHashingMode = PinHashingMode.FAST_INSECURE
             ),
-            authTokens = mapOf(realmId to "abc.123")
+            authTokens = mapOf(realmId to AuthToken("abc.123"))
         )
     }
 }

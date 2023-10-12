@@ -34,7 +34,7 @@ class Client private constructor (
     constructor(
         configuration: Configuration,
         previousConfigurations: Array<Configuration> = emptyArray(),
-        authTokens: Map<RealmId, String>? = null
+        authTokens: Map<RealmId, AuthToken>? = null
     ) : this(
         createNative(configuration, previousConfigurations, authTokens)
     )
@@ -118,9 +118,9 @@ class Client private constructor (
          * a fresh token for every request. Said cache should be invalidated if any operation
          * returns an `InvalidAuth` error.
          */
-        var fetchAuthTokenCallback: ((RealmId) -> String?)? = null
+        var fetchAuthTokenCallback: ((RealmId) -> AuthToken?)? = null
 
-        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<RealmId, String>?): Long {
+        private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<RealmId, AuthToken>?): Long {
             val httpSend = Native.HttpSendFn { httpClient, request ->
                 thread {
                     val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
@@ -184,12 +184,12 @@ class Client private constructor (
             val getAuthToken = Native.GetAuthTokenFn { context, contextId, realmId ->
                 thread {
                     authTokens?.let {
-                        Native.authTokenGetComplete(context, contextId, it[realmId])
+                        Native.authTokenGetComplete(context, contextId, it[realmId]?.native ?: 0)
                     } ?: run {
                         fetchAuthTokenCallback?.let { callback ->
-                            Native.authTokenGetComplete(context, contextId, callback(realmId))
+                            Native.authTokenGetComplete(context, contextId, callback(realmId)?.native ?: 0)
                         } ?: run {
-                            Native.authTokenGetComplete(context, contextId, null)
+                            Native.authTokenGetComplete(context, contextId, 0)
                         }
                     }
                 }
