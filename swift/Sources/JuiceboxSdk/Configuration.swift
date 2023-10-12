@@ -104,17 +104,13 @@ protocol FfiConvertible {
 }
 
 extension Configuration: FfiConvertible {
-    typealias FfiType = OpaquePointer?
-
     func withUnsafeFfi<Result>(_ body: (OpaquePointer?) throws -> Result) rethrows -> Result {
         try body(opaque)
     }
 }
 
 extension Configuration.Realm: FfiConvertible {
-    typealias FfiType = JuiceboxRealm
-
-    func withUnsafeFfi<Result>(_ body: (FfiType) throws -> Result) rethrows -> Result {
+    func withUnsafeFfi<Result>(_ body: (JuiceboxRealm) throws -> Result) rethrows -> Result {
         try address.absoluteString.withCString { addressCStr in
             try id.withUnsafeFfi { rawId in
                 if let publicKey = publicKey {
