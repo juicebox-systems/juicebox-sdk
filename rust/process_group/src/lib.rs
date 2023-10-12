@@ -55,7 +55,7 @@ impl ProcessKiller {
                     std::thread::sleep(Duration::from_millis(1));
                 }
             }
-            Err(e) if e == Errno::ESRCH => {
+            Err(Errno::ESRCH) => {
                 // this error seems to indicate success?
                 return self.0.wait();
             }
