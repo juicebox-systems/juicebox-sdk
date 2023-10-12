@@ -539,8 +539,7 @@ mod tests {
     }
 
     fn generate_test_inputs() -> TestInputs {
-        let mut input = Vec::new();
-        input.resize(OsRng.next_u32() as usize & 0x0f, 0);
+        let mut input = vec![0; OsRng.next_u32() as usize & 0x0f];
         OsRng.fill_bytes(&mut input);
 
         let mut private_key_seed = [0u8; 64];
