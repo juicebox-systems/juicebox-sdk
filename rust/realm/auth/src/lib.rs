@@ -29,6 +29,12 @@ impl From<Vec<u8>> for AuthKey {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct CustomClaims {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
+}
+
 /// The data from an [`AuthToken`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Claims {
@@ -88,10 +94,11 @@ pub struct ScopeParseError;
 
 #[cfg(test)]
 mod tests {
-    use jsonwebtoken::{encode, get_current_timestamp, Algorithm, EncodingKey, Header};
+
+    use jwt_simple::prelude::{Duration, HS256Key, MACLike};
 
     use super::*;
-    use crate::validation::{Error, Require};
+    use crate::validation::Require;
 
     #[test]
     fn test_token_basic() {
@@ -133,7 +140,10 @@ mod tests {
             scope: Some(Scope::User),
         };
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
-        assert_eq!(validator.validate(&token, &key), Err(Error::BadScope));
+        assert_eq!(
+            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
+            "BadScope"
+        );
 
         let claims = Claims {
             issuer: String::from("tenant"),
@@ -142,10 +152,13 @@ mod tests {
             scope: None,
         };
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
-        assert_eq!(validator.validate(&token, &key), Err(Error::BadScope));
+        assert_eq!(
+            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
+            "BadScope"
+        );
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::Audit));
-        assert_eq!(validator.validate(&token, &key), Ok(claims));
+        assert_eq!(validator.validate(&token, &key).unwrap(), claims);
     }
 
     #[test]
@@ -153,29 +166,27 @@ mod tests {
         let realm_id = RealmId([5; 16]);
         let key = AuthKey::from(b"it's-a-me!".to_vec());
         let mint = |scope| {
-            let mut header = Header::new(Algorithm::HS256);
-            header.kid = Some(String::from("tenant:1"));
-            AuthToken::from(
-                encode(
-                    &header,
-                    &creation::InternalClaims {
-                        iss: "tenant",
-                        sub: "mario",
-                        aud: &hex::encode(realm_id.0),
-                        exp: get_current_timestamp() + 60 * 10,
-                        nbf: get_current_timestamp() - 10,
-                        scope,
-                    },
-                    &EncodingKey::from_secret(key.expose_secret()),
-                )
-                .unwrap(),
+            let key = HS256Key::from_bytes(key.expose_secret()).with_key_id("tenant:1");
+            let claims = jwt_simple::claims::Claims::with_custom_claims(
+                CustomClaims { scope },
+                Duration::from_mins(10),
             )
+            .with_audience(hex::encode(realm_id.0))
+            .with_subject("mario")
+            .with_issuer("tenant");
+
+            AuthToken::from(key.authenticate(claims).unwrap())
         };
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::User));
         assert_eq!(
-            validator.validate(&mint(Some("auditor")), &key),
-            Err(Error::BadScope)
+            format!(
+                "{:?}",
+                validator
+                    .validate(&mint(Some("auditor".to_string())), &key)
+                    .unwrap_err()
+            ),
+            "BadScope"
         );
     }
 
@@ -191,28 +202,38 @@ mod tests {
                     .validate(&token, &key)
                     .unwrap_err()
             ),
-            "Jwt(Error(InvalidToken))"
+            "Jwt(JWT compact encoding error)"
         );
     }
 
     #[test]
     fn test_token_expired() {
         let realm_id = RealmId([5; 16]);
-        let claims = Claims {
-            issuer: String::from("tenant"),
-            subject: String::from("mario"),
-            audience: realm_id,
-            scope: Some(Scope::User),
-        };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
-        let token = creation::create_token_at(&claims, &key, AuthKeyVersion(32), 1400);
+        let claims = jwt_simple::claims::Claims::with_custom_claims(
+            CustomClaims {
+                scope: Some(Scope::User.to_string()),
+            },
+            Duration::from_millis(1),
+        )
+        .with_audience(hex::encode(realm_id.0))
+        .with_subject("mario")
+        .with_issuer("tenant");
+        let token = AuthToken::from(
+            HS256Key::from_bytes(key.expose_secret())
+                .with_key_id("tenant:1")
+                .authenticate(claims)
+                .unwrap(),
+        );
+
         assert_eq!(
             format!(
                 "{:?}",
                 validation::Validator::new(realm_id, Require::Scope(Scope::User))
                     .validate(&token, &key)
+                    .unwrap_err()
             ),
-            "Err(Jwt(Error(ExpiredSignature)))"
+            "Jwt(Token has expired)"
         );
     }
 
@@ -230,8 +251,8 @@ mod tests {
         let mut validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
         validator.max_lifetime_seconds = Some(5);
         assert_eq!(
-            format!("{:?}", validator.validate(&token, &key)),
-            "Err(LifetimeTooLong)"
+            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
+            "LifetimeTooLong"
         );
         validator.max_lifetime_seconds = None;
         assert!(validator.validate(&token, &key).is_ok());
@@ -251,35 +272,23 @@ mod tests {
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         let validator = validation::Validator::new(realm_id_validator, Require::Scope(Scope::User));
         assert_eq!(
-            format!("{:?}", validator.validate(&token, &key)),
-            "Err(Jwt(Error(InvalidAudience)))"
+            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
+            "Jwt(Required audience mismatch)"
         );
     }
 
     #[test]
     fn test_token_bad_key_id() {
-        use jsonwebtoken::{encode, get_current_timestamp, Algorithm, EncodingKey, Header};
-
         let realm_id = RealmId([5; 16]);
         let key = AuthKey::from(b"it's-a-me!".to_vec());
         let mint = |key_id| {
-            let mut header = Header::new(Algorithm::HS256);
-            header.kid = Some(String::from(key_id));
-            AuthToken::from(
-                encode(
-                    &header,
-                    &creation::InternalClaims {
-                        iss: "tenant",
-                        sub: "mario",
-                        aud: &hex::encode(realm_id.0),
-                        exp: get_current_timestamp() + 60 * 10,
-                        nbf: get_current_timestamp() - 10,
-                        scope: None,
-                    },
-                    &EncodingKey::from_secret(key.expose_secret()),
-                )
-                .unwrap(),
-            )
+            let key = HS256Key::from_bytes(key.expose_secret()).with_key_id(key_id);
+            let claims = jwt_simple::claims::Claims::create(Duration::from_mins(10))
+                .with_audience(hex::encode(realm_id.0))
+                .with_subject("mario")
+                .with_issuer("tenant");
+
+            AuthToken::from(key.authenticate(claims).unwrap())
         };
 
         let validator = validation::Validator::new(realm_id, Require::AnyScopeOrMissing);

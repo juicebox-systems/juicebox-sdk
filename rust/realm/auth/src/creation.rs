@@ -1,52 +1,28 @@
-use jsonwebtoken::{self, get_current_timestamp, Algorithm, EncodingKey, Header};
+use jwt_simple::prelude::{Duration, HS256Key, MACLike};
 use regex::Regex;
-use serde::Serialize;
 
-use super::{AuthKey, AuthKeyVersion, AuthToken, Claims};
-
-#[derive(Serialize)]
-pub(super) struct InternalClaims<'a> {
-    pub iss: &'a str,
-    pub sub: &'a str,
-    pub aud: &'a str,
-    pub exp: u64, // seconds since Unix epoch
-    pub nbf: u64, // seconds since Unix epoch
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub scope: Option<&'a str>,
-}
+use super::{AuthKey, AuthKeyVersion, AuthToken, Claims, CustomClaims};
 
 pub fn create_token(claims: &Claims, key: &AuthKey, key_version: AuthKeyVersion) -> AuthToken {
-    create_token_at(claims, key, key_version, get_current_timestamp())
-}
-
-// split from `create_token` for testing
-pub(super) fn create_token_at(
-    claims: &Claims,
-    key: &AuthKey,
-    key_version: AuthKeyVersion,
-    now: u64,
-) -> AuthToken {
-    let mut header = Header::new(Algorithm::HS256);
     let issuer_regex = Regex::new(r"^(test-)?[a-zA-Z0-9]+$").unwrap();
     assert!(
         issuer_regex.is_match(&claims.issuer),
         "tenant names must be alphanumeric. found {:?}",
         claims.issuer,
     );
-    header.kid = Some(format!("{}:{}", claims.issuer, key_version.0));
-    AuthToken::from(
-        jsonwebtoken::encode(
-            &header,
-            &InternalClaims {
-                iss: &claims.issuer,
-                sub: &claims.subject,
-                aud: &hex::encode(claims.audience.0),
-                exp: now + 60 * 10,
-                nbf: now - 10,
-                scope: claims.scope.map(|s| s.as_str()),
-            },
-            &EncodingKey::from_secret(key.expose_secret()),
-        )
-        .expect("failed to mint token"),
+
+    let key = HS256Key::from_bytes(key.expose_secret())
+        .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+
+    let claims = jwt_simple::claims::Claims::with_custom_claims(
+        CustomClaims {
+            scope: claims.scope.map(|s| s.to_string()),
+        },
+        Duration::from_mins(10),
     )
+    .with_audience(hex::encode(claims.audience.0))
+    .with_issuer(&claims.issuer)
+    .with_subject(&claims.subject);
+
+    AuthToken::from(key.authenticate(claims).expect("failed to mint token"))
 }

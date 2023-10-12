@@ -59,7 +59,7 @@ impl FromStr for UserId {
     type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let vec = hex::decode(s.replace('-', "")).map_err(|_| "failed to decode hex id")?;
+        let vec = hex::decode(s).map_err(|_| "failed to decode hex id")?;
         Ok(Self(vec.try_into().map_err(|_| "invalid id length")?))
     }
 }
