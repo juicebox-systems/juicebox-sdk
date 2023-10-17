@@ -6,6 +6,10 @@ package xyz.juicebox.sdk
 data class RealmId(val bytes: ByteArray) {
     constructor(string: String) : this(string.decodeHex())
 
+    override fun toString(): String {
+        return bytes.encodeHex()
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -20,6 +24,10 @@ data class RealmId(val bytes: ByteArray) {
     override fun hashCode(): Int {
         return bytes.contentHashCode()
     }
+}
+
+fun ByteArray.encodeHex(): String {
+    return joinToString("") { "%02x".format(it) }
 }
 
 fun String.decodeHex(): ByteArray {

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
 use juicebox_sdk as sdk;
-use libc::c_char;
+use libc::{c_char, c_void};
 
 #[derive(Debug)]
 pub struct AuthTokenGenerator(sdk::AuthTokenGenerator);
@@ -144,4 +144,19 @@ pub unsafe extern "C" fn juicebox_auth_token_create(token_cstr: *const c_char) -
 pub unsafe extern "C" fn juicebox_auth_token_destroy(token: *mut AuthToken) {
     assert!(!token.is_null());
     drop(Box::from_raw(token));
+}
+
+pub type AuthTokenStringCallbackFn =
+    unsafe extern "C" fn(auth_token: *mut AuthToken, context: *const c_void, string: *const c_char);
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_string(
+    token: *mut AuthToken,
+    context: *const c_void,
+    callback: AuthTokenStringCallbackFn,
+) {
+    let raw = CString::new((*token).0.expose_secret()).unwrap().into_raw();
+    callback(token, context, raw);
+    drop(CString::from_raw(raw));
 }

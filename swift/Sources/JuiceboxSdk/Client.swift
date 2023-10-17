@@ -325,7 +325,7 @@ private class TLSSessionPinningDelegate: NSObject, URLSessionDelegate {
     #endif
 }
 
-private class Box<T> {
+class Box<T> {
     let value: T
 
     init(_ value: T) {

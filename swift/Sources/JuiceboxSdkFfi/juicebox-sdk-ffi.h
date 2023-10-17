@@ -202,6 +202,10 @@ typedef struct {
   uint8_t user_id[16];
 } JuiceboxAuthTokenParameters;
 
+typedef void (*JuiceboxAuthTokenStringCallbackFn)(JuiceboxAuthToken *auth_token,
+                                                  const void *context,
+                                                  const char *string);
+
 /**
  * Constructs a new opaque `JuiceboxClient`.
  *
@@ -293,5 +297,9 @@ const JuiceboxAuthToken *juicebox_auth_token_generator_vend(JuiceboxAuthTokenGen
 const JuiceboxAuthToken *juicebox_auth_token_create(const char *token_cstr);
 
 void juicebox_auth_token_destroy(JuiceboxAuthToken *token);
+
+void juicebox_auth_token_string(JuiceboxAuthToken *token,
+                                const void *context,
+                                JuiceboxAuthTokenStringCallbackFn callback);
 
 #endif /* JUICEBOX_FFI_H_ */

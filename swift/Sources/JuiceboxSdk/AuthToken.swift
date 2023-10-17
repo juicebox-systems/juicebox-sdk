@@ -28,6 +28,22 @@ public final class AuthToken {
 
     private let opaque: OpaquePointer
 
+    public func string() async -> String {
+        await withCheckedContinuation { continuation in
+            withUnsafeFfi { ffi in
+                juicebox_auth_token_string(
+                    ffi,
+                    Unmanaged.passRetained(Box(continuation)).toOpaque()
+                ) { _, context, cString in
+                    guard let context = context, let cString = cString else { fatalError() }
+                    let box: Box<CheckedContinuation<String, Error>>
+                        = Unmanaged.fromOpaque(context).takeRetainedValue()
+                    box.value.resume(returning: String(cString: cString))
+                }
+            }
+        }
+    }
+
     deinit {
         juicebox_auth_token_destroy(opaque)
     }

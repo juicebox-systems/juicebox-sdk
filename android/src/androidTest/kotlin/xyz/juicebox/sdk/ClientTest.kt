@@ -89,6 +89,12 @@ class ClientTest {
     }
 
     @Test
+    fun testAuthTokenToString() {
+        val authToken = AuthToken("x.y.z")
+        assertEquals(authToken.toString(), "x.y.z")
+    }
+
+    @Test
     fun testRegister() {
         val client = client("https://httpbin.org/anything/")
         val exception = assertThrows(RegisterException::class.java) {

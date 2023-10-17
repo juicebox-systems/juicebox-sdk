@@ -83,6 +83,12 @@ final class JuiceboxSdkTests: XCTestCase {
         }
     }
 
+    func testAuthTokenString() async {
+        let token = AuthToken(jwt: "x.y.z")
+        let string = await token.string()
+        XCTAssertEqual(string, "x.y.z")
+    }
+
     func testRegisterRequestError() async throws {
         let client = client(url: "https://httpbin.org/anything/")
         do {

@@ -161,3 +161,14 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenDestroy(
 ) {
     drop(Box::from_raw(token as *mut sdk::AuthToken));
 }
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenString<'a>(
+    env: JNIEnv<'a>,
+    _class: JClass<'a>,
+    token: jlong,
+) -> JString<'a> {
+    let token = token as *mut sdk::AuthToken;
+    env.new_string((*token).expose_secret()).unwrap()
+}

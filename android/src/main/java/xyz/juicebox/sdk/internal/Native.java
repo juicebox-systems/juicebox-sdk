@@ -75,6 +75,8 @@ public final class Native {
 
     public static native void authTokenDestroy(long authToken);
 
+    public static native String authTokenString(long authToken);
+
     public static class HttpHeader {
         @NotNull
         public String name;

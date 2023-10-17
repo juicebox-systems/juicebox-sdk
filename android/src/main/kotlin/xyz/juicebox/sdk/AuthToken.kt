@@ -15,6 +15,10 @@ class AuthToken constructor(val native: Long) {
         jwt: String
     ): this(Native.authTokenCreate(jwt))
 
+    override fun toString(): String {
+        return Native.authTokenString(native)
+    }
+
     protected fun finalize() {
         Native.authTokenDestroy(native)
     }
