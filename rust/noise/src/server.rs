@@ -34,11 +34,7 @@ pub enum HandshakeError {
 
 impl Handshake {
     /// Called when the server receives a handshake request from a client.
-    #[instrument(
-        level = "trace",
-        name = "noise_handshake_start",
-        skip(server_static_secret, server_static_public, request, rng)
-    )]
+    #[instrument(level = "trace", name = "noise_handshake_start", skip_all)]
     pub fn start<R: RngCore + CryptoRng>(
         (server_static_secret, server_static_public): (&x25519::StaticSecret, &x25519::PublicKey),
         request: &HandshakeRequest,
@@ -101,11 +97,7 @@ impl Handshake {
 
     /// Called when the server is ready to reply to the client's handshake
     /// request.
-    #[instrument(
-        level = "trace",
-        name = "noise_handshake_finish",
-        skip(self, payload_plaintext)
-    )]
+    #[instrument(level = "trace", name = "noise_handshake_finish", skip_all)]
     pub fn finish(
         self,
         payload_plaintext: &[u8],

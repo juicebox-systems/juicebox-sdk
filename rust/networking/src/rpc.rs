@@ -84,7 +84,7 @@ pub async fn send<Http: http::Client, R: Rpc<F>, F: Service>(
     send_with_headers(http, base_url, request, HashMap::new()).await
 }
 
-#[instrument(level = "trace", skip(http, request), fields(%base_url))]
+#[instrument(level = "trace", skip(http, request, headers), fields(%base_url))]
 pub async fn send_with_headers<Http: http::Client, R: Rpc<F>, F: Service>(
     http: &Http,
     base_url: &Url,

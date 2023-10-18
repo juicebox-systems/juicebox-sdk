@@ -30,14 +30,14 @@ runs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: '1.20'
+        go-version: '1.21'
         check-latest: true
 
     - name: Build and Install jb-sw-realm
       shell: bash
       run: |
         cd juicebox-software-realm
-        go build -o jb-sw-realm
+        go build -o jb-sw-realm ./cmd/jb-sw-realm
         mv jb-sw-realm /usr/local/bin
 
     - name: Build Tokens
