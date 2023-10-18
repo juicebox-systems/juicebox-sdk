@@ -190,7 +190,7 @@ pub struct Client<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> {
 
 impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http, Atm> {
     /// Stores a new PIN-protected secret on the configured realms.
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip_all, err(level = "trace", Debug))]
     pub async fn register(
         &self,
         pin: &Pin,
@@ -204,13 +204,13 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     /// Retrieves a PIN-protected secret from the configured realms, or falls
     /// back to the previous realms if the current realms do not have a secret
     /// registered.
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip_all, err(level = "trace", Debug))]
     pub async fn recover(&self, pin: &Pin, info: &UserInfo) -> Result<UserSecret, RecoverError> {
         self.perform_recover(pin, info).await
     }
 
     /// Deletes the registered secret for this user, if any.
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip_all, err(level = "trace", Debug))]
     pub async fn delete(&self) -> Result<(), DeleteError> {
         self.perform_delete().await
     }

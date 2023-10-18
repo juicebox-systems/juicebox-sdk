@@ -166,7 +166,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 
     /// Executes phase 2 of registration on a particular realm.
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip(self, request), err(level = "trace", Debug))]
     async fn register2_on_realm(
         &self,
         realm: &Realm,

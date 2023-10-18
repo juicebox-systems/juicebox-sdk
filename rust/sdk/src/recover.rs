@@ -15,7 +15,7 @@ use juicebox_realm_api::{
     signing::OprfVerifyingKey,
     types::{
         EncryptedUserSecret, EncryptedUserSecretCommitment, RegistrationVersion,
-        UnlockKeyCommitment, UnlockKeyTag, UserSecretAccessKey, UserSecretEncryptionKeyScalarShare,
+        UnlockKeyCommitment, UnlockKeyTag, UserSecretEncryptionKeyScalarShare,
     },
 };
 use juicebox_secret_sharing::{recover_secret, RecoverSecretError, Share};
@@ -98,7 +98,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     /// Performs phase 1 of recovery for the parameters specified in a given
     /// configuration. If successful, attempts to complete recovery for each
     /// subset of realms larger than the recover threshold with matching salts.
-    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip_all, err(level = "trace", Debug))]
     async fn perform_recover_with_configuration(
         &self,
         pin: &Pin,
@@ -136,13 +136,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             oprf::start(access_key.expose_secret(), &mut OsRng);
 
         let recover2_requests = realms.iter().map(|realm| {
-            self.recover2_on_realm(
-                realm,
-                configuration,
-                &version,
-                &access_key,
-                &oprf_blinded_input,
-            )
+            self.recover2_on_realm(realm, configuration, &version, &oprf_blinded_input)
         });
 
         let mut oprf_blinded_result_shares_by_commitment_and_verifying_key: HashMap<_, Vec<_>> =
@@ -261,7 +255,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 
     /// Performs phase 1 of recovery on a particular realm.
-    #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip(self), err(level = "trace", Debug))]
     async fn recover1_on_realm(
         &self,
         realm: &Realm,
@@ -283,13 +277,12 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 
     /// Performs phase 2 of recovery on a particular realm.
-    #[instrument(level = "trace", skip(self), ret, err(level = "trace", Debug))]
+    #[instrument(level = "trace", skip_all, err(level = "trace", Debug))]
     async fn recover2_on_realm(
         &self,
         realm: &Realm,
         configuration: &CheckedConfiguration,
         version: &RegistrationVersion,
-        access_key: &UserSecretAccessKey,
         oprf_blinded_input: &oprf::BlindedInput,
     ) -> Result<
         (
@@ -382,7 +375,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     }
 
     /// Performs phase 3 of recovery on a particular realm.
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip_all)]
     async fn recover3_on_realm(
         &self,
         realm: &Realm,

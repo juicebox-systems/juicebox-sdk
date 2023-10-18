@@ -34,11 +34,7 @@ impl Handshake {
     ///
     /// The `request` may be empty. Note that any request given here will not
     /// have forward secrecy.
-    #[instrument(
-        level = "trace",
-        name = "noise_handshake_start",
-        skip(server_static_public, payload_plaintext, rng)
-    )]
+    #[instrument(level = "trace", name = "noise_handshake_start", skip_all)]
     pub fn start<R: RngCore + CryptoRng>(
         server_static_public: &x25519::PublicKey,
         payload_plaintext: &[u8],
@@ -92,7 +88,7 @@ impl Handshake {
     ///
     /// Part of a successful response is a payload from the server, which may
     /// be empty.
-    #[instrument(level = "trace", name = "noise_handshake_finish", skip(self, response))]
+    #[instrument(level = "trace", name = "noise_handshake_finish", skip_all)]
     pub fn finish(
         self,
         response: &HandshakeResponse,
