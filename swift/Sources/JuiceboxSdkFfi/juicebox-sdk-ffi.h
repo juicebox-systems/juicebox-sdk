@@ -199,7 +199,7 @@ typedef struct {
 
 typedef struct {
   uint8_t realm_id[16];
-  uint8_t user_id[16];
+  uint8_t secret_id[16];
 } JuiceboxAuthTokenParameters;
 
 typedef void (*JuiceboxAuthTokenStringCallbackFn)(JuiceboxAuthToken *auth_token,

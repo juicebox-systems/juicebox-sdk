@@ -9,13 +9,13 @@ use juicebox_sdk as sdk;
 use libc::{c_char, c_void};
 
 #[derive(Debug)]
-pub struct AuthTokenGenerator(sdk::AuthTokenGenerator);
+pub struct AuthTokenGenerator(sdk::client_auth::AuthTokenGenerator);
 
 #[derive(Debug)]
 #[repr(C)]
 pub struct AuthTokenParameters {
     pub realm_id: [u8; 16],
-    pub user_id: [u8; 16],
+    pub secret_id: [u8; 16],
 }
 
 #[derive(Debug)]
@@ -103,7 +103,7 @@ pub unsafe extern "C" fn juicebox_auth_token_generator_create_from_json(
         .to_str()
         .expect("invalid json string");
     Box::into_raw(Box::new(AuthTokenGenerator(
-        sdk::AuthTokenGenerator::from_json(json_str).expect("invalid generator json"),
+        sdk::client_auth::AuthTokenGenerator::from_json(json_str).expect("invalid generator json"),
     )))
 }
 
@@ -123,7 +123,7 @@ pub unsafe extern "C" fn juicebox_auth_token_generator_vend(
     let generator = &*generator;
     Box::into_raw(Box::new(AuthToken(generator.0.vend(
         &sdk::RealmId(parameters.realm_id),
-        &sdk::UserId(parameters.user_id),
+        &sdk::client_auth::SecretId(parameters.secret_id),
     ))))
 }
 

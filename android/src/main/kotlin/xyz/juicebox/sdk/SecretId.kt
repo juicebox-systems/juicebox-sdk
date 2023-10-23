@@ -3,9 +3,9 @@ package xyz.juicebox.sdk
 import kotlin.random.Random
 
 /**
- * A 16-byte unique identifier for a given user.
+ * A 16-byte unique identifier for a given secret.
  */
-data class UserId(val bytes: ByteArray) {
+data class SecretId(val bytes: ByteArray) {
     constructor(string: String) : this(string.decodeHex())
 
     override fun toString(): String {
@@ -16,11 +16,9 @@ data class UserId(val bytes: ByteArray) {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as UserId
+        other as SecretId
 
-        if (!bytes.contentEquals(other.bytes)) return false
-
-        return true
+        return bytes.contentEquals(other.bytes)
     }
 
     override fun hashCode(): Int {
@@ -28,10 +26,10 @@ data class UserId(val bytes: ByteArray) {
     }
 
     companion object {
-        public fun random(): UserId {
+        public fun random(): SecretId {
             val bytes = ByteArray(16)
             Random.Default.nextBytes(bytes)
-            return UserId(bytes)
+            return SecretId(bytes)
         }
     }
 }

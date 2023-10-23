@@ -14,10 +14,13 @@ mod request;
 mod sleeper;
 mod types;
 
+#[cfg(feature = "client_auth")]
+pub mod client_auth;
+
 use configuration::CheckedConfiguration;
 use types::Session;
 
-pub use auth::{AuthTokenGenerator, AuthTokenManager, UserId};
+pub use auth::AuthTokenManager;
 pub use configuration::Configuration;
 pub use delete::DeleteError;
 pub use juicebox_networking::http;

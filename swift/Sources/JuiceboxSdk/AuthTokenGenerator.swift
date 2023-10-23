@@ -29,16 +29,16 @@ public final class AuthTokenGenerator {
         juicebox_auth_token_generator_destroy(opaque)
     }
 
-    /// Vend a new token for the specified realmId and userId.
-    public func vend(realmId: RealmId, userId: UserId) -> AuthToken {
+    /// Vend a new token for the specified realmId and secretId.
+    public func vend(realmId: RealmId, secretId: SecretId) -> AuthToken {
         AuthToken(ffi:
-            realmId.withUnsafeFfi { realmIdBuffer in
-                userId.withUnsafeFfi { userIdBuffer in
+            realmId.withUnsafeFfi { realmIdFfi in
+                secretId.withUnsafeFfi { secretIdFfi in
                     juicebox_auth_token_generator_vend(
                         opaque,
                         JuiceboxAuthTokenParameters(
-                            realm_id: realmIdBuffer,
-                            user_id: userIdBuffer
+                            realm_id: realmIdFfi,
+                            secret_id: secretIdFfi
                         ))
                 }
             }

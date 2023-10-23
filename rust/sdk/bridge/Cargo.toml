@@ -7,7 +7,7 @@ rust-version.workspace = true
 edition = "2021"
 
 [dependencies]
-juicebox_sdk = { workspace = true }
+juicebox_sdk = { workspace = true, features = ["client_auth"] }
 tokio = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 

@@ -110,7 +110,9 @@ pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGeneratorCreate
     json: JString,
 ) -> jlong {
     let json: String = env.get_string(&json).unwrap().into();
-    Box::into_raw(Box::new(sdk::AuthTokenGenerator::from_json(&json).unwrap())) as jlong
+    Box::into_raw(Box::new(
+        sdk::client_auth::AuthTokenGenerator::from_json(&json).unwrap(),
+    )) as jlong
 }
 
 #[no_mangle]
@@ -120,7 +122,9 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGenerato
     _class: JClass,
     generator: jlong,
 ) {
-    drop(Box::from_raw(generator as *mut sdk::AuthTokenGenerator));
+    drop(Box::from_raw(
+        generator as *mut sdk::client_auth::AuthTokenGenerator,
+    ));
 }
 
 #[no_mangle]
@@ -130,15 +134,17 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGenerato
     _class: JClass,
     generator: jlong,
     realm_id: JByteArray,
-    user_id: JByteArray,
+    secret_id: JByteArray,
 ) -> jlong {
-    let generator = generator as *mut sdk::AuthTokenGenerator;
+    let generator = generator as *mut sdk::client_auth::AuthTokenGenerator;
     let realm_id =
         TryInto::<[u8; 16]>::try_into(env.convert_byte_array(realm_id).unwrap()).unwrap();
-    let user_id = TryInto::<[u8; 16]>::try_into(env.convert_byte_array(user_id).unwrap()).unwrap();
-    Box::into_raw(Box::new(
-        (*generator).vend(&sdk::RealmId(realm_id), &sdk::UserId(user_id)),
-    )) as jlong
+    let secret_id =
+        TryInto::<[u8; 16]>::try_into(env.convert_byte_array(secret_id).unwrap()).unwrap();
+    Box::into_raw(Box::new((*generator).vend(
+        &sdk::RealmId(realm_id),
+        &sdk::client_auth::SecretId(secret_id),
+    ))) as jlong
 }
 
 #[no_mangle]

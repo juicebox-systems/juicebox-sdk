@@ -69,7 +69,7 @@ public final class Native {
     public static native long authTokenGeneratorVend(
             long generator,
             @NotNull byte[] realmId,
-            @NotNull byte[] userId);
+            @NotNull byte[] secretId);
 
     public static native long authTokenCreate(String jwt);
 

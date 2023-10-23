@@ -17,7 +17,7 @@ class AuthTokenGenerator private constructor(val native: Long) {
         Native.authTokenGeneratorDestroy(native)
     }
 
-    public fun vend(realmId: RealmId, userId: UserId): AuthToken {
-        return AuthToken(native = Native.authTokenGeneratorVend(native, realmId.bytes, userId.bytes))
+    public fun vend(realmId: RealmId, secretId: SecretId): AuthToken {
+        return AuthToken(native = Native.authTokenGeneratorVend(native, realmId.bytes, secretId.bytes))
     }
 }

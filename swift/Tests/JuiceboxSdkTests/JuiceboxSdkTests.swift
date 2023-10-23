@@ -57,9 +57,9 @@ final class JuiceboxSdkTests: XCTestCase {
           }
         """)
         let realmId = RealmId(string: "000102030405060708090A0B0C0D0E0F")!
-        let userId = UserId.random()
+        let secretId = SecretId.random()
 
-        Client.fetchAuthTokenCallback = { generator.vend(realmId: $0, userId: userId) }
+        Client.fetchAuthTokenCallback = { generator.vend(realmId: $0, secretId: secretId) }
 
         let client = Client(
             configuration: .init(

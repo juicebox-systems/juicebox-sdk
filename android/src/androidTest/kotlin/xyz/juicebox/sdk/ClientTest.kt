@@ -67,7 +67,7 @@ class ClientTest {
           }
         """)
         val realmId = RealmId("000102030405060708090A0B0C0D0E0F")
-        val userId = UserId.random()
+        val secretId = SecretId.random()
         val client = Client(
             Configuration(
                 realms = arrayOf(Realm(
@@ -79,7 +79,7 @@ class ClientTest {
                 pinHashingMode = PinHashingMode.FAST_INSECURE
             )
         )
-        Client.fetchAuthTokenCallback = { realmId -> generator.vend(realmId, userId) }
+        Client.fetchAuthTokenCallback = { realmId -> generator.vend(realmId, secretId) }
         val exception = assertThrows(RegisterException::class.java) {
             runBlocking {
                 client.register("test".toByteArray(), "secret".toByteArray(), "info".toByteArray(), 5)
