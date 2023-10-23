@@ -95,10 +95,10 @@ pub struct ScopeParseError;
 #[cfg(test)]
 mod tests {
 
-    use jwt_simple::prelude::{Duration, HS256Key, MACLike};
+    use jwt_simple::prelude::{Audiences, Duration, HS256Key, JWTClaims, MACLike, UnixTimeStamp};
 
     use super::*;
-    use crate::validation::Require;
+    use crate::validation::{Error, Require};
 
     #[test]
     fn test_token_basic() {
@@ -140,10 +140,10 @@ mod tests {
             scope: Some(Scope::User),
         };
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
-        assert_eq!(
-            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
-            "BadScope"
-        );
+        assert!(matches!(
+            validator.validate(&token, &key),
+            Err(Error::BadScope)
+        ));
 
         let claims = Claims {
             issuer: String::from("tenant"),
@@ -152,10 +152,10 @@ mod tests {
             scope: None,
         };
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
-        assert_eq!(
-            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
-            "BadScope"
-        );
+        assert!(matches!(
+            validator.validate(&token, &key),
+            Err(Error::BadScope)
+        ));
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::Audit));
         assert_eq!(validator.validate(&token, &key).unwrap(), claims);
@@ -179,15 +179,10 @@ mod tests {
         };
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::User));
-        assert_eq!(
-            format!(
-                "{:?}",
-                validator
-                    .validate(&mint(Some("auditor".to_string())), &key)
-                    .unwrap_err()
-            ),
-            "BadScope"
-        );
+        assert!(matches!(
+            validator.validate(&mint(Some("auditor".to_string())), &key),
+            Err(Error::BadScope)
+        ));
     }
 
     #[test]
@@ -210,15 +205,21 @@ mod tests {
     fn test_token_expired() {
         let realm_id = RealmId([5; 16]);
         let key = AuthKey::from(b"it's-a-me!".to_vec());
-        let claims = jwt_simple::claims::Claims::with_custom_claims(
-            CustomClaims {
+        let past = UnixTimeStamp::from_u64(1400);
+        let claims = JWTClaims {
+            issued_at: Some(past),
+            expires_at: Some(past + Duration::from_mins(10)),
+            invalid_before: Some(past),
+            audiences: Some(Audiences::AsString(hex::encode(realm_id.0))),
+            issuer: Some("tenant".to_string()),
+            jwt_id: None,
+            subject: Some("mario".to_string()),
+            nonce: None,
+            custom: CustomClaims {
                 scope: Some(Scope::User.to_string()),
             },
-            Duration::from_millis(1),
-        )
-        .with_audience(hex::encode(realm_id.0))
-        .with_subject("mario")
-        .with_issuer("tenant");
+        };
+
         let token = AuthToken::from(
             HS256Key::from_bytes(key.expose_secret())
                 .with_key_id("tenant:1")
@@ -250,10 +251,10 @@ mod tests {
         let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         let mut validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
         validator.max_lifetime_seconds = Some(5);
-        assert_eq!(
-            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
-            "LifetimeTooLong"
-        );
+        assert!(matches!(
+            validator.validate(&token, &key),
+            Err(Error::LifetimeTooLong),
+        ));
         validator.max_lifetime_seconds = None;
         assert!(validator.validate(&token, &key).is_ok());
     }
@@ -293,28 +294,25 @@ mod tests {
 
         let validator = validation::Validator::new(realm_id, Require::AnyScopeOrMissing);
         validator.validate(&mint("tenant:32"), &key).unwrap();
-        assert_eq!(
-            format!("{:?}", validator.validate(&mint("ten:ant:32"), &key)),
-            "Err(BadKeyId)"
-        );
-        assert_eq!(
-            format!("{:?}", validator.validate(&mint("antenna:32"), &key)),
-            "Err(BadKeyId)"
-        );
-        assert_eq!(
-            format!("{:?}", validator.validate(&mint("tenant:latest"), &key)),
-            "Err(BadKeyId)"
-        );
-        assert_eq!(
-            format!("{:?}", validator.validate(&mint("tenant:"), &key)),
-            "Err(BadKeyId)"
-        );
-        assert_eq!(
-            format!(
-                "{:?}",
-                validator.validate(&mint("some-non-alphanumerics:2"), &key)
-            ),
-            "Err(BadKeyId)"
-        );
+        assert!(matches!(
+            validator.validate(&mint("ten:ant:32"), &key),
+            Err(Error::BadKeyId),
+        ));
+        assert!(matches!(
+            validator.validate(&mint("antenna:32"), &key),
+            Err(Error::BadKeyId),
+        ));
+        assert!(matches!(
+            validator.validate(&mint("tenant:latest"), &key),
+            Err(Error::BadKeyId),
+        ));
+        assert!(matches!(
+            validator.validate(&mint("tenant:"), &key),
+            Err(Error::BadKeyId),
+        ));
+        assert!(matches!(
+            validator.validate(&mint("some-non-alphanumerics:2"), &key),
+            Err(Error::BadKeyId),
+        ));
     }
 }

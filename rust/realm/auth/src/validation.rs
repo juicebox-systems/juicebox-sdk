@@ -58,7 +58,7 @@ impl Validator {
 
         let options = VerificationOptions {
             allowed_audiences: Some(HashSet::from([self.audience.to_owned()])),
-            time_tolerance: None,
+            max_token_length: Some(1_000),
             ..Default::default()
         };
         let claims = key
