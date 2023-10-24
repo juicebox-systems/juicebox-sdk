@@ -339,27 +339,6 @@ pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_httpClientRequest
     (*http_client).receive(id.try_into().unwrap(), Some(response));
 }
 
-#[no_mangle]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGetComplete(
-    mut env: JNIEnv,
-    _class: JClass,
-    context: jlong,
-    context_id: jlong,
-    auth_token: JString,
-) {
-    let auth_token_manager = context as *const AuthTokenManager;
-
-    let auth_token = if auth_token.is_null() {
-        None
-    } else {
-        let string: String = env.get_string(&auth_token).unwrap().into();
-        Some(sdk::AuthToken::from(string))
-    };
-
-    (*auth_token_manager).get_callback(context_id, auth_token);
-}
-
 fn get_string(env: &mut JNIEnv, obj: &JObject, name: &str) -> String {
     let jstring: JString = env
         .get_field(obj, name, jni_object!(JNI_STRING_TYPE))

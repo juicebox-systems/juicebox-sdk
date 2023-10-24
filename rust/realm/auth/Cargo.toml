@@ -9,7 +9,7 @@ edition = "2021"
 
 [dependencies]
 hex = { workspace = true }
-jsonwebtoken = { workspace = true }
+jwt-simple = { workspace = true }
 juicebox_realm_api = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }

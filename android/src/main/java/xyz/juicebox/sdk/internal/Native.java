@@ -60,7 +60,22 @@ public final class Native {
     public static native void authTokenGetComplete(
             long context,
             long contextId,
-            @Nullable String authToken);
+            long authToken);
+
+    public static native long authTokenGeneratorCreateFromJson(String json);
+
+    public static native void authTokenGeneratorDestroy(long generator);
+
+    public static native long authTokenGeneratorVend(
+            long generator,
+            @NotNull byte[] realmId,
+            @NotNull byte[] secretId);
+
+    public static native long authTokenCreate(String jwt);
+
+    public static native void authTokenDestroy(long authToken);
+
+    public static native String authTokenString(long authToken);
 
     public static class HttpHeader {
         @NotNull

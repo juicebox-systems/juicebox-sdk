@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
 use jni::{
-    objects::{GlobalRef, JByteArray, JValueGen},
+    objects::{GlobalRef, JByteArray, JClass, JString, JValueGen},
     sys::jlong,
-    JavaVM,
+    JNIEnv, JavaVM,
 };
 use juicebox_sdk as sdk;
 use std::collections::HashMap;
@@ -79,4 +79,102 @@ impl sdk::AuthTokenManager for AuthTokenManager {
         }
         rx.await.unwrap()
     }
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGetComplete(
+    _env: JNIEnv,
+    _class: JClass,
+    context: jlong,
+    context_id: jlong,
+    auth_token: jlong,
+) {
+    let auth_token_manager = context as *const AuthTokenManager;
+    let auth_token = auth_token as *const sdk::AuthToken;
+
+    let auth_token = if auth_token.is_null() {
+        None
+    } else {
+        Some((*auth_token).to_owned())
+    };
+
+    (*auth_token_manager).get_callback(context_id, auth_token);
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGeneratorCreateFromJson(
+    mut env: JNIEnv,
+    _class: JClass,
+    json: JString,
+) -> jlong {
+    let json: String = env.get_string(&json).unwrap().into();
+    Box::into_raw(Box::new(
+        sdk::client_auth::AuthTokenGenerator::from_json(&json).unwrap(),
+    )) as jlong
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGeneratorDestroy(
+    _env: JNIEnv,
+    _class: JClass,
+    generator: jlong,
+) {
+    drop(Box::from_raw(
+        generator as *mut sdk::client_auth::AuthTokenGenerator,
+    ));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenGeneratorVend(
+    env: JNIEnv,
+    _class: JClass,
+    generator: jlong,
+    realm_id: JByteArray,
+    secret_id: JByteArray,
+) -> jlong {
+    let generator = generator as *mut sdk::client_auth::AuthTokenGenerator;
+    let realm_id =
+        TryInto::<[u8; 16]>::try_into(env.convert_byte_array(realm_id).unwrap()).unwrap();
+    let secret_id =
+        TryInto::<[u8; 16]>::try_into(env.convert_byte_array(secret_id).unwrap()).unwrap();
+    Box::into_raw(Box::new((*generator).vend(
+        &sdk::RealmId(realm_id),
+        &sdk::client_auth::SecretId(secret_id),
+    ))) as jlong
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenCreate(
+    mut env: JNIEnv,
+    _class: JClass,
+    jwt: JString,
+) -> jlong {
+    let jwt: String = env.get_string(&jwt).unwrap().into();
+    Box::into_raw(Box::new(sdk::AuthToken::from(jwt))) as jlong
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenDestroy(
+    _env: JNIEnv,
+    _class: JClass,
+    token: jlong,
+) {
+    drop(Box::from_raw(token as *mut sdk::AuthToken));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn Java_xyz_juicebox_sdk_internal_Native_authTokenString<'a>(
+    env: JNIEnv<'a>,
+    _class: JClass<'a>,
+    token: jlong,
+) -> JString<'a> {
+    let token = token as *mut sdk::AuthToken;
+    env.new_string((*token).expose_secret()).unwrap()
 }
