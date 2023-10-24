@@ -11,7 +11,7 @@ struct Demo: AsyncParsableCommand {
         name: .shortAndLong,
         help: "The auth tokens for the client SDK, as a JSON string mapping realm ID to base64-encoded JWT"
     )
-    var authTokens: [RealmId: String]
+    var authTokens: [RealmId: AuthToken]
 
     @Option(
         name: .shortAndLong,
@@ -162,7 +162,7 @@ struct Demo: AsyncParsableCommand {
     // swiftlint:enable cyclomatic_complexity
 }
 
-extension Dictionary: ExpressibleByArgument where Key == RealmId, Value == String {
+extension Dictionary: ExpressibleByArgument where Key == RealmId, Value == AuthToken {
     enum ArgumentError: Error {
         case invalidRealmId
     }
@@ -174,7 +174,7 @@ extension Dictionary: ExpressibleByArgument where Key == RealmId, Value == Strin
         }
         guard let keysWithValues = try? dictionary.map({ key, value in
             guard let realmId = RealmId(string: key) else { throw ArgumentError.invalidRealmId }
-            return (realmId, value)
+            return (realmId, AuthToken(jwt: value))
         }) else { return nil }
         self = Dictionary(uniqueKeysWithValues: keysWithValues)
     }

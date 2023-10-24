@@ -80,7 +80,8 @@ itertools = { version = "0.11.0", default-features = false, features = [
     "use_alloc",
 ] }
 jni = "0.21.1"
-jsonwebtoken = { version = "8.3.0", default-features = false }
+# Nora audited jwt-simple 0.11.7 in Oct 2023.
+jwt-simple = "=0.11.7"
 js-sys = "0.3.64"
 libc = "0.2.148"
 nix = { version = "0.27.1", default-features = false, features = ["signal"] }

@@ -48,6 +48,47 @@ final class JuiceboxSdkTests: XCTestCase {
         ), configuration)
     }
 
+    func testAuthTokenGenerator() async throws {
+        let generator = AuthTokenGenerator(json: """
+          {
+            "key": "0668e97c5d282a08d4251255541845e2d78b78b9438e1562b51d9cf4e099be53",
+            "tenant": "acme",
+            "version": 1
+          }
+        """)
+        let realmId = RealmId(string: "000102030405060708090A0B0C0D0E0F")!
+        let secretId = SecretId.random()
+
+        Client.fetchAuthTokenCallback = { generator.vend(realmId: $0, secretId: secretId) }
+
+        let client = Client(
+            configuration: .init(
+                realms: [
+                    .init(
+                        id: realmId,
+                        address: URL(string: "https://httpbin.org/anything/")!,
+                        publicKey: Data(repeating: 0, count: 32)
+                    )
+                ],
+                registerThreshold: 1,
+                recoverThreshold: 1,
+                pinHashingMode: .fastInsecure
+            )
+        )
+
+        do {
+            try await client.register(pin: Data(), secret: Data(), info: Data(), guesses: 5)
+        } catch RegisterError.assertion {
+
+        }
+    }
+
+    func testAuthTokenString() async {
+        let token = AuthToken(jwt: "x.y.z")
+        let string = await token.string()
+        XCTAssertEqual(string, "x.y.z")
+    }
+
     func testRegisterRequestError() async throws {
         let client = client(url: "https://httpbin.org/anything/")
         do {
@@ -92,7 +133,7 @@ final class JuiceboxSdkTests: XCTestCase {
                 recoverThreshold: 1,
                 pinHashingMode: .fastInsecure
             ),
-            authTokens: [realmId: "fake.token"]
+            authTokens: [realmId: AuthToken(jwt: "fake.token")]
         )
     }
 }

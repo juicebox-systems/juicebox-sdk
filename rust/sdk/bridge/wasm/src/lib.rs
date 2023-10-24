@@ -5,6 +5,7 @@ use juicebox_sdk as sdk;
 use juicebox_sdk_bridge::{DeleteError, RecoverErrorReason, RegisterError};
 use sdk::Sleeper;
 use serde_wasm_bindgen::from_value;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -389,6 +390,64 @@ impl sdk::AuthTokenManager for WasmAuthTokenManager {
         }
 
         rx.await.unwrap()
+    }
+}
+
+#[wasm_bindgen]
+pub struct AuthTokenGenerator(sdk::client_auth::AuthTokenGenerator);
+
+#[wasm_bindgen]
+impl AuthTokenGenerator {
+    /// Constructs a new generator from an Object.
+    ///
+    /// The provided Object must contain the following parameters:
+    ///
+    /// - `key`: A hex string representing the private signing key.
+    ///
+    /// - `tenant`: The name of the tenant the key belongs to.
+    ///
+    /// - `version`: The integer version of the signing key.
+    ///
+    /// An example generator looks like:
+    /// ```js
+    /// const generator = new AuthTokenGenerator({
+    ///     "key": "0668e97c5d282a08d4251255541845e2d78b78b9438e1562b51d9cf4e099be53",
+    ///     "tenant": "acme",
+    ///     "version": 1
+    ///   });
+    /// ```
+    #[wasm_bindgen(constructor)]
+    pub fn new(value: JsValue) -> Self {
+        console_error_panic_hook::set_once();
+
+        let json_string = match value.as_string() {
+            Some(s) => s,
+            None => js_sys::JSON::stringify(&value)
+                .unwrap()
+                .as_string()
+                .unwrap(),
+        };
+
+        Self(
+            sdk::client_auth::AuthTokenGenerator::from_json(&json_string)
+                .expect("invalid generator json"),
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn vend(&self, realm_id: &str, secret_id: &str) -> String {
+        self.0
+            .vend(
+                &sdk::RealmId::from_str(realm_id).unwrap(),
+                &sdk::client_auth::SecretId::from_str(secret_id).unwrap(),
+            )
+            .expose_secret()
+            .to_string()
+    }
+
+    #[wasm_bindgen]
+    pub fn random_secret_id() -> String {
+        hex::encode(sdk::client_auth::SecretId::new_random().0).to_string()
     }
 }
 

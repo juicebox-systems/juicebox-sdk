@@ -14,6 +14,9 @@ mod request;
 mod sleeper;
 mod types;
 
+#[cfg(feature = "client_auth")]
+pub mod client_auth;
+
 use configuration::CheckedConfiguration;
 use types::Session;
 

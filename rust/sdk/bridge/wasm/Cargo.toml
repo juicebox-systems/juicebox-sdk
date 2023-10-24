@@ -18,6 +18,7 @@ getrandom = { workspace = true, features = [
     # "js" feature to build.
     "js",
 ] }
+hex = { workspace = true }
 instant = { workspace = true, features = ["wasm-bindgen"] }
 js-sys = { workspace = true }
 juicebox_sdk = { workspace = true }

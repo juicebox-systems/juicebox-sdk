@@ -1,12 +1,25 @@
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use async_trait::async_trait;
 use futures::channel::oneshot::{channel, Sender};
 use juicebox_sdk as sdk;
-use libc::c_char;
+use libc::{c_char, c_void};
+
+#[derive(Debug)]
+pub struct AuthTokenGenerator(sdk::client_auth::AuthTokenGenerator);
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct AuthTokenParameters {
+    pub realm_id: [u8; 16],
+    pub secret_id: [u8; 16],
+}
+
+#[derive(Debug)]
+pub struct AuthToken(sdk::AuthToken);
 
 pub type AuthTokenGetFn = unsafe extern "C" fn(
     context: &AuthTokenManager,
@@ -17,7 +30,7 @@ pub type AuthTokenGetFn = unsafe extern "C" fn(
 pub type AuthTokenGetCallbackFn = unsafe extern "C" fn(
     context: *mut AuthTokenManager,
     context_id: u64,
-    auth_token: *const c_char,
+    auth_token: *const AuthToken,
 );
 
 pub struct AuthTokenManager {
@@ -65,7 +78,7 @@ impl sdk::AuthTokenManager for AuthTokenManager {
 unsafe extern "C" fn ffi_get_callback(
     context: *mut AuthTokenManager,
     context_id: u64,
-    auth_token: *const c_char,
+    auth_token: *const AuthToken,
 ) {
     if context.is_null() {
         return;
@@ -74,13 +87,76 @@ unsafe extern "C" fn ffi_get_callback(
     let auth_token = if auth_token.is_null() {
         None
     } else {
-        Some(sdk::AuthToken::from(
-            unsafe { CStr::from_ptr(auth_token) }
-                .to_str()
-                .expect("invalid string for auth token")
-                .to_owned(),
-        ))
+        Some((*auth_token).0.to_owned())
     };
 
     (*context).get_callback(context_id, auth_token);
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_generator_create_from_json(
+    json: *const c_char,
+) -> *mut AuthTokenGenerator {
+    assert!(!json.is_null());
+    let json_str = unsafe { CStr::from_ptr(json) }
+        .to_str()
+        .expect("invalid json string");
+    Box::into_raw(Box::new(AuthTokenGenerator(
+        sdk::client_auth::AuthTokenGenerator::from_json(json_str).expect("invalid generator json"),
+    )))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_generator_destroy(generator: *mut AuthTokenGenerator) {
+    assert!(!generator.is_null());
+    drop(Box::from_raw(generator));
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_generator_vend(
+    generator: *mut AuthTokenGenerator,
+    parameters: AuthTokenParameters,
+) -> *const AuthToken {
+    let generator = &*generator;
+    Box::into_raw(Box::new(AuthToken(generator.0.vend(
+        &sdk::RealmId(parameters.realm_id),
+        &sdk::client_auth::SecretId(parameters.secret_id),
+    ))))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_create(token_cstr: *const c_char) -> *const AuthToken {
+    assert!(!token_cstr.is_null());
+    let token_str = unsafe { CStr::from_ptr(token_cstr) }
+        .to_str()
+        .expect("invalid token_cstr string");
+    Box::into_raw(Box::new(AuthToken(sdk::AuthToken::from(
+        token_str.to_string(),
+    ))))
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_destroy(token: *mut AuthToken) {
+    assert!(!token.is_null());
+    drop(Box::from_raw(token));
+}
+
+pub type AuthTokenStringCallbackFn =
+    unsafe extern "C" fn(auth_token: *mut AuthToken, context: *const c_void, string: *const c_char);
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn juicebox_auth_token_string(
+    token: *mut AuthToken,
+    context: *const c_void,
+    callback: AuthTokenStringCallbackFn,
+) {
+    let raw = CString::new((*token).0.expose_secret()).unwrap().into_raw();
+    callback(token, context, raw);
+    drop(CString::from_raw(raw));
 }

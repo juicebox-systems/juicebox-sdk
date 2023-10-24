@@ -23,7 +23,7 @@ const header = { algorithm: 'HS256', keyid: 'acme:1' };
 
 const payload = {
     iss: 'acme',                               // Tenant name – should match the `kid` field prior to `:`
-    sub: 'artemis', 						   // UserId that will be registering / recovering secrets
+    sub: 'artemis', 						   // SecretId that will be registering / recovering secrets
     aud: 'b81d501016728117fc2f56285d0d142d',   // RealmId the token is valid for, this should be provided by your realm operator
     exp: Math.floor(Date.now() / 1000) + 3600, // Expiration time (in seconds), the lifetime of a token must not exceed one day, `exp - nbf <= 86_400`
     nbf: Math.floor(Date.now() / 1000) 		   // Not valid before time (in seconds)
