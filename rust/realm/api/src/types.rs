@@ -53,13 +53,30 @@ impl<const N: usize> From<[u8; N]> for SecretBytesArray<N> {
     }
 }
 
+impl<const N: usize> TryFrom<&[u8]> for SecretBytesArray<N> {
+    type Error = &'static str;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        match <[u8; N]>::try_from(value) {
+            Ok(value) => Ok(Self(value)),
+            Err(_) => Err("incorrectly sized secret array"),
+        }
+    }
+}
+
 impl<const N: usize> TryFrom<Vec<u8>> for SecretBytesArray<N> {
     type Error = &'static str;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(
-            TryInto::<[u8; N]>::try_into(value).map_err(|_| "incorrectly sized secret array")?,
-        ))
+        Self::try_from(value.as_slice())
+    }
+}
+
+impl<const N: usize> TryFrom<SecretBytesVec> for SecretBytesArray<N> {
+    type Error = &'static str;
+
+    fn try_from(value: SecretBytesVec) -> Result<Self, Self::Error> {
+        Self::try_from(value.expose_secret())
     }
 }
 
@@ -473,28 +490,70 @@ mod tests {
     use zeroize::Zeroize;
 
     #[test]
-    fn test_secret_byte_vec_redaction() {
+    fn test_secret_bytes_vec_redaction() {
         let secret_bytes = SecretBytesVec::from(b"some secret".to_vec());
         assert_eq!(format!("{:?}", secret_bytes), "SecretBytesVec(REDACTED)");
     }
 
     #[test]
-    fn test_secret_byte_vec_zeroize() {
+    fn test_secret_bytes_vec_zeroize() {
         let mut secret_bytes = SecretBytesVec::from(b"some secret".to_vec());
         secret_bytes.zeroize();
         assert_eq!(secret_bytes, SecretBytesVec::from(vec![]));
     }
 
     #[test]
-    fn test_secret_byte_array_redaction() {
+    fn test_secret_bytes_array_redaction() {
         let secret_bytes = SecretBytesArray::from([5; 32]);
         assert_eq!(format!("{:?}", secret_bytes), "SecretBytesArray(REDACTED)");
     }
 
     #[test]
-    fn test_secret_byte_array_zeroize() {
+    fn test_secret_bytes_array_zeroize() {
         let mut secret_bytes = SecretBytesArray::from([5; 32]);
         secret_bytes.zeroize();
         assert_eq!(secret_bytes, SecretBytesArray::from([0; 32]));
+    }
+
+    #[test]
+    fn test_secret_bytes_array_try_from_slice() {
+        assert_eq!(
+            SecretBytesArray::<3>::try_from(b"abc".as_slice())
+                .unwrap()
+                .expose_secret(),
+            b"abc",
+        );
+        assert_eq!(
+            SecretBytesArray::<3>::try_from(b"abcd".as_slice()).unwrap_err(),
+            "incorrectly sized secret array",
+        );
+    }
+
+    #[test]
+    fn test_secret_bytes_array_try_from_vec() {
+        assert_eq!(
+            SecretBytesArray::<3>::try_from(b"abc".to_vec())
+                .unwrap()
+                .expose_secret(),
+            b"abc",
+        );
+        assert_eq!(
+            SecretBytesArray::<3>::try_from(b"abcd".to_vec()).unwrap_err(),
+            "incorrectly sized secret array",
+        );
+    }
+
+    #[test]
+    fn test_secret_bytes_array_try_from_secret_bytes_vec() {
+        assert_eq!(
+            SecretBytesArray::<3>::try_from(SecretBytesVec::from(b"abc".to_vec()))
+                .unwrap()
+                .expose_secret(),
+            b"abc",
+        );
+        assert_eq!(
+            SecretBytesArray::<3>::try_from(SecretBytesVec::from(b"abcd".to_vec())).unwrap_err(),
+            "incorrectly sized secret array",
+        );
     }
 }
