@@ -8,7 +8,7 @@ on:
 
 env:
   INSTALL_RUST_VERSION: "1.73"
-  
+
 jobs:
   whitepaper:
     name: Whitepaper
@@ -22,9 +22,16 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Compile Whitepaper
-        uses: lvignoli/typst-action@main
-        with:
-          source_file: whitepaper/whitepaper.typ
+        run: |
+          cd whitepaper
+          # Ensure output file exists with the host user's permissions.
+          true > whitepaper.pdf
+          docker run \
+            --rm \
+            --volume "$PWD:/whitepaper:ro" \
+            --volume "$PWD/whitepaper.pdf:/whitepaper/whitepaper.pdf" \
+            ghcr.io/typst/typst:v0.8.0 \
+            sh -xc 'typst compile /whitepaper/whitepaper.typ'
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
