@@ -4,9 +4,10 @@
 use async_trait::async_trait;
 use http::{status::InvalidStatusCode, StatusCode};
 use std::collections::HashMap;
+use std::fmt::Display;
 
 /// The [`Request`] Method (VERB).
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Method {
     Get,
     Put,
@@ -23,6 +24,12 @@ impl Method {
             Self::Post => "POST",
             Self::Delete => "DELETE",
         }
+    }
+}
+
+impl Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
