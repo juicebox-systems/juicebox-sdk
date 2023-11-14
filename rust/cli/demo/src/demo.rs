@@ -4,6 +4,7 @@ use ::reqwest::Certificate;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use juicebox_sdk::{
     reqwest::ClientOptions, AuthToken, Client, ClientBuilder, Configuration, Pin, Policy, RealmId,
@@ -37,9 +38,14 @@ async fn main() {
     let json_auth_tokens: HashMap<String, AuthToken> =
         serde_json::from_str(&args.auth_tokens).expect("failed to parse auth tokens");
 
-    let auth_tokens = json_auth_tokens
+    let auth_tokens: HashMap<RealmId, AuthToken> = json_auth_tokens
         .into_iter()
-        .map(|(id, token)| (RealmId(hex::decode(id).unwrap().try_into().unwrap()), token))
+        .map(|(id, token)| {
+            (
+                RealmId::from_str(&id).expect("failed to parse realm ID in auth tokens"),
+                token,
+            )
+        })
         .collect();
 
     let lb_certs = args
