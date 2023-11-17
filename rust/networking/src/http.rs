@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use http::{status::InvalidStatusCode, StatusCode};
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::time::Duration;
 
 /// The [`Request`] Method (VERB).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,6 +41,7 @@ pub struct Request {
     pub url: String,
     pub headers: HashMap<String, String>,
     pub body: Option<Vec<u8>>,
+    pub timeout: Option<Duration>,
 }
 
 /// A response to a submitted [`Request`].

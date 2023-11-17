@@ -2,7 +2,7 @@
 
 use ::http::{HeaderName, HeaderValue};
 use async_trait::async_trait;
-use reqwest::Certificate;
+use reqwest::{Certificate, RequestBuilder};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -65,11 +65,8 @@ impl<F: rpc::Service> Client<F> {
             _phantom_data: PhantomData {},
         }
     }
-}
 
-#[async_trait]
-impl<F: rpc::Service> http::Client for Client<F> {
-    async fn send(&self, request: http::Request) -> Option<http::Response> {
+    pub fn to_reqwest(&self, request: http::Request) -> RequestBuilder {
         let mut request_builder = match request.method {
             http::Method::Get => self.http.get(request.url),
             http::Method::Put => self.http.put(request.url),
@@ -91,10 +88,20 @@ impl<F: rpc::Service> http::Client for Client<F> {
             request_builder = request_builder.body(body);
         }
 
-        match request_builder.send().await {
+        if let Some(timeout) = request.timeout {
+            request_builder = request_builder.timeout(timeout);
+        }
+        request_builder
+    }
+
+    pub async fn to_response(
+        &self,
+        resp: Result<reqwest::Response, reqwest::Error>,
+    ) -> Result<http::Response, reqwest::Error> {
+        match resp {
             Err(err) => {
                 warn!(%err, "error sending HTTP request");
-                None
+                Err(err)
             }
             Ok(response) => {
                 let status = response.status().as_u16();
@@ -107,9 +114,9 @@ impl<F: rpc::Service> http::Client for Client<F> {
                 match response.bytes().await {
                     Err(err) => {
                         warn!(%err, "error receiving HTTP response");
-                        None
+                        Err(err)
                     }
-                    Ok(bytes) => Some(http::Response {
+                    Ok(bytes) => Ok(http::Response {
                         status_code: status,
                         headers,
                         body: bytes.to_vec(),
@@ -117,5 +124,13 @@ impl<F: rpc::Service> http::Client for Client<F> {
                 }
             }
         }
+    }
+}
+
+#[async_trait]
+impl<F: rpc::Service> http::Client for Client<F> {
+    async fn send(&self, request: http::Request) -> Option<http::Response> {
+        let resp = self.to_reqwest(request).send().await;
+        self.to_response(resp).await.ok()
     }
 }
