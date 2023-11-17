@@ -11,7 +11,7 @@ use x25519_dalek as x25519;
 use crate::auth;
 use crate::{http, types::Session, Client, Realm, Sleeper};
 use juicebox_marshalling as marshalling;
-use juicebox_networking::rpc::{self, RpcError};
+use juicebox_networking::rpc::{self, RpcError, SendOptions};
 use juicebox_noise::client as noise;
 use juicebox_realm_api::{
     requests::{
@@ -280,11 +280,11 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         );
 
         for _attempt in 0..2 {
-            return match rpc::send_with_headers(
+            return match rpc::send_with_options(
                 &self.http,
                 &realm.address,
                 request.clone(),
-                headers.clone(),
+                SendOptions::default().with_headers(headers.clone()),
             )
             .await
             .map_err(RequestError::from)
