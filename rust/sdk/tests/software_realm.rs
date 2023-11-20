@@ -1,7 +1,6 @@
 #[cfg(feature = "software_realm_tests")]
 mod software_realm {
     use juicebox_networking::reqwest;
-    use juicebox_networking::rpc::LoadBalancerService;
     use juicebox_process_group::ProcessGroup;
     use juicebox_realm_auth::{creation::create_token, AuthKey, AuthKeyVersion, Claims, Scope};
     use juicebox_sdk::{AuthToken, RealmId, RecoverError, TokioSleeper, *};
@@ -95,8 +94,7 @@ mod software_realm {
     async fn create_client(
         realm_count: u32,
         pg: &mut ProcessGroup,
-    ) -> Client<TokioSleeper, reqwest::Client<LoadBalancerService>, HashMap<RealmId, AuthToken>>
-    {
+    ) -> Client<TokioSleeper, reqwest::Client, HashMap<RealmId, AuthToken>> {
         let (realms, tokens) = create_realms(realm_count, pg).await;
 
         let configuration = Configuration {
@@ -516,7 +514,7 @@ mod software_realm {
     async fn register_with_invalid_auth() {
         let mut process_group = ProcessGroup::new();
         let (realms, mut tokens) = create_realms(4, &mut process_group).await;
-        *tokens.get_mut(&realms.iter().next().unwrap().id).unwrap() =
+        *tokens.get_mut(&realms.first().unwrap().id).unwrap() =
             AuthToken::from("a.b.c".to_string());
 
         let configuration = Configuration {
