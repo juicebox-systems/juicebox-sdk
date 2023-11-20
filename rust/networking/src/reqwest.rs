@@ -4,12 +4,11 @@ use ::http::{HeaderName, HeaderValue};
 use async_trait::async_trait;
 use reqwest::{Certificate, RequestBuilder};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::warn;
 
-use crate::{http, rpc};
+use crate::http;
 
 /// Options for configuring the [`reqwest`] [`Client`].
 #[derive(Debug, Clone)]
@@ -34,14 +33,13 @@ impl<'a> Default for ClientOptions<'a> {
 
 /// An [`http::Client`] implementation that utilizes [`reqwest`].
 #[derive(Clone, Debug, Default)]
-pub struct Client<F: rpc::Service> {
+pub struct Client {
     // reqwest::Client holds a connection pool. It's reference-counted
     // internally, so this field is relatively cheap to clone.
     http: reqwest::Client,
-    _phantom_data: PhantomData<F>,
 }
 
-impl<F: rpc::Service> Client<F> {
+impl Client {
     pub fn new(options: ClientOptions) -> Self {
         let mut b = reqwest::Client::builder()
             .timeout(options.timeout)
@@ -62,7 +60,6 @@ impl<F: rpc::Service> Client<F> {
         }
         Self {
             http: b.build().expect("TODO"),
-            _phantom_data: PhantomData {},
         }
     }
 
@@ -128,7 +125,7 @@ impl<F: rpc::Service> Client<F> {
 }
 
 #[async_trait]
-impl<F: rpc::Service> http::Client for Client<F> {
+impl http::Client for Client {
     async fn send(&self, request: http::Request) -> Option<http::Response> {
         let resp = self.to_reqwest(request).send().await;
         self.to_response(resp).await.ok()

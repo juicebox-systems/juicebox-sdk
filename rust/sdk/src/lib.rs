@@ -39,8 +39,6 @@ pub use sleeper::TokioSleeper;
 
 #[cfg(feature = "reqwest")]
 pub use juicebox_networking::reqwest;
-#[cfg(feature = "reqwest")]
-use juicebox_networking::rpc::LoadBalancerService;
 
 pub static VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -155,7 +153,7 @@ where
 }
 
 #[cfg(feature = "reqwest")]
-impl<S, Atm> ClientBuilder<S, reqwest::Client<LoadBalancerService>, Atm>
+impl<S, Atm> ClientBuilder<S, reqwest::Client, Atm>
 where
     S: Sleeper,
     Atm: auth::AuthTokenManager,
@@ -176,7 +174,7 @@ where
         default_headers.extend(options.default_headers);
         options.default_headers = default_headers;
 
-        self.http(reqwest::Client::<LoadBalancerService>::new(options))
+        self.http(reqwest::Client::new(options))
     }
 }
 
