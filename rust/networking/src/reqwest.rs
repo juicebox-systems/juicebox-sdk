@@ -43,6 +43,9 @@ impl Client {
     pub fn new(options: ClientOptions) -> Self {
         let mut b = reqwest::Client::builder()
             .timeout(options.timeout)
+            // The service checker needs access to the server's certificate to
+            // warn if it will expire soon.
+            .tls_info(true)
             .use_rustls_tls();
 
         let mut default_headers = reqwest::header::HeaderMap::new();
