@@ -119,21 +119,30 @@ final class JuiceboxSdkTests: XCTestCase {
 
     @discardableResult
     func client(url: String) -> Client {
-        let realmId = RealmId(string: "000102030405060708090A0B0C0D0E0F")!
+        let realmId1 = RealmId(string: "000102030405060708090A0B0C0D0E0F")!
+        let realmId2 = RealmId(string: "010102030405060708090A0B0C0D0E0F")!
         return Client(
             configuration: .init(
                 realms: [
                     .init(
-                        id: realmId,
+                        id: realmId1,
+                        address: URL(string: url)!,
+                        publicKey: Data(repeating: 0, count: 32)
+                    ),
+                    .init(
+                        id: realmId2,
                         address: URL(string: url)!,
                         publicKey: Data(repeating: 0, count: 32)
                     )
                 ],
-                registerThreshold: 1,
-                recoverThreshold: 1,
+                registerThreshold: 2,
+                recoverThreshold: 2,
                 pinHashingMode: .fastInsecure
             ),
-            authTokens: [realmId: AuthToken(jwt: "fake.token")]
+            authTokens: [
+                realmId1: AuthToken(jwt: "fake.token1"),
+                realmId2: AuthToken(jwt: "fake.token2")
+            ]
         )
     }
 }

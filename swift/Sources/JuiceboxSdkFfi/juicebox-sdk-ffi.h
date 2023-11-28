@@ -125,7 +125,7 @@ typedef struct JuiceboxClient JuiceboxClient;
 
 typedef struct JuiceboxConfiguration JuiceboxConfiguration;
 
-typedef struct JuiceboxHttpClient JuiceboxHttpClient;
+typedef struct JuiceboxHttpClientState JuiceboxHttpClientState;
 
 typedef struct {
   JuiceboxConfiguration *const *data;
@@ -171,10 +171,10 @@ typedef struct {
   JuiceboxUnmanagedDataArray body;
 } JuiceboxHttpResponse;
 
-typedef void (*JuiceboxHttpResponseFn)(JuiceboxHttpClient *context,
+typedef void (*JuiceboxHttpResponseFn)(JuiceboxHttpClientState *context,
                                        const JuiceboxHttpResponse *response);
 
-typedef void (*JuiceboxHttpSendFn)(const JuiceboxHttpClient *context,
+typedef void (*JuiceboxHttpSendFn)(const JuiceboxHttpClientState *context,
                                    const JuiceboxHttpRequest *request,
                                    JuiceboxHttpResponseFn callback);
 

@@ -128,19 +128,24 @@ class ClientTest {
     }
 
     private fun client(url: String): Client {
-        val realmId = RealmId(string = "000102030405060708090A0B0C0D0E0F")
+        val realmId1 = RealmId(string = "000102030405060708090A0B0C0D0E0F")
+        val realmId2 = RealmId(string = "010102030405060708090A0B0C0D0E0F")
         return Client(
             Configuration(
                 realms = arrayOf(Realm(
-                    id = realmId,
+                    id = realmId1,
+                    address = url,
+                    publicKey = ByteArray(32)
+                ),Realm(
+                    id = realmId2,
                     address = url,
                     publicKey = ByteArray(32)
                 )),
-                registerThreshold = 1,
-                recoverThreshold = 1,
+                registerThreshold = 2,
+                recoverThreshold = 2,
                 pinHashingMode = PinHashingMode.FAST_INSECURE
             ),
-            authTokens = mapOf(realmId to AuthToken("abc.123"))
+            authTokens = mapOf(realmId1 to AuthToken("abc.123"), realmId2 to AuthToken("abc.123"))
         )
     }
 }

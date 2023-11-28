@@ -6,7 +6,7 @@ use rand_core::{OsRng, RngCore};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::mem::take;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::array::{ManagedArray, UnmanagedArray};
 
@@ -128,26 +128,30 @@ impl From<&HttpResponse> for sdk::http::Response {
 }
 
 pub type HttpSendFn = unsafe extern "C" fn(
-    context: &HttpClient,
+    context: *const HttpClientState,
     request: *const HttpRequest,
     callback: HttpResponseFn,
 );
 pub type HttpResponseFn =
-    unsafe extern "C" fn(context: *mut HttpClient, response: *const HttpResponse);
+    unsafe extern "C" fn(context: *mut HttpClientState, response: *const HttpResponse);
 
-pub struct HttpClient {
+pub struct HttpClient(Arc<HttpClientState>);
+
+impl HttpClient {
+    pub fn new(ffi_send: HttpSendFn) -> Self {
+        Self(Arc::new(HttpClientState {
+            ffi_send,
+            request_map: Mutex::new(HashMap::new()),
+        }))
+    }
+}
+
+pub struct HttpClientState {
     ffi_send: HttpSendFn,
     request_map: Mutex<HashMap<[u8; 16], Sender<Option<sdk::http::Response>>>>,
 }
 
-impl HttpClient {
-    pub fn new(ffi_send: HttpSendFn) -> Self {
-        HttpClient {
-            ffi_send,
-            request_map: Mutex::new(HashMap::new()),
-        }
-    }
-
+impl HttpClientState {
     fn receive(&self, response_id: [u8; 16], response: Option<sdk::http::Response>) {
         if let Some(tx) = self.request_map.lock().unwrap().remove(&response_id) {
             let _ = tx.send(response);
@@ -159,17 +163,18 @@ impl HttpClient {
 impl sdk::http::Client for HttpClient {
     async fn send(&self, request: sdk::http::Request) -> Option<sdk::http::Response> {
         let (tx, rx) = channel();
+        let state = self.0.clone();
 
         {
             let request_ffi = HttpRequest::from(request);
 
             {
-                let mut request_map = self.request_map.lock().unwrap();
+                let mut request_map = state.request_map.lock().unwrap();
                 request_map.insert(request_ffi.id, tx);
             }
 
             unsafe {
-                (self.ffi_send)(self, &request_ffi, ffi_http_receive);
+                (state.ffi_send)(Arc::into_raw(state), &request_ffi, ffi_http_receive);
             }
         }
 
@@ -177,7 +182,10 @@ impl sdk::http::Client for HttpClient {
     }
 }
 
-unsafe extern "C" fn ffi_http_receive(context: *mut HttpClient, response_ffi: *const HttpResponse) {
+unsafe extern "C" fn ffi_http_receive(
+    context: *mut HttpClientState,
+    response_ffi: *const HttpResponse,
+) {
     if response_ffi.is_null() || context.is_null() {
         return;
     }
@@ -187,7 +195,7 @@ unsafe extern "C" fn ffi_http_receive(context: *mut HttpClient, response_ffi: *c
         Err(_) => None,
     };
 
-    (*context).receive((*response_ffi).id, response);
+    Arc::from_raw(context).receive((*response_ffi).id, response);
 }
 
 #[derive(Debug)]
