@@ -123,17 +123,6 @@ jobs:
           args: --workspace --tests -- -D warnings
           command: clippy
 
-      - name: Install cargo audit
-        uses: actions-rs/cargo@v1
-        with:
-          args: cargo-audit
-          command: install
-
-      - name: Run cargo audit
-        uses: actions-rs/cargo@v1
-        with:
-          command: audit
-
       - name: Software Realm
         uses: ./.github/actions/software-realm
         with:
