@@ -33,7 +33,11 @@ impl AuthTokenManager {
     }
 
     pub fn get_callback(&self, context_id: i64, auth_token: Option<sdk::AuthToken>) {
-        if let Some(tx) = self.await_get_map.lock().unwrap().remove(&context_id) {
+        let tx = {
+            let mut locked = self.await_get_map.lock().unwrap();
+            locked.remove(&context_id)
+        };
+        if let Some(tx) = tx {
             _ = tx.send(auth_token);
         }
     }
