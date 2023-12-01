@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Install Rust
         run: |
@@ -95,6 +98,9 @@ jobs:
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Install Rust
         run: |
