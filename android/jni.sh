@@ -90,7 +90,4 @@ for target in "${TARGETS[@]}"; do
 
     echo mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
     mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
-
-    echo mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.d" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
-    mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.d" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
 done

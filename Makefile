@@ -13,7 +13,6 @@ copy_artifacts/juicebox_sdk_ffi/%: cargo/juicebox_sdk_ffi/%
 	rm -rf "artifacts/ffi/${*}"
 	mkdir -p "artifacts/ffi/${*}"
 	cp "target/${*}/release/libjuicebox_sdk_ffi.a" "artifacts/ffi/${*}"
-	cp "target/${*}/release/libjuicebox_sdk_ffi.d" "artifacts/ffi/${*}"
 	cp -r "target/${*}/release/include" "artifacts/ffi/${*}"
 
 jni:

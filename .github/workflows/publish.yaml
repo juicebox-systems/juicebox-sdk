@@ -24,6 +24,17 @@ jobs:
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Build juicebox_sdk_jni
+        run: make jni
+
+      - name: Check Artifacts Status
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Artifact changes have not been committed, make and commit your changes before tagging."
+            exit 1
+          fi
+        working-directory: artifacts
+
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
@@ -93,6 +104,17 @@ jobs:
 
       - name: Use Rust Cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Build juicebox_sdk_ffi
+        run: make ffi
+
+      - name: Check Artifacts Status
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Artifact changes have not been committed, make and commit your changes before tagging."
+            exit 1
+          fi
+        working-directory: artifacts
 
       - name: Publish
         run: |
