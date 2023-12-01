@@ -1,0 +1,3 @@
+[submodule "artifacts"]
+	path = artifacts
+	url = git@github.com:juicebox-systems/juicebox-sdk-artifacts.git

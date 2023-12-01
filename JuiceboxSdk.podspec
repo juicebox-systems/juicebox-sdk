@@ -13,16 +13,15 @@ Pod::Spec.new do |s|
 
   s.source_files = ['swift/Sources/**/*.swift']
   s.preserve_paths = [
-    'target/*/release/libjuicebox_sdk_ffi.a',
-    'target/*/release/include',
+    'artifacts/ffi',
     'swift/Sources/JuiceboxSdkFfi',
   ]
 
   s.pod_target_xcconfig = {
-      'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/swift/Sources/JuiceboxSdkFfi $(PODS_TARGET_SRCROOT)/target/${CARGO_BUILD_TARGET}/release/include',
+      'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/swift/Sources/JuiceboxSdkFfi $(PODS_TARGET_SRCROOT)/artifacts/ffi/${CARGO_BUILD_TARGET}/include',
       'SWIFT_INCLUDE_PATHS' => '$(HEADER_SEARCH_PATHS)',
 
-      'OTHER_LDFLAGS' => '$(PODS_TARGET_SRCROOT)/target/$(CARGO_BUILD_TARGET)/release/libjuicebox_sdk_ffi.a',
+      'OTHER_LDFLAGS' => '$(PODS_TARGET_SRCROOT)/artifacts/ffi/$(CARGO_BUILD_TARGET)/libjuicebox_sdk_ffi.a',
 
       'CARGO_BUILD_TARGET[sdk=iphonesimulator*][arch=arm64]' => 'aarch64-apple-ios-sim',
       'CARGO_BUILD_TARGET[sdk=iphonesimulator*][arch=*]' => 'x86_64-apple-ios',
@@ -31,11 +30,4 @@ Pod::Spec.new do |s|
       'ARCHS[sdk=iphonesimulator*]' => 'x86_64 arm64',
       'ARCHS[sdk=iphoneos*]' => 'arm64',
   }
-
-  s.prepare_command = %Q(
-    set -euo pipefail
-    CARGO_BUILD_TARGET=aarch64-apple-ios swift/ffi.sh --release
-    CARGO_BUILD_TARGET=x86_64-apple-ios swift/ffi.sh --release
-    CARGO_BUILD_TARGET=aarch64-apple-ios-sim swift/ffi.sh --release
-  )
 end

@@ -50,7 +50,7 @@ fi
 SCRIPT_DIR=$(dirname "$0")
 cd "${SCRIPT_DIR}"/..
 
-ANDROID_LIB_DIR=android/libs
+ANDROID_LIB_DIR=artifacts/jni
 
 TARGETS=("aarch64-linux-android arm64-v8a" "armv7-linux-androideabi armeabi-v7a" "x86_64-linux-android x86_64" "i686-linux-android x86")
 
@@ -90,4 +90,7 @@ for target in "${TARGETS[@]}"; do
 
     echo mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
     mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+
+    echo mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.d" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.d" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
 done
