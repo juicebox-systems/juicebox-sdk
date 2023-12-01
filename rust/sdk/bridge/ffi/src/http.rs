@@ -153,7 +153,11 @@ pub struct HttpClientState {
 
 impl HttpClientState {
     fn receive(&self, response_id: [u8; 16], response: Option<sdk::http::Response>) {
-        if let Some(tx) = self.request_map.lock().unwrap().remove(&response_id) {
+        let tx = {
+            let mut locked = self.request_map.lock().unwrap();
+            locked.remove(&response_id)
+        };
+        if let Some(tx) = tx {
             let _ = tx.send(response);
         }
     }
