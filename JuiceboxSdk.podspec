@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.summary          = 'A Swift wrapper library for interfacing with the Juicebox service.'
 
   s.homepage         = 'https://github.com/juicebox-systems/juicebox-sdk'
-  s.source           = { :git => 'git@github.com:juicebox-systems/juicebox-sdk.git', :tag => "#{s.version}" }
+  s.source           = { :git => 'git@github.com:juicebox-systems/juicebox-sdk.git', :tag => "#{s.version}", :submodules => true }
 
   s.swift_version    = '5'
   s.platform         = :ios, '13'
@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
   ]
 
   s.pod_target_xcconfig = {
-      'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/swift/Sources/JuiceboxSdkFfi $(PODS_TARGET_SRCROOT)/artifacts/ffi/${CARGO_BUILD_TARGET}/include',
+      'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/swift/Sources/JuiceboxSdkFfi',
       'SWIFT_INCLUDE_PATHS' => '$(HEADER_SEARCH_PATHS)',
 
       'OTHER_LDFLAGS' => '$(PODS_TARGET_SRCROOT)/artifacts/ffi/$(CARGO_BUILD_TARGET)/libjuicebox_sdk_ffi.a',
