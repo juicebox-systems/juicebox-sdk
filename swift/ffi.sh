@@ -105,3 +105,14 @@ if [[ -n "${RUN_CBINDGEN}" ]]; then
     cbindgen ${RELEASE:+--profile release} -o "${FFI_HEADER_PATH}" rust/sdk/bridge/ffi 2>&1
   fi
 fi
+
+if [[ -n "${CARGO_BUILD_TARGET:-}" ]]; then
+  echo rm -rf "artifacts/ffi/${CARGO_BUILD_TARGET}"
+  rm -rf "artifacts/ffi/${CARGO_BUILD_TARGET}"
+
+  echo mkdir -p "artifacts/ffi/${CARGO_BUILD_TARGET}"
+  mkdir -p "artifacts/ffi/${CARGO_BUILD_TARGET}"
+
+  echo cp "${CARGO_TARGET_DIR:-target}/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_ffi.a" "artifacts/ffi/${CARGO_BUILD_TARGET}"
+  cp "${CARGO_TARGET_DIR:-target}/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_ffi.a" "artifacts/ffi/${CARGO_BUILD_TARGET}"
+fi

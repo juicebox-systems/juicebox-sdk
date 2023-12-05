@@ -18,22 +18,15 @@ jobs:
           submodules: recursive
           token: ${{ secrets.ACCESS_TOKEN }}
 
-      - name: Install Rust
-        run: |
-          rustup toolchain install ${{ env.INSTALL_RUST_VERSION }} --profile minimal --target \
-            aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-          rustup default ${{ env.INSTALL_RUST_VERSION }}
-
-      - name: Use Rust Cache
-        uses: Swatinem/rust-cache@v2
-
       - name: Build juicebox_sdk_jni
-        run: make jni
+        run: |
+          ./artifacts/build.sh --verbose --jni
 
       - name: Check Artifacts Status
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Artifact changes have not been committed, make and commit your changes before tagging."
+            git diff
             exit 1
           fi
         working-directory: artifacts
@@ -95,29 +88,24 @@ jobs:
 
   cocoapods:
     name: CocoaPods
-    runs-on: macOS-latest
+    runs-on: macOS-12-large
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
           token: ${{ secrets.ACCESS_TOKEN }}
 
-      - name: Install Rust
-        run: |
-          rustup toolchain install ${{ env.INSTALL_RUST_VERSION }} --profile minimal --target \
-            x86_64-apple-ios,aarch64-apple-ios,aarch64-apple-ios-sim
-          rustup default ${{ env.INSTALL_RUST_VERSION }}
-
-      - name: Use Rust Cache
-        uses: Swatinem/rust-cache@v2
-
       - name: Build juicebox_sdk_ffi
-        run: make ffi
+        run: |
+          brew install docker
+          colima start
+          ./artifacts/build.sh --verbose --ffi
 
       - name: Check Artifacts Status
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Artifact changes have not been committed, make and commit your changes before tagging."
+            git diff
             exit 1
           fi
         working-directory: artifacts

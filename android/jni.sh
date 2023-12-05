@@ -88,6 +88,6 @@ for target in "${TARGETS[@]}"; do
     echo mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
     mkdir -p "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
 
-    echo mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
-    mv "target/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    echo mv "${CARGO_TARGET_DIR:-target}/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
+    mv "${CARGO_TARGET_DIR:-target}/${CARGO_BUILD_TARGET}/release/libjuicebox_sdk_jni.so" "${ANDROID_LIB_DIR}/${ANDROID_BUILD_TARGET}"
 done
