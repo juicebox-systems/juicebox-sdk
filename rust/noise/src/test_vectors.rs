@@ -192,7 +192,7 @@ fn test_vector(vector: &TestVector) -> bool {
     .expect("server start handshake");
 
     assert_eq!(
-        hex::encode(&payload_plaintext),
+        hex::encode(payload_plaintext),
         handshake_request.payload,
         "server receive handshake request"
     );
