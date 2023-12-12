@@ -8,8 +8,8 @@ on:
   workflow_dispatch: {}
 
 env:
-  INSTALL_RUST_VERSION: "1.73"
-   
+  INSTALL_RUST_VERSION: "1.74"
+
 jobs:
   rust:
     name: Rust

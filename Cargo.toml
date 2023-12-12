@@ -28,7 +28,7 @@ authors = [
     "Diego Ongaro <diego@juicebox.me>",
     "Nora Trapp <nora@juicebox.me>",
 ]
-rust-version = "1.73"
+rust-version = "1.74"
 
 [workspace.dependencies]
 juicebox_marshalling = { path = "rust/marshalling", version = "0.2.2" }
