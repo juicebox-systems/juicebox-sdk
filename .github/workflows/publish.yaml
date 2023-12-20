@@ -12,6 +12,7 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
         with:
@@ -50,6 +51,7 @@ jobs:
   javascript:
     name: JavaScript
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 
@@ -89,6 +91,7 @@ jobs:
   cocoapods:
     name: CocoaPods
     runs-on: macOS-12-large
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
         with:
