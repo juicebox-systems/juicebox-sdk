@@ -24,6 +24,7 @@ jobs:
   swift-package:
     name: Swift Package
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v3
 
@@ -63,6 +64,7 @@ jobs:
   swift-pod:
     name: Swift Pod
     runs-on: macOS-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 
@@ -90,6 +92,7 @@ jobs:
   rust:
     name: Rust
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 
@@ -152,6 +155,7 @@ jobs:
   jni:
     name: Android
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
 
       - uses: actions/checkout@v3
@@ -181,6 +185,7 @@ jobs:
   wasm:
     name: Wasm
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 

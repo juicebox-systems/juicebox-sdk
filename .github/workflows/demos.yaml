@@ -14,6 +14,7 @@ jobs:
   rust:
     name: Rust
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 
@@ -46,6 +47,7 @@ jobs:
   swift:
     name: Swift
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 
@@ -86,6 +88,7 @@ jobs:
   wasm:
     name: WASM
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
 

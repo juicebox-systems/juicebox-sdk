@@ -13,6 +13,7 @@ jobs:
   whitepaper:
     name: Whitepaper
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -53,6 +54,7 @@ jobs:
   swift:
     name: Swift
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -87,6 +89,7 @@ jobs:
   rust:
     name: Rust
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -128,6 +131,7 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -164,6 +168,7 @@ jobs:
   js:
     name: JavaScript
     runs-on: ubuntu-20.04
+    timeout-minutes: 20
 
     permissions:
       contents: read
