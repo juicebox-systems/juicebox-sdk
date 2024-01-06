@@ -50,9 +50,9 @@ argon2 = { version = "0.5.2", default-features = false, features = [
     "alloc",
     "zeroize",
 ] }
-async-trait = "0.1.74"
+async-trait = "0.1.77"
 blake2 = { version = "0.10.6", default-features = false }
-clap = { version = "4.4.6", features = ["derive"] }
+clap = { version = "4.4.14", features = ["derive"] }
 console_error_panic_hook = "0.1.7"
 chacha20poly1305 = { version = "0.10.1", default-features = false, features = [
     "alloc",
@@ -63,17 +63,17 @@ ciborium = { version = "=0.2.1", default-features = false }
 criterion = "0.5.1"
 curve25519-dalek = { version = "4.1", features = ["digest", "rand_core"] }
 digest = { version = "0.10.7" }
-ed25519-dalek = { version = "2.0", default-features = false, features = [
+ed25519-dalek = { version = "2.1", default-features = false, features = [
     "rand_core",
 ] }
-futures = { version = "0.3.28" }
-futures-channel = { version = "0.3.28" }
-getrandom = "0.2.10"
+futures = { version = "0.3.30" }
+futures-channel = { version = "0.3.30" }
+getrandom = "0.2.11"
 # Google and Mozilla audited hex 0.4.3 (`cargo vet`).
 hex = { version = "=0.4.3", default-features = false, features = ["alloc"] }
-hkdf = "0.12.3"
+hkdf = "0.12.4"
 hmac = "0.12.1"
-http = "0.2.9"
+http = "0.2.11"
 # Simon audited instant 0.1.12 in Aug 2023.
 instant = "=0.1.12"
 itertools = { version = "0.11.0", default-features = false, features = [
@@ -82,36 +82,36 @@ itertools = { version = "0.11.0", default-features = false, features = [
 jni = "0.21.1"
 # Nora audited jwt-simple 0.11.7 in Oct 2023.
 jwt-simple = "=0.11.7"
-js-sys = "0.3.64"
-libc = "0.2.149"
+js-sys = "0.3.66"
+libc = "0.2.152"
 nix = { version = "0.27.1", default-features = false, features = ["signal"] }
 opentelemetry = { version = "0.20.0", features = ["rt-tokio"] }
 rand = { version = "0.8.5", default-features = false, features = ["alloc"] }
 rand_core = "0.6.4"
 rand_chacha = { version = "0.3.1", default-features = false }
 regex = "1.10"
-reqwest = { version = "0.11.22", default-features = false, features = [
+reqwest = { version = "0.11.23", default-features = false, features = [
     "rustls-tls",
 ] }
-serde = { version = "1.0.189", default-features = false, features = [
+serde = { version = "1.0.195", default-features = false, features = [
     "alloc",
     "derive",
 ] }
-serde_json = "1.0.107"
+serde_json = "1.0.111"
 serde-wasm-bindgen = "0.6"
 subtle = { version = "2.5.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
-thiserror = "1.0.50"
-tokio = { version = "1.33.0", features = ["sync", "time"] }
+thiserror = "1.0.56"
+tokio = { version = "1.35.1", features = ["sync", "time"] }
 tracing = { version = "0.1.40", default-features = false, features = [
     "attributes",
 ] }
 tracing-opentelemetry = "0.21.0"
-url = { version = "2.4.1", features = ["serde"] }
+url = { version = "2.5.0", features = ["serde"] }
 wasm-bindgen = { version = "0.2.89", features = ["serde"] }
-wasm-bindgen-futures = "0.4.37"
-wasm-bindgen-test = "0.3.37"
-web-sys = { version = "0.3.64", features = [
+wasm-bindgen-futures = "0.4.39"
+wasm-bindgen-test = "0.3.39"
+web-sys = { version = "0.3.66", features = [
     "Blob",
     "Headers",
     "Request",
@@ -125,4 +125,4 @@ x25519-dalek = { version = "2.0", features = [
     "serde",
     "static_secrets",
 ] }
-zeroize = { version = "1.6.0", features = ["derive"] }
+zeroize = { version = "1.7.0", features = ["derive"] }
