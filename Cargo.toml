@@ -108,7 +108,7 @@ tracing = { version = "0.1.40", default-features = false, features = [
 ] }
 tracing-opentelemetry = "0.21.0"
 url = { version = "2.4.1", features = ["serde"] }
-wasm-bindgen = { version = "0.2.87", features = ["serde"] }
+wasm-bindgen = { version = "0.2.89", features = ["serde"] }
 wasm-bindgen-futures = "0.4.37"
 wasm-bindgen-test = "0.3.37"
 web-sys = { version = "0.3.64", features = [
