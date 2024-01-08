@@ -14,7 +14,7 @@ on:
   workflow_dispatch: {}
 
 env:
-  INSTALL_RUST_VERSION: "1.74"
+  INSTALL_RUST_VERSION: "1.75"
 
 jobs:
   android:

@@ -194,12 +194,8 @@ unsafe extern "C" fn ffi_http_receive(
         return;
     }
 
-    let response = match sdk::http::Response::try_from(&*response_ffi) {
-        Ok(response) => Some(response),
-        Err(_) => None,
-    };
-
-    Arc::from_raw(context).receive((*response_ffi).id, response);
+    let response = sdk::http::Response::from(&*response_ffi);
+    Arc::from_raw(context).receive((*response_ffi).id, Some(response));
 }
 
 #[derive(Debug)]
