@@ -4,11 +4,14 @@ use juicebox_realm_api::types::{AuthToken, RealmId};
 use juicebox_realm_auth::{
     creation::create_token,
     validation::{Error, Require, Validator, MAX_LIFETIME_SECONDS},
-    AuthKey, AuthKeyVersion, Claims, Scope,
+    AuthKey, AuthKeyAlgorithm, AuthKeyVersion, Claims, Scope,
 };
 
 use clap::{command, Parser, Subcommand};
-use jwt_simple::JWTError;
+use jwt_simple::{
+    algorithms::{Ed25519KeyPair, HS256Key, RS256KeyPair},
+    JWTError,
+};
 
 /// A CLI tool for validation and creation of auth tokens.
 #[derive(Parser)]
@@ -22,38 +25,58 @@ enum Command {
     /// Create an auth token for a tenant.
     Create {
         /// An alphanumeric user ID that this token should be valid for.
+        #[arg(short, long)]
         user: String,
         /// An alphanumeric tenant ID.
+        #[arg(short, long)]
         tenant: String,
         /// The ID of the realm, as a hex string, that the token should be valid for.
+        #[arg(short, long)]
         realm: RealmId,
         /// The key, as a hex string, that the token should be signed with.
-        #[arg(value_parser = parse_auth_key)]
+        #[arg(short, long, value_parser = parse_auth_key)]
         key: AuthKey,
         /// The integer version of the signing key.
-        #[arg(value_parser = parse_auth_key_version)]
+        #[arg(short, long, value_parser = parse_auth_key_version)]
         version: AuthKeyVersion,
+        /// The algorithm of the signing key.
+        #[arg(short, long, value_enum)]
+        algorithm: AuthKeyAlgorithm,
         /// The scope to include in the token.
-        #[arg(default_value_t)]
+        #[arg(short, long, default_value_t)]
         scope: Scope,
     },
 
     /// Validate an auth token for a tenant.
     Validate {
-        /// The token to validate.
+        /// The jwt token to validate.
+        #[arg(short('j'), long)]
         token: AuthToken,
         /// The alphanumeric user ID that this token was created with.
+        #[arg(short, long)]
         user: String,
         /// The alphanumeric tenant ID that this token was created with.
+        #[arg(short, long)]
         tenant: String,
         /// The ID of the realm, as a hex string, that the token was made valid for.
+        #[arg(short, long)]
         realm: RealmId,
         /// The key, as a hex string, that the token was signed with.
-        #[arg(value_parser = parse_auth_key)]
+        #[arg(short, long, value_parser = parse_auth_key)]
         key: AuthKey,
         /// The integer version of the signing key.
-        #[arg(value_parser = parse_auth_key_version)]
+        #[arg(short, long, value_parser = parse_auth_key_version)]
         version: AuthKeyVersion,
+        /// The algorithm of the signing key.
+        #[arg(short, long, value_enum)]
+        algorithm: AuthKeyAlgorithm,
+    },
+
+    /// Create a random key (or key pair) for a tenant and output to stdout.
+    Random {
+        /// The algorithm of the signing key.
+        #[arg(short, long, value_enum)]
+        algorithm: AuthKeyAlgorithm,
     },
 }
 
@@ -67,6 +90,7 @@ fn main() {
             realm,
             key,
             version,
+            algorithm,
             scope,
         } => {
             let token = create_token(
@@ -78,6 +102,7 @@ fn main() {
                 },
                 &key,
                 version,
+                algorithm,
             );
             println!("{}", token.expose_secret());
         }
@@ -88,13 +113,14 @@ fn main() {
             realm,
             key,
             version,
+            algorithm,
         } => {
             let mut errors: Vec<String> = vec![];
             let mut warnings: Vec<String> = vec![];
 
             let validator = Validator::new(realm, Require::AnyScopeOrMissing);
 
-            match validator.validate(&token, &key) {
+            match validator.validate(&token, &key, &algorithm) {
                 Ok(Claims {
                     issuer,
                     subject,
@@ -195,6 +221,27 @@ fn main() {
                 exit(1);
             }
         }
+        Command::Random { algorithm } => match algorithm {
+            AuthKeyAlgorithm::HS256 => {
+                println!("{}", hex::encode(HS256Key::generate().to_bytes()));
+            }
+            AuthKeyAlgorithm::RS256 => {
+                let key_pair = RS256KeyPair::generate(4096).expect("failed to generate key pair");
+                println!("private key: {}", hex::encode(key_pair.to_der().unwrap()));
+                println!(
+                    "public key: {}",
+                    hex::encode(key_pair.public_key().to_der().unwrap())
+                );
+            }
+            AuthKeyAlgorithm::EdDSA => {
+                let key_pair = Ed25519KeyPair::generate();
+                println!("private key: {}", hex::encode(key_pair.to_der()));
+                println!(
+                    "public key: {}",
+                    hex::encode(key_pair.public_key().to_der())
+                );
+            }
+        },
     };
 }
 

@@ -1,11 +1,12 @@
 use jwt_simple::{
+    algorithms::{Ed25519PublicKey, EdDSAPublicKeyLike, RS256PublicKey, RSAPublicKeyLike},
     prelude::{Audiences, HS256Key, MACLike, VerificationOptions},
     token::Token,
 };
 use std::fmt;
 use std::{collections::HashSet, str::FromStr};
 
-use super::{AuthKey, AuthKeyVersion, AuthToken, Claims, CustomClaims, Scope};
+use super::{AuthKey, AuthKeyAlgorithm, AuthKeyVersion, AuthToken, Claims, CustomClaims, Scope};
 use juicebox_realm_api::types::RealmId;
 
 pub enum Error {
@@ -72,17 +73,30 @@ impl Validator {
         }
     }
 
-    pub fn validate(&self, token: &AuthToken, key: &AuthKey) -> Result<Claims, Error> {
-        let key = HS256Key::from_bytes(key.expose_secret());
-
+    pub fn validate(
+        &self,
+        token: &AuthToken,
+        key: &AuthKey,
+        algorithm: &AuthKeyAlgorithm,
+    ) -> Result<Claims, Error> {
         let options = VerificationOptions {
             allowed_audiences: Some(HashSet::from([self.audience.to_owned()])),
             max_token_length: Some(1_000),
             ..Default::default()
         };
-        let claims = key
-            .verify_token::<CustomClaims>(token.expose_secret(), Some(options))
-            .map_err(Error::Jwt)?;
+        let claims = match algorithm {
+            AuthKeyAlgorithm::EdDSA => Ed25519PublicKey::from_der(key.expose_secret())
+                .expect("failed to parse ed25519 public key")
+                .verify_token::<CustomClaims>(token.expose_secret(), Some(options)),
+
+            AuthKeyAlgorithm::RS256 => RS256PublicKey::from_der(key.expose_secret())
+                .expect("failed to parse rs256 public key")
+                .verify_token::<CustomClaims>(token.expose_secret(), Some(options)),
+
+            AuthKeyAlgorithm::HS256 => HS256Key::from_bytes(key.expose_secret())
+                .verify_token::<CustomClaims>(token.expose_secret(), Some(options)),
+        }
+        .map_err(Error::Jwt)?;
 
         if let Some(max) = self.max_lifetime_seconds {
             match (claims.invalid_before, claims.expires_at) {

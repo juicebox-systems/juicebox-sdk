@@ -13,6 +13,7 @@ Usage: tokens <COMMAND>
 Commands:
   create    Create an auth token for a tenant
   validate  Validate an auth token for a tenant
+  random    Create a random key (or key pair) for a tenant and output to stdout
   help      Print this message or the help of the given subcommand(s)
 
 Options:
@@ -24,18 +25,17 @@ Options:
 Create an auth token for a given tenant.
 
 ```
-Usage: tokens create <USER> <TENANT> <REALM> <KEY> <VERSION> [SCOPE]
-
-Arguments:
-  <USER>     An alphanumeric user ID that this token should be valid for
-  <TENANT>   An alphanumeric tenant ID
-  <REALM>    The ID of the realm, as a hex string, that the token should be valid for
-  <KEY>      The key, as a hex string, that the token should be signed with
-  <VERSION>  The integer version of the signing key
-  [SCOPE]    The scope to include in the token [default: user]
+Usage: tokens create [OPTIONS] --user <USER> --tenant <TENANT> --realm <REALM> --key <KEY> --version <VERSION> --algorithm <ALGORITHM>
 
 Options:
-  -h, --help  Print help
+  -u, --user <USER>            An alphanumeric user ID that this token should be valid for
+  -t, --tenant <TENANT>        An alphanumeric tenant ID
+  -r, --realm <REALM>          The ID of the realm, as a hex string, that the token should be valid for
+  -k, --key <KEY>              The key, as a hex string, that the token should be signed with
+  -v, --version <VERSION>      The integer version of the signing key
+  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: rs256, hs256, ed-dsa]
+  -s, --scope <SCOPE>          The scope to include in the token [default: user]
+  -h, --help                   Print help (see more with '--help')
 ```
 
 # Validate
@@ -43,16 +43,29 @@ Options:
 Validate an auth token for a tenant. Specific errors and warnings will be printed to help you diagnose any issues with your token creation code.
 
 ```
-Usage: tokens validate <TOKEN> <USER> <TENANT> <REALM> <KEY> <VERSION>
-
-Arguments:
-  <TOKEN>    The token to validate
-  <USER>     The alphanumeric user ID that this token was created with
-  <TENANT>   The alphanumeric tenant ID that this token was created with
-  <REALM>    The ID of the realm, as a hex string, that the token was made valid for
-  <KEY>      The key, as a hex string, that the token was signed with
-  <VERSION>  The integer version of the signing key
+Usage: tokens validate --token <TOKEN> --user <USER> --tenant <TENANT> --realm <REALM> --key <KEY> --version <VERSION> --algorithm <ALGORITHM>
 
 Options:
-  -h, --help  Print help
+  -j, --token <TOKEN>          The jwt token to validate
+  -u, --user <USER>            The alphanumeric user ID that this token was created with
+  -t, --tenant <TENANT>        The alphanumeric tenant ID that this token was created with
+  -r, --realm <REALM>          The ID of the realm, as a hex string, that the token was made valid for
+  -k, --key <KEY>              The key, as a hex string, that the token was signed with
+  -v, --version <VERSION>      The integer version of the signing key
+  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: rs256, hs256, ed-dsa]
+  -h, --help                   Print help (see more with '--help')
+```
+
+# Random
+
+Generate a random signing key (or key pair for asymmetric algorithms) to use for token creation and validation.
+
+The generated key will be output to stdout.
+
+```
+Usage: tokens random --algorithm <ALGORITHM>
+
+Options:
+  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: rs256, hs256, ed-dsa]
+  -h, --help                   Print help (see more with '--help')
 ```

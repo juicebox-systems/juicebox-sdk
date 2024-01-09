@@ -1,6 +1,6 @@
 use juicebox_realm_api::types::{AuthToken, RealmId};
 use juicebox_realm_auth::creation::create_token;
-use juicebox_realm_auth::{AuthKey, AuthKeyVersion, Claims, Scope};
+use juicebox_realm_auth::{AuthKey, AuthKeyAlgorithm, AuthKeyVersion, Claims, Scope};
 use rand::rngs::OsRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -75,6 +75,7 @@ impl AuthTokenGenerator {
             },
             &self.key,
             self.version,
+            AuthKeyAlgorithm::EdDSA,
         )
     }
 }
@@ -136,7 +137,7 @@ mod tests {
     fn test_token_creation() {
         let generator = AuthTokenGenerator::from_json(
             r#"{
-            "key": "0668e97c5d282a08d4251255541845e2d78b78b9438e1562b51d9cf4e099be53",
+            "key": "302e020100300506032b657004220420341a4001f28aa3cf1546d6f961eeb8076d80a3c124272c66872fff8461ec5eb7",
             "tenant": "acme",
             "version": 1
           }"#,
@@ -145,7 +146,14 @@ mod tests {
         let realm_id = RealmId::new_random(&mut OsRng);
         let token = generator.vend(&realm_id, &SecretId::new_random());
 
+        let public_key = AuthKey::from(hex::decode("302a300506032b6570032100874d284e1ff72112fbf2b836e0b2f7c51f973f779bd6b7dd648216f00b1f2a76").unwrap());
         let validator = Validator::new(realm_id, Require::Scope(Scope::User));
-        assert!(validator.validate(&token, &generator.key).is_ok());
+        assert!(validator
+            .validate(
+                &token,
+                &public_key,
+                &juicebox_realm_auth::AuthKeyAlgorithm::EdDSA
+            )
+            .is_ok());
     }
 }

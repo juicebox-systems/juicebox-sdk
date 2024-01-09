@@ -1,9 +1,17 @@
-use jwt_simple::prelude::{Duration, HS256Key, MACLike};
+use jwt_simple::{
+    algorithms::{Ed25519KeyPair, EdDSAKeyPairLike, RS256KeyPair, RSAKeyPairLike},
+    prelude::{Duration, HS256Key, MACLike},
+};
 use regex::Regex;
 
-use super::{AuthKey, AuthKeyVersion, AuthToken, Claims, CustomClaims};
+use super::{AuthKey, AuthKeyAlgorithm, AuthKeyVersion, AuthToken, Claims, CustomClaims};
 
-pub fn create_token(claims: &Claims, key: &AuthKey, key_version: AuthKeyVersion) -> AuthToken {
+pub fn create_token(
+    claims: &Claims,
+    key: &AuthKey,
+    key_version: AuthKeyVersion,
+    key_algorithm: AuthKeyAlgorithm,
+) -> AuthToken {
     let issuer_regex = Regex::new(r"^(test-)?[a-zA-Z0-9]+$").unwrap();
     assert!(
         issuer_regex.is_match(&claims.issuer),
@@ -11,10 +19,7 @@ pub fn create_token(claims: &Claims, key: &AuthKey, key_version: AuthKeyVersion)
         claims.issuer,
     );
 
-    let key = HS256Key::from_bytes(key.expose_secret())
-        .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
-
-    let claims = jwt_simple::claims::Claims::with_custom_claims(
+    let jwt_claims = jwt_simple::claims::Claims::with_custom_claims(
         CustomClaims {
             scope: claims.scope.map(|s| s.to_string()),
         },
@@ -24,5 +29,24 @@ pub fn create_token(claims: &Claims, key: &AuthKey, key_version: AuthKeyVersion)
     .with_issuer(&claims.issuer)
     .with_subject(&claims.subject);
 
-    AuthToken::from(key.authenticate(claims).expect("failed to mint token"))
+    AuthToken::from(match key_algorithm {
+        AuthKeyAlgorithm::EdDSA => {
+            let key_pair = Ed25519KeyPair::from_der(key.expose_secret())
+                .expect("failed to parse ed25519 private key")
+                .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+            key_pair.sign(jwt_claims).expect("failed to sign token")
+        }
+        AuthKeyAlgorithm::RS256 => {
+            let key_pair = RS256KeyPair::from_der(key.expose_secret())
+                .expect("failed to parse rs256 private key")
+                .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+            key_pair.sign(jwt_claims).expect("failed to sign token")
+        }
+        AuthKeyAlgorithm::HS256 => {
+            let key = HS256Key::from_bytes(key.expose_secret())
+                .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+            key.authenticate(jwt_claims)
+                .expect("failed to authenticate token")
+        }
+    })
 }
