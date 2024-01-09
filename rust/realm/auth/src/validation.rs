@@ -2,12 +2,12 @@ use jwt_simple::{
     prelude::{Audiences, HS256Key, MACLike, VerificationOptions},
     token::Token,
 };
+use std::fmt;
 use std::{collections::HashSet, str::FromStr};
 
 use super::{AuthKey, AuthKeyVersion, AuthToken, Claims, CustomClaims, Scope};
 use juicebox_realm_api::types::RealmId;
 
-#[derive(Debug)]
 pub enum Error {
     Jwt(jwt_simple::Error),
     BadKeyId,
@@ -16,6 +16,25 @@ pub enum Error {
     BadSubject,
     BadScope,
     LifetimeTooLong,
+}
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            // Don't use `Debug` formatting for jwt-simple's `anyhow::Error`
+            // because it includes a backtrace when running with
+            // `RUST_BACKTRACE=1`. This looks awful and breaks the unit tests.
+            // Instead, use its `Display` formatting.
+            Self::Jwt(err) => f.debug_tuple("Jwt").field(&format_args!("{err}")).finish(),
+
+            Self::BadKeyId => write!(f, "BadKeyId"),
+            Self::BadAudience => write!(f, "BadAudience"),
+            Self::BadIssuer => write!(f, "BadIssuer"),
+            Self::BadSubject => write!(f, "BadSubject"),
+            Self::BadScope => write!(f, "BadScope"),
+            Self::LifetimeTooLong => write!(f, "LifetimeTooLong"),
+        }
+    }
 }
 
 pub struct Validator {
