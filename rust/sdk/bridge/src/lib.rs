@@ -7,7 +7,7 @@ mod tokio;
 pub use self::tokio::Client;
 
 #[cfg(feature = "wasm")]
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::wasm_bindgen;
 
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -39,13 +39,6 @@ impl From<sdk::RegisterError> for RegisterError {
     }
 }
 
-#[cfg(feature = "wasm")]
-impl From<RegisterError> for JsValue {
-    fn from(value: RegisterError) -> Self {
-        JsValue::from(value as u8)
-    }
-}
-
 #[repr(C)]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 #[derive(Clone, Copy, Debug)]
@@ -70,13 +63,6 @@ pub enum RecoverErrorReason {
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient = 5,
-}
-
-#[cfg(feature = "wasm")]
-impl From<RecoverErrorReason> for JsValue {
-    fn from(value: RecoverErrorReason) -> Self {
-        JsValue::from(value as u8)
-    }
 }
 
 #[repr(C)]
@@ -153,13 +139,6 @@ impl From<sdk::DeleteError> for DeleteError {
             sdk::DeleteError::Assertion => DeleteError::Assertion,
             sdk::DeleteError::Transient => DeleteError::Transient,
         }
-    }
-}
-
-#[cfg(feature = "wasm")]
-impl From<DeleteError> for JsValue {
-    fn from(value: DeleteError) -> Self {
-        JsValue::from(value as u8)
     }
 }
 
