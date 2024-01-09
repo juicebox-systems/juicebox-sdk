@@ -1204,7 +1204,6 @@ name = "juicebox_demo_cli"
 version = "0.2.2"
 dependencies = [
  "clap 4.4.14",
- "hex",
  "juicebox_sdk",
  "reqwest",
  "serde_json",
