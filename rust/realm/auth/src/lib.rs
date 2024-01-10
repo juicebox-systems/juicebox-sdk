@@ -13,28 +13,16 @@ pub mod validation;
 /// An integer version for an [`AuthKey`] secret.
 pub struct AuthKeyVersion(pub u64);
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "clap", clap(rename_all = "verbatim"))]
 pub enum AuthKeyAlgorithm {
     /// RSASSA-PKCS1-v1_5 using SHA-256
     RS256,
     /// HMAC using SHA-256
     HS256,
-    /// Edwards-curve Digital Signature Algorithm
+    /// Edwards-curve 25519 Digital Signature Algorithm
     EdDSA,
-}
-
-impl FromStr for AuthKeyAlgorithm {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "rs256" => Ok(Self::RS256),
-            "hs256" => Ok(Self::HS256),
-            "ed-dsa" | "eddsa" => Ok(Self::EdDSA),
-            _ => Err("Unknown algorithm"),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]

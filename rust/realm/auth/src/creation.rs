@@ -29,22 +29,23 @@ pub fn create_token(
     .with_issuer(&claims.issuer)
     .with_subject(&claims.subject);
 
+    let key_id = format!("{}:{}", claims.issuer, key_version.0);
+
     AuthToken::from(match key_algorithm {
         AuthKeyAlgorithm::EdDSA => {
             let key_pair = Ed25519KeyPair::from_der(key.expose_secret())
                 .expect("failed to parse ed25519 private key")
-                .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+                .with_key_id(&key_id);
             key_pair.sign(jwt_claims).expect("failed to sign token")
         }
         AuthKeyAlgorithm::RS256 => {
             let key_pair = RS256KeyPair::from_der(key.expose_secret())
                 .expect("failed to parse rs256 private key")
-                .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+                .with_key_id(&key_id);
             key_pair.sign(jwt_claims).expect("failed to sign token")
         }
         AuthKeyAlgorithm::HS256 => {
-            let key = HS256Key::from_bytes(key.expose_secret())
-                .with_key_id(&format!("{}:{}", claims.issuer, key_version.0));
+            let key = HS256Key::from_bytes(key.expose_secret()).with_key_id(&key_id);
             key.authenticate(jwt_claims)
                 .expect("failed to authenticate token")
         }

@@ -65,7 +65,7 @@ echo "CONFIGURATION='$CONFIGURATION'" > outputs
 AUTH_TOKENS='{'
 for ((i = 0; i < COUNT; i++)); do
   echo "Creating token for Realm $i..."
-  TOKEN=$(../../../target/debug/tokens create -u test -t ${TENANT_NAMES[$i]} -r ${IDS[$i]} -k ${SIGNING_KEYS[$i]} -v 1 -a hs256)
+  TOKEN=$(../../../target/debug/tokens create -u test -t ${TENANT_NAMES[$i]} -r ${IDS[$i]} -k ${SIGNING_KEYS[$i]} -v 1 -a HS256)
   echo "Created token for Realm $i!"
 
   AUTH_TOKENS+='"'${IDS[$i]}'":"'${TOKEN}'"'

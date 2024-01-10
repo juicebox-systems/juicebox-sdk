@@ -18,6 +18,3 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
-
-[features]
-clap = ["dep:clap"]

@@ -1303,7 +1303,7 @@ dependencies = [
 name = "juicebox_realm_auth"
 version = "0.2.2"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.14",
  "hex",
  "juicebox_realm_api",
  "jwt-simple",

@@ -33,7 +33,7 @@ Options:
   -r, --realm <REALM>          The ID of the realm, as a hex string, that the token should be valid for
   -k, --key <KEY>              The key, as a hex string, that the token should be signed with
   -v, --version <VERSION>      The integer version of the signing key
-  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: rs256, hs256, ed-dsa]
+  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: RS256, HS256, EdDSA]
   -s, --scope <SCOPE>          The scope to include in the token [default: user]
   -h, --help                   Print help (see more with '--help')
 ```
@@ -52,7 +52,7 @@ Options:
   -r, --realm <REALM>          The ID of the realm, as a hex string, that the token was made valid for
   -k, --key <KEY>              The key, as a hex string, that the token was signed with
   -v, --version <VERSION>      The integer version of the signing key
-  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: rs256, hs256, ed-dsa]
+  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: RS256, HS256, EdDSA]
   -h, --help                   Print help (see more with '--help')
 ```
 
@@ -66,6 +66,6 @@ The generated key will be output to stdout.
 Usage: tokens random --algorithm <ALGORITHM>
 
 Options:
-  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: rs256, hs256, ed-dsa]
+  -a, --algorithm <ALGORITHM>  The algorithm of the signing key [possible values: RS256, HS256, EdDSA]
   -h, --help                   Print help (see more with '--help')
 ```
