@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use juicebox_realm_api::types::{AuthToken, RealmId};
+use juicebox_realm_api::types::{AuthToken, RealmId, SecretBytesVec};
 use juicebox_realm_auth::{
     creation::create_token,
     validation::{Error, Require, Validator, MAX_LIFETIME_SECONDS},
@@ -35,7 +35,7 @@ enum Command {
         realm: RealmId,
         /// The key, as a hex string, that the token should be signed with.
         #[arg(short, long, value_parser = parse_auth_key)]
-        key: AuthKey,
+        key: SecretBytesVec,
         /// The integer version of the signing key.
         #[arg(short, long, value_parser = parse_auth_key_version)]
         version: AuthKeyVersion,
@@ -63,7 +63,7 @@ enum Command {
         realm: RealmId,
         /// The key, as a hex string, that the token was signed with.
         #[arg(short, long, value_parser = parse_auth_key)]
-        key: AuthKey,
+        key: SecretBytesVec,
         /// The integer version of the signing key.
         #[arg(short, long, value_parser = parse_auth_key_version)]
         version: AuthKeyVersion,
@@ -100,9 +100,11 @@ fn main() {
                     audience: realm,
                     scope: Some(scope),
                 },
-                &key,
+                &AuthKey {
+                    data: key,
+                    algorithm,
+                },
                 version,
-                algorithm,
             );
             println!("{}", token.expose_secret());
         }
@@ -120,7 +122,7 @@ fn main() {
 
             let validator = Validator::new(realm, Require::AnyScopeOrMissing);
 
-            match validator.validate(&token, &key, &algorithm) {
+            match validator.validate(&token, &AuthKey { data: key, algorithm }) {
                 Ok(Claims {
                     issuer,
                     subject,
@@ -245,9 +247,9 @@ fn main() {
     };
 }
 
-fn parse_auth_key(buf: &str) -> Result<AuthKey, hex::FromHexError> {
+fn parse_auth_key(buf: &str) -> Result<SecretBytesVec, hex::FromHexError> {
     let key = hex::decode(buf)?;
-    Ok(AuthKey::from(key))
+    Ok(key.into())
 }
 
 fn parse_auth_key_version(buf: &str) -> Result<AuthKeyVersion, std::num::ParseIntError> {

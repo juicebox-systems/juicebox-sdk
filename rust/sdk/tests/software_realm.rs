@@ -65,7 +65,6 @@ mod software_realm {
             },
             &AuthKey::from(auth_key.into_bytes()),
             AuthKeyVersion(1),
-            AuthKeyAlgorithm::HS256,
         );
 
         (

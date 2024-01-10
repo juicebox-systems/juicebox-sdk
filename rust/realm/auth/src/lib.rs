@@ -25,20 +25,72 @@ pub enum AuthKeyAlgorithm {
     EdDSA,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// A symmetric key used for creating and validating JWT tokens
 /// for clients (see [`AuthToken`]).
-pub struct AuthKey(pub SecretBytesVec);
+pub struct AuthKey {
+    pub data: SecretBytesVec,
+    pub algorithm: AuthKeyAlgorithm,
+}
+
+#[derive(Debug, Deserialize)]
+enum AuthKeyDataEncoding {
+    Hex,
+    UTF8,
+}
+
+#[derive(Debug, Deserialize)]
+struct AuthKeyJSON {
+    data: String,
+    encoding: AuthKeyDataEncoding,
+    algorithm: AuthKeyAlgorithm,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum AuthKeyParsingError {
+    InvalidDataForEncoding,
+    InvalidJSON,
+}
 
 impl AuthKey {
     pub fn expose_secret(&self) -> &[u8] {
-        self.0.expose_secret()
+        self.data.expose_secret()
+    }
+
+    pub fn from_json(slice: &[u8]) -> Result<Self, AuthKeyParsingError> {
+        if let Ok(json) = serde_json::from_slice::<AuthKeyJSON>(slice) {
+            Ok(AuthKey {
+                data: match json.encoding {
+                    AuthKeyDataEncoding::Hex => match hex::decode(json.data) {
+                        Ok(vec) => vec,
+                        Err(_) => return Err(AuthKeyParsingError::InvalidDataForEncoding),
+                    },
+                    AuthKeyDataEncoding::UTF8 => json.data.as_bytes().to_vec(),
+                }
+                .into(),
+                algorithm: json.algorithm,
+            })
+        } else {
+            Err(AuthKeyParsingError::InvalidJSON)
+        }
     }
 }
 
 impl From<Vec<u8>> for AuthKey {
     fn from(value: Vec<u8>) -> Self {
-        Self(value.into())
+        Self {
+            data: value.into(),
+            algorithm: AuthKeyAlgorithm::HS256,
+        }
+    }
+}
+
+impl From<SecretBytesVec> for AuthKey {
+    fn from(value: SecretBytesVec) -> Self {
+        Self {
+            data: value,
+            algorithm: AuthKeyAlgorithm::HS256,
+        }
     }
 }
 
@@ -117,6 +169,96 @@ mod tests {
     use crate::validation::{Error, Require};
 
     #[test]
+    fn test_json_parsing_hs256_utf8() {
+        let json = r#"
+        {
+            "data": "hello world",
+            "encoding": "UTF8",
+            "algorithm": "HS256"
+        }
+        "#;
+        assert_eq!(
+            AuthKey::from_json(json.as_bytes()).unwrap(),
+            AuthKey {
+                data: b"hello world".to_vec().into(),
+                algorithm: AuthKeyAlgorithm::HS256
+            }
+        );
+    }
+
+    #[test]
+    fn test_json_parsing_eddsa_hex() {
+        let json = r#"
+        {
+            "data": "302e020100300506032b6570042204207c6f273d5ecccf1c01706ccd98a4fb661aac4185edd58c4705c9db9670ef8cdd",
+            "encoding": "Hex",
+            "algorithm": "EdDSA"
+        }
+        "#;
+        assert_eq!(
+            AuthKey::from_json(json.as_bytes()).unwrap(),
+            AuthKey {
+                data: hex::decode("302e020100300506032b6570042204207c6f273d5ecccf1c01706ccd98a4fb661aac4185edd58c4705c9db9670ef8cdd").unwrap().into(),
+                algorithm: AuthKeyAlgorithm::EdDSA
+            }
+        );
+    }
+
+    #[test]
+    fn test_json_parsing_invalid_hex() {
+        let json = r#"
+        {
+            "data": "hello world",
+            "encoding": "Hex",
+            "algorithm": "HS256"
+        }
+        "#;
+        assert_eq!(
+            AuthKey::from_json(json.as_bytes()).unwrap_err(),
+            AuthKeyParsingError::InvalidDataForEncoding
+        );
+    }
+
+    #[test]
+    fn test_json_parsing_invalid_encoding() {
+        let json = r#"
+        {
+            "data": "hello world",
+            "encoding": "Nope",
+            "algorithm": "HS256"
+        }
+        "#;
+        assert_eq!(
+            AuthKey::from_json(json.as_bytes()).unwrap_err(),
+            AuthKeyParsingError::InvalidJSON
+        );
+    }
+
+    #[test]
+    fn test_json_parsing_invalid_algorithm() {
+        let json = r#"
+        {
+            "data": "hello world",
+            "encoding": "UTF8",
+            "algorithm": "LMNOP"
+        }
+        "#;
+        assert_eq!(
+            AuthKey::from_json(json.as_bytes()).unwrap_err(),
+            AuthKeyParsingError::InvalidJSON
+        );
+    }
+
+    #[test]
+    fn test_json_parsing_invalid_json() {
+        let json = "xyz";
+        assert_eq!(
+            AuthKey::from_json(json.as_bytes()).unwrap_err(),
+            AuthKeyParsingError::InvalidJSON
+        );
+    }
+
+    #[test]
     fn test_token_hs256() {
         let realm_id = RealmId([5; 16]);
         let claims = Claims {
@@ -126,19 +268,13 @@ mod tests {
             scope: Some(Scope::User),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
-        let token =
-            creation::create_token(&claims, &key, AuthKeyVersion(32), AuthKeyAlgorithm::HS256);
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         let validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
         assert_eq!(
             validator.parse_key_id(&token).unwrap(),
             (String::from("tenant"), AuthKeyVersion(32))
         );
-        assert_eq!(
-            validator
-                .validate(&token, &key, &AuthKeyAlgorithm::HS256)
-                .unwrap(),
-            claims
-        );
+        assert_eq!(validator.validate(&token, &key).unwrap(), claims);
     }
 
     #[test]
@@ -151,25 +287,21 @@ mod tests {
             scope: Some(Scope::User),
         };
         let key_pair = RS256KeyPair::generate(2048).unwrap();
-        let private_key = AuthKey::from(key_pair.to_der().unwrap());
-        let public_key = AuthKey::from(key_pair.public_key().to_der().unwrap());
-        let token = creation::create_token(
-            &claims,
-            &private_key,
-            AuthKeyVersion(32),
-            AuthKeyAlgorithm::RS256,
-        );
+        let private_key = AuthKey {
+            data: key_pair.to_der().unwrap().into(),
+            algorithm: AuthKeyAlgorithm::RS256,
+        };
+        let public_key = AuthKey {
+            data: key_pair.public_key().to_der().unwrap().into(),
+            algorithm: AuthKeyAlgorithm::RS256,
+        };
+        let token = creation::create_token(&claims, &private_key, AuthKeyVersion(32));
         let validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
         assert_eq!(
             validator.parse_key_id(&token).unwrap(),
             (String::from("tenant"), AuthKeyVersion(32))
         );
-        assert_eq!(
-            validator
-                .validate(&token, &public_key, &AuthKeyAlgorithm::RS256)
-                .unwrap(),
-            claims
-        );
+        assert_eq!(validator.validate(&token, &public_key).unwrap(), claims);
     }
 
     #[test]
@@ -182,25 +314,21 @@ mod tests {
             scope: Some(Scope::User),
         };
         let key_pair = Ed25519KeyPair::generate();
-        let private_key = AuthKey::from(key_pair.to_der());
-        let public_key = AuthKey::from(key_pair.public_key().to_der());
-        let token = creation::create_token(
-            &claims,
-            &private_key,
-            AuthKeyVersion(32),
-            AuthKeyAlgorithm::EdDSA,
-        );
+        let private_key = AuthKey {
+            data: key_pair.to_der().into(),
+            algorithm: AuthKeyAlgorithm::EdDSA,
+        };
+        let public_key = AuthKey {
+            data: key_pair.public_key().to_der().into(),
+            algorithm: AuthKeyAlgorithm::EdDSA,
+        };
+        let token = creation::create_token(&claims, &private_key, AuthKeyVersion(32));
         let validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
         assert_eq!(
             validator.parse_key_id(&token).unwrap(),
             (String::from("tenant"), AuthKeyVersion(32))
         );
-        assert_eq!(
-            validator
-                .validate(&token, &public_key, &AuthKeyAlgorithm::EdDSA)
-                .unwrap(),
-            claims
-        );
+        assert_eq!(validator.validate(&token, &public_key).unwrap(), claims);
     }
 
     #[test]
@@ -213,15 +341,9 @@ mod tests {
             scope: Some(Scope::Audit),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
-        let token =
-            creation::create_token(&claims, &key, AuthKeyVersion(32), AuthKeyAlgorithm::HS256);
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         let validator = validation::Validator::new(realm_id, Require::Scope(Scope::Audit));
-        assert_eq!(
-            validator
-                .validate(&token, &key, &AuthKeyAlgorithm::HS256)
-                .unwrap(),
-            claims
-        );
+        assert_eq!(validator.validate(&token, &key).unwrap(), claims);
 
         let claims = Claims {
             issuer: String::from("tenant"),
@@ -229,10 +351,9 @@ mod tests {
             audience: realm_id,
             scope: Some(Scope::User),
         };
-        let token =
-            creation::create_token(&claims, &key, AuthKeyVersion(32), AuthKeyAlgorithm::HS256);
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         assert!(matches!(
-            validator.validate(&token, &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&token, &key),
             Err(Error::BadScope)
         ));
 
@@ -242,20 +363,14 @@ mod tests {
             audience: realm_id,
             scope: None,
         };
-        let token =
-            creation::create_token(&claims, &key, AuthKeyVersion(32), AuthKeyAlgorithm::HS256);
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         assert!(matches!(
-            validator.validate(&token, &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&token, &key),
             Err(Error::BadScope)
         ));
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::Audit));
-        assert_eq!(
-            validator
-                .validate(&token, &key, &AuthKeyAlgorithm::HS256)
-                .unwrap(),
-            claims
-        );
+        assert_eq!(validator.validate(&token, &key).unwrap(), claims);
     }
 
     #[test]
@@ -277,11 +392,7 @@ mod tests {
 
         let validator = validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::User));
         assert!(matches!(
-            validator.validate(
-                &mint(Some("auditor".to_string())),
-                &key,
-                &AuthKeyAlgorithm::HS256
-            ),
+            validator.validate(&mint(Some("auditor".to_string())), &key),
             Err(Error::BadScope)
         ));
     }
@@ -295,7 +406,7 @@ mod tests {
             format!(
                 "{:?}",
                 validation::Validator::new(realm_id, Require::ScopeOrMissing(Scope::User))
-                    .validate(&token, &key, &AuthKeyAlgorithm::HS256)
+                    .validate(&token, &key)
                     .unwrap_err()
             ),
             "Jwt(JWT compact encoding error)"
@@ -332,7 +443,7 @@ mod tests {
             format!(
                 "{:?}",
                 validation::Validator::new(realm_id, Require::Scope(Scope::User))
-                    .validate(&token, &key, &AuthKeyAlgorithm::HS256)
+                    .validate(&token, &key)
                     .unwrap_err()
             ),
             "Jwt(Token has expired)"
@@ -349,18 +460,15 @@ mod tests {
             scope: Some(Scope::User),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
-        let token =
-            creation::create_token(&claims, &key, AuthKeyVersion(32), AuthKeyAlgorithm::HS256);
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         let mut validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
         validator.max_lifetime_seconds = Some(5);
         assert!(matches!(
-            validator.validate(&token, &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&token, &key),
             Err(Error::LifetimeTooLong),
         ));
         validator.max_lifetime_seconds = None;
-        assert!(validator
-            .validate(&token, &key, &AuthKeyAlgorithm::HS256)
-            .is_ok());
+        assert!(validator.validate(&token, &key).is_ok());
     }
 
     #[test]
@@ -374,16 +482,10 @@ mod tests {
             scope: Some(Scope::User),
         };
         let key = AuthKey::from(b"it's-a-me!".to_vec());
-        let token =
-            creation::create_token(&claims, &key, AuthKeyVersion(32), AuthKeyAlgorithm::HS256);
+        let token = creation::create_token(&claims, &key, AuthKeyVersion(32));
         let validator = validation::Validator::new(realm_id_validator, Require::Scope(Scope::User));
         assert_eq!(
-            format!(
-                "{:?}",
-                validator
-                    .validate(&token, &key, &AuthKeyAlgorithm::HS256)
-                    .unwrap_err()
-            ),
+            format!("{:?}", validator.validate(&token, &key).unwrap_err()),
             "Jwt(Required audience mismatch)"
         );
     }
@@ -403,31 +505,25 @@ mod tests {
         };
 
         let validator = validation::Validator::new(realm_id, Require::AnyScopeOrMissing);
-        validator
-            .validate(&mint("tenant:32"), &key, &AuthKeyAlgorithm::HS256)
-            .unwrap();
+        validator.validate(&mint("tenant:32"), &key).unwrap();
         assert!(matches!(
-            validator.validate(&mint("ten:ant:32"), &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&mint("ten:ant:32"), &key),
             Err(Error::BadKeyId),
         ));
         assert!(matches!(
-            validator.validate(&mint("antenna:32"), &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&mint("antenna:32"), &key),
             Err(Error::BadKeyId),
         ));
         assert!(matches!(
-            validator.validate(&mint("tenant:latest"), &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&mint("tenant:latest"), &key),
             Err(Error::BadKeyId),
         ));
         assert!(matches!(
-            validator.validate(&mint("tenant:"), &key, &AuthKeyAlgorithm::HS256),
+            validator.validate(&mint("tenant:"), &key),
             Err(Error::BadKeyId),
         ));
         assert!(matches!(
-            validator.validate(
-                &mint("some-non-alphanumerics:2"),
-                &key,
-                &AuthKeyAlgorithm::HS256
-            ),
+            validator.validate(&mint("some-non-alphanumerics:2"), &key),
             Err(Error::BadKeyId),
         ));
     }

@@ -6,12 +6,7 @@ use regex::Regex;
 
 use super::{AuthKey, AuthKeyAlgorithm, AuthKeyVersion, AuthToken, Claims, CustomClaims};
 
-pub fn create_token(
-    claims: &Claims,
-    key: &AuthKey,
-    key_version: AuthKeyVersion,
-    key_algorithm: AuthKeyAlgorithm,
-) -> AuthToken {
+pub fn create_token(claims: &Claims, key: &AuthKey, key_version: AuthKeyVersion) -> AuthToken {
     let issuer_regex = Regex::new(r"^(test-)?[a-zA-Z0-9]+$").unwrap();
     assert!(
         issuer_regex.is_match(&claims.issuer),
@@ -31,7 +26,7 @@ pub fn create_token(
 
     let key_id = format!("{}:{}", claims.issuer, key_version.0);
 
-    AuthToken::from(match key_algorithm {
+    AuthToken::from(match key.algorithm {
         AuthKeyAlgorithm::EdDSA => {
             let key_pair = Ed25519KeyPair::from_der(key.expose_secret())
                 .expect("failed to parse ed25519 private key")

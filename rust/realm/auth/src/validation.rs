@@ -73,18 +73,13 @@ impl Validator {
         }
     }
 
-    pub fn validate(
-        &self,
-        token: &AuthToken,
-        key: &AuthKey,
-        algorithm: &AuthKeyAlgorithm,
-    ) -> Result<Claims, Error> {
+    pub fn validate(&self, token: &AuthToken, key: &AuthKey) -> Result<Claims, Error> {
         let options = VerificationOptions {
             allowed_audiences: Some(HashSet::from([self.audience.to_owned()])),
             max_token_length: Some(1_000),
             ..Default::default()
         };
-        let claims = match algorithm {
+        let claims = match key.algorithm {
             AuthKeyAlgorithm::EdDSA => Ed25519PublicKey::from_der(key.expose_secret())
                 .expect("failed to parse ed25519 public key")
                 .verify_token::<CustomClaims>(token.expose_secret(), Some(options)),
