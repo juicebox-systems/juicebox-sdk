@@ -33,46 +33,9 @@ pub struct AuthKey {
     pub algorithm: AuthKeyAlgorithm,
 }
 
-#[derive(Debug, Deserialize)]
-enum AuthKeyDataEncoding {
-    Hex,
-    UTF8,
-}
-
-#[derive(Debug, Deserialize)]
-struct AuthKeyJSON {
-    data: String,
-    encoding: AuthKeyDataEncoding,
-    algorithm: AuthKeyAlgorithm,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum AuthKeyParsingError {
-    InvalidDataForEncoding,
-    InvalidJSON,
-}
-
 impl AuthKey {
     pub fn expose_secret(&self) -> &[u8] {
         self.data.expose_secret()
-    }
-
-    pub fn from_json(slice: &[u8]) -> Result<Self, AuthKeyParsingError> {
-        if let Ok(json) = serde_json::from_slice::<AuthKeyJSON>(slice) {
-            Ok(AuthKey {
-                data: match json.encoding {
-                    AuthKeyDataEncoding::Hex => match hex::decode(json.data) {
-                        Ok(vec) => vec,
-                        Err(_) => return Err(AuthKeyParsingError::InvalidDataForEncoding),
-                    },
-                    AuthKeyDataEncoding::UTF8 => json.data.as_bytes().to_vec(),
-                }
-                .into(),
-                algorithm: json.algorithm,
-            })
-        } else {
-            Err(AuthKeyParsingError::InvalidJSON)
-        }
     }
 }
 
@@ -167,96 +130,6 @@ mod tests {
 
     use super::*;
     use crate::validation::{Error, Require};
-
-    #[test]
-    fn test_json_parsing_hs256_utf8() {
-        let json = r#"
-        {
-            "data": "hello world",
-            "encoding": "UTF8",
-            "algorithm": "HS256"
-        }
-        "#;
-        assert_eq!(
-            AuthKey::from_json(json.as_bytes()).unwrap(),
-            AuthKey {
-                data: b"hello world".to_vec().into(),
-                algorithm: AuthKeyAlgorithm::HS256
-            }
-        );
-    }
-
-    #[test]
-    fn test_json_parsing_eddsa_hex() {
-        let json = r#"
-        {
-            "data": "302e020100300506032b6570042204207c6f273d5ecccf1c01706ccd98a4fb661aac4185edd58c4705c9db9670ef8cdd",
-            "encoding": "Hex",
-            "algorithm": "EdDSA"
-        }
-        "#;
-        assert_eq!(
-            AuthKey::from_json(json.as_bytes()).unwrap(),
-            AuthKey {
-                data: hex::decode("302e020100300506032b6570042204207c6f273d5ecccf1c01706ccd98a4fb661aac4185edd58c4705c9db9670ef8cdd").unwrap().into(),
-                algorithm: AuthKeyAlgorithm::EdDSA
-            }
-        );
-    }
-
-    #[test]
-    fn test_json_parsing_invalid_hex() {
-        let json = r#"
-        {
-            "data": "hello world",
-            "encoding": "Hex",
-            "algorithm": "HS256"
-        }
-        "#;
-        assert_eq!(
-            AuthKey::from_json(json.as_bytes()).unwrap_err(),
-            AuthKeyParsingError::InvalidDataForEncoding
-        );
-    }
-
-    #[test]
-    fn test_json_parsing_invalid_encoding() {
-        let json = r#"
-        {
-            "data": "hello world",
-            "encoding": "Nope",
-            "algorithm": "HS256"
-        }
-        "#;
-        assert_eq!(
-            AuthKey::from_json(json.as_bytes()).unwrap_err(),
-            AuthKeyParsingError::InvalidJSON
-        );
-    }
-
-    #[test]
-    fn test_json_parsing_invalid_algorithm() {
-        let json = r#"
-        {
-            "data": "hello world",
-            "encoding": "UTF8",
-            "algorithm": "LMNOP"
-        }
-        "#;
-        assert_eq!(
-            AuthKey::from_json(json.as_bytes()).unwrap_err(),
-            AuthKeyParsingError::InvalidJSON
-        );
-    }
-
-    #[test]
-    fn test_json_parsing_invalid_json() {
-        let json = "xyz";
-        assert_eq!(
-            AuthKey::from_json(json.as_bytes()).unwrap_err(),
-            AuthKeyParsingError::InvalidJSON
-        );
-    }
 
     #[test]
     fn test_token_hs256() {
