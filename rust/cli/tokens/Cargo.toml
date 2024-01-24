@@ -15,4 +15,4 @@ clap = { workspace = true }
 hex = { workspace = true, features = ["std"] }
 jwt-simple = { workspace = true }
 juicebox_realm_api = { workspace = true }
-juicebox_realm_auth = { workspace = true }
+juicebox_realm_auth = { workspace = true, features = ["clap"]}

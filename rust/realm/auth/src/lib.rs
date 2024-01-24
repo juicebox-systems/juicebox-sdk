@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use juicebox_realm_api::types::{AuthToken, RealmId, SecretBytesVec};
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -12,20 +13,47 @@ pub mod validation;
 /// An integer version for an [`AuthKey`] secret.
 pub struct AuthKeyVersion(pub u64);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "clap", clap(rename_all = "verbatim"))]
+pub enum AuthKeyAlgorithm {
+    /// RSASSA-PKCS1-v1_5 using SHA-256
+    RS256,
+    /// HMAC using SHA-256
+    HS256,
+    /// Edwards-curve 25519 Digital Signature Algorithm
+    EdDSA,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// A symmetric key used for creating and validating JWT tokens
 /// for clients (see [`AuthToken`]).
-pub struct AuthKey(pub SecretBytesVec);
+pub struct AuthKey {
+    pub data: SecretBytesVec,
+    pub algorithm: AuthKeyAlgorithm,
+}
 
 impl AuthKey {
     pub fn expose_secret(&self) -> &[u8] {
-        self.0.expose_secret()
+        self.data.expose_secret()
     }
 }
 
 impl From<Vec<u8>> for AuthKey {
     fn from(value: Vec<u8>) -> Self {
-        Self(value.into())
+        Self {
+            data: value.into(),
+            algorithm: AuthKeyAlgorithm::HS256,
+        }
+    }
+}
+
+impl From<SecretBytesVec> for AuthKey {
+    fn from(value: SecretBytesVec) -> Self {
+        Self {
+            data: value,
+            algorithm: AuthKeyAlgorithm::HS256,
+        }
     }
 }
 
@@ -95,13 +123,16 @@ pub struct ScopeParseError;
 #[cfg(test)]
 mod tests {
 
-    use jwt_simple::prelude::{Audiences, Duration, HS256Key, JWTClaims, MACLike, UnixTimeStamp};
+    use jwt_simple::{
+        algorithms::{Ed25519KeyPair, RS256KeyPair},
+        prelude::{Audiences, Duration, HS256Key, JWTClaims, MACLike, UnixTimeStamp},
+    };
 
     use super::*;
     use crate::validation::{Error, Require};
 
     #[test]
-    fn test_token_basic() {
+    fn test_token_hs256() {
         let realm_id = RealmId([5; 16]);
         let claims = Claims {
             issuer: String::from("tenant"),
@@ -117,6 +148,60 @@ mod tests {
             (String::from("tenant"), AuthKeyVersion(32))
         );
         assert_eq!(validator.validate(&token, &key).unwrap(), claims);
+    }
+
+    #[test]
+    fn test_token_rs256() {
+        let realm_id = RealmId([5; 16]);
+        let claims = Claims {
+            issuer: String::from("tenant"),
+            subject: String::from("mario"),
+            audience: realm_id,
+            scope: Some(Scope::User),
+        };
+        let key_pair = RS256KeyPair::generate(2048).unwrap();
+        let private_key = AuthKey {
+            data: key_pair.to_der().unwrap().into(),
+            algorithm: AuthKeyAlgorithm::RS256,
+        };
+        let public_key = AuthKey {
+            data: key_pair.public_key().to_der().unwrap().into(),
+            algorithm: AuthKeyAlgorithm::RS256,
+        };
+        let token = creation::create_token(&claims, &private_key, AuthKeyVersion(32));
+        let validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
+        assert_eq!(
+            validator.parse_key_id(&token).unwrap(),
+            (String::from("tenant"), AuthKeyVersion(32))
+        );
+        assert_eq!(validator.validate(&token, &public_key).unwrap(), claims);
+    }
+
+    #[test]
+    fn test_token_eddsa() {
+        let realm_id = RealmId([5; 16]);
+        let claims = Claims {
+            issuer: String::from("tenant"),
+            subject: String::from("mario"),
+            audience: realm_id,
+            scope: Some(Scope::User),
+        };
+        let key_pair = Ed25519KeyPair::generate();
+        let private_key = AuthKey {
+            data: key_pair.to_der().into(),
+            algorithm: AuthKeyAlgorithm::EdDSA,
+        };
+        let public_key = AuthKey {
+            data: key_pair.public_key().to_der().into(),
+            algorithm: AuthKeyAlgorithm::EdDSA,
+        };
+        let token = creation::create_token(&claims, &private_key, AuthKeyVersion(32));
+        let validator = validation::Validator::new(realm_id, Require::Scope(Scope::User));
+        assert_eq!(
+            validator.parse_key_id(&token).unwrap(),
+            (String::from("tenant"), AuthKeyVersion(32))
+        );
+        assert_eq!(validator.validate(&token, &public_key).unwrap(), claims);
     }
 
     #[test]

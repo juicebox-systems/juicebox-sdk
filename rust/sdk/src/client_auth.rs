@@ -80,7 +80,7 @@ impl AuthTokenGenerator {
 }
 
 mod hex_auth_key {
-    use juicebox_realm_auth::AuthKey;
+    use juicebox_realm_auth::{AuthKey, AuthKeyAlgorithm};
     use serde::de::Deserializer;
     use serde::ser::Serializer;
     use serde::Deserialize;
@@ -90,9 +90,10 @@ mod hex_auth_key {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(AuthKey::from(
-            hex::decode(s).map_err(serde::de::Error::custom)?,
-        ))
+        Ok(AuthKey {
+            data: hex::decode(s).map_err(serde::de::Error::custom)?.into(),
+            algorithm: AuthKeyAlgorithm::EdDSA,
+        })
     }
 
     pub fn serialize<S>(key: &AuthKey, serializer: S) -> Result<S::Ok, S::Error>
@@ -106,7 +107,10 @@ mod hex_auth_key {
 #[cfg(test)]
 mod tests {
     use juicebox_realm_api::types::RealmId;
-    use juicebox_realm_auth::validation::{Require, Validator};
+    use juicebox_realm_auth::{
+        validation::{Require, Validator},
+        AuthKeyAlgorithm,
+    };
     use rand::rngs::OsRng;
 
     use super::*;
@@ -136,7 +140,7 @@ mod tests {
     fn test_token_creation() {
         let generator = AuthTokenGenerator::from_json(
             r#"{
-            "key": "0668e97c5d282a08d4251255541845e2d78b78b9438e1562b51d9cf4e099be53",
+            "key": "302e020100300506032b657004220420341a4001f28aa3cf1546d6f961eeb8076d80a3c124272c66872fff8461ec5eb7",
             "tenant": "acme",
             "version": 1
           }"#,
@@ -145,7 +149,8 @@ mod tests {
         let realm_id = RealmId::new_random(&mut OsRng);
         let token = generator.vend(&realm_id, &SecretId::new_random());
 
+        let public_key = AuthKey { data: hex::decode("302a300506032b6570032100874d284e1ff72112fbf2b836e0b2f7c51f973f779bd6b7dd648216f00b1f2a76").unwrap().into(), algorithm: AuthKeyAlgorithm::EdDSA };
         let validator = Validator::new(realm_id, Require::Scope(Scope::User));
-        assert!(validator.validate(&token, &generator.key).is_ok());
+        assert!(validator.validate(&token, &public_key,).is_ok());
     }
 }

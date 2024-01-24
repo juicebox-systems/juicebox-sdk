@@ -51,7 +51,7 @@ final class JuiceboxSdkTests: XCTestCase {
     func testAuthTokenGenerator() async throws {
         let generator = AuthTokenGenerator(json: """
           {
-            "key": "0668e97c5d282a08d4251255541845e2d78b78b9438e1562b51d9cf4e099be53",
+            "key": "302e020100300506032b6570042204207c6f273d5ecccf1c01706ccd98a4fb661aac4185edd58c4705c9db9670ef8cdd",
             "tenant": "acme",
             "version": 1
           }
