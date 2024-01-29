@@ -164,7 +164,7 @@ pub enum SecretsResponse {
     Delete(DeleteResponse),
 }
 
-const MAX_SECRETS_RESPONSE_LENGTH: usize = 435;
+const MAX_SECRETS_RESPONSE_LENGTH: usize = 438;
 
 /// A padded representation of a [`SecretsResponse`].
 ///
@@ -190,6 +190,7 @@ impl TryFrom<&SecretsResponse> for PaddedSecretsResponse {
         let mut padded_response =
             marshalling::to_vec(value).map_err(|_| "SecretsResponse serialization error")?;
         padded_response.splice(0..0, to_be2(padded_response.len()));
+        assert!(padded_response.len() <= MAX_SECRETS_RESPONSE_LENGTH);
         padded_response.resize(MAX_SECRETS_RESPONSE_LENGTH, 0);
         Self::try_from(padded_response)
     }
@@ -202,6 +203,7 @@ impl TryFrom<&PaddedSecretsResponse> for SecretsResponse {
         let mut length_bytes = [0u8; 2];
         length_bytes.copy_from_slice(&value.expose_secret()[..2]);
         let unpadded_length = u16::from_be_bytes(length_bytes) as usize;
+        assert!(unpadded_length <= MAX_SECRETS_RESPONSE_LENGTH - 2);
         marshalling::from_slice(&value.expose_secret()[2..2 + unpadded_length])
             .map_err(|_| "SecretsResponse deserialization error")
     }
