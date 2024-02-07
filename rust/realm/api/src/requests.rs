@@ -12,7 +12,7 @@ use crate::types::{
     RegistrationVersion, SecretBytesArray, SessionId, UnlockKeyCommitment, UnlockKeyTag,
     UserSecretEncryptionKeyScalarShare,
 };
-use juicebox_marshalling::{self as marshalling, bytes, to_be2};
+use juicebox_marshalling::{self as marshalling, bytes, DeserializationError, SerializationError};
 use juicebox_noise as noise;
 use juicebox_oprf as oprf;
 
@@ -164,56 +164,41 @@ pub enum SecretsResponse {
     Delete(DeleteResponse),
 }
 
-const MAX_SECRETS_RESPONSE_LENGTH: usize = 438;
+const MAX_SECRETS_RESPONSE_LENGTH: usize = 436;
 
 /// A padded representation of a [`SecretsResponse`].
-///
-/// # Note
-///
-/// The first two big-endian bytes represent the unpadded length,
-/// followed by the unpadded data, and then null bytes to fill up
-/// to [`MAX_SECRETS_RESPONSE_LENGTH`].
 #[derive(Debug, Deserialize, Serialize)]
-pub struct PaddedSecretsResponse(SecretBytesArray<MAX_SECRETS_RESPONSE_LENGTH>);
-
-impl PaddedSecretsResponse {
-    /// Access the underlying secret bytes.
-    pub fn expose_secret(&self) -> &[u8; MAX_SECRETS_RESPONSE_LENGTH] {
-        self.0.expose_secret()
-    }
+pub struct PaddedSecretsResponse {
+    pub unpadded_length: u16,
+    pub padded_bytes: SecretBytesArray<MAX_SECRETS_RESPONSE_LENGTH>,
 }
 
 impl TryFrom<&SecretsResponse> for PaddedSecretsResponse {
-    type Error = &'static str;
+    type Error = SerializationError;
 
     fn try_from(value: &SecretsResponse) -> Result<Self, Self::Error> {
-        let mut padded_response =
-            marshalling::to_vec(value).map_err(|_| "SecretsResponse serialization error")?;
-        padded_response.splice(0..0, to_be2(padded_response.len()));
+        let mut padded_response = marshalling::to_vec(value)?;
         assert!(padded_response.len() <= MAX_SECRETS_RESPONSE_LENGTH);
+        let unpadded_length = padded_response
+            .len()
+            .try_into()
+            .expect("padded length unexpectedly large");
         padded_response.resize(MAX_SECRETS_RESPONSE_LENGTH, 0);
-        Self::try_from(padded_response)
+        Ok(Self {
+            unpadded_length,
+            padded_bytes: SecretBytesArray::try_from(padded_response)
+                .expect("padded_response unexpectedly wrong length"),
+        })
     }
 }
 
 impl TryFrom<&PaddedSecretsResponse> for SecretsResponse {
-    type Error = &'static str;
+    type Error = DeserializationError;
 
     fn try_from(value: &PaddedSecretsResponse) -> Result<Self, Self::Error> {
-        let mut length_bytes = [0u8; 2];
-        length_bytes.copy_from_slice(&value.expose_secret()[..2]);
-        let unpadded_length = u16::from_be_bytes(length_bytes) as usize;
-        assert!(unpadded_length <= MAX_SECRETS_RESPONSE_LENGTH - 2);
-        marshalling::from_slice(&value.expose_secret()[2..2 + unpadded_length])
-            .map_err(|_| "SecretsResponse deserialization error")
-    }
-}
-
-impl TryFrom<Vec<u8>> for PaddedSecretsResponse {
-    type Error = &'static str;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(SecretBytesArray::try_from(value)?))
+        marshalling::from_slice(
+            &value.padded_bytes.expose_secret()[..usize::from(value.unpadded_length)],
+        )
     }
 }
 
