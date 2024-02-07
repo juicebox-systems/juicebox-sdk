@@ -16,7 +16,7 @@ use juicebox_noise::client as noise;
 use juicebox_realm_api::{
     requests::{
         ClientRequest, ClientRequestKind, ClientResponse, NoiseRequest, NoiseResponse,
-        SecretsRequest, SecretsResponse,
+        PaddedSecretsResponse, SecretsRequest, SecretsResponse,
     },
     types::SessionId,
 };
@@ -328,7 +328,10 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 Ok((session, response)) => {
                     *locked = Some(session);
                     std::mem::drop(locked);
-                    return marshalling::from_slice::<SecretsResponse>(response.as_slice())
+                    let padded_response =
+                        marshalling::from_slice::<PaddedSecretsResponse>(response.as_slice())
+                            .map_err(|_| RequestError::Assertion)?;
+                    return SecretsResponse::try_from(&padded_response)
                         .map_err(|_| RequestError::Assertion);
                 }
                 Err(RequestErrorOrMissingSession::RequestError(RequestError::Transient)) => {

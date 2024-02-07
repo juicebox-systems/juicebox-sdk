@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use crate::signing::OprfSignedPublicKey;
 use crate::types::{
     AuthToken, EncryptedUserSecret, EncryptedUserSecretCommitment, Policy, RealmId,
-    RegistrationVersion, SessionId, UnlockKeyCommitment, UnlockKeyTag,
+    RegistrationVersion, SecretBytesArray, SessionId, UnlockKeyCommitment, UnlockKeyTag,
     UserSecretEncryptionKeyScalarShare,
 };
-use juicebox_marshalling::bytes;
+use juicebox_marshalling::{self as marshalling, bytes, DeserializationError, SerializationError};
 use juicebox_noise as noise;
 use juicebox_oprf as oprf;
 
@@ -162,6 +162,44 @@ pub enum SecretsResponse {
     Recover2(Recover2Response),
     Recover3(Recover3Response),
     Delete(DeleteResponse),
+}
+
+const MAX_SECRETS_RESPONSE_LENGTH: usize = 436;
+
+/// A padded representation of a [`SecretsResponse`].
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaddedSecretsResponse {
+    pub unpadded_length: u16,
+    pub padded_bytes: SecretBytesArray<MAX_SECRETS_RESPONSE_LENGTH>,
+}
+
+impl TryFrom<&SecretsResponse> for PaddedSecretsResponse {
+    type Error = SerializationError;
+
+    fn try_from(value: &SecretsResponse) -> Result<Self, Self::Error> {
+        let mut padded_response = marshalling::to_vec(value)?;
+        assert!(padded_response.len() <= MAX_SECRETS_RESPONSE_LENGTH);
+        let unpadded_length = padded_response
+            .len()
+            .try_into()
+            .expect("padded length unexpectedly large");
+        padded_response.resize(MAX_SECRETS_RESPONSE_LENGTH, 0);
+        Ok(Self {
+            unpadded_length,
+            padded_bytes: SecretBytesArray::try_from(padded_response)
+                .expect("padded_response unexpectedly wrong length"),
+        })
+    }
+}
+
+impl TryFrom<&PaddedSecretsResponse> for SecretsResponse {
+    type Error = DeserializationError;
+
+    fn try_from(value: &PaddedSecretsResponse) -> Result<Self, Self::Error> {
+        marshalling::from_slice(
+            &value.padded_bytes.expose_secret()[..usize::from(value.unpadded_length)],
+        )
+    }
 }
 
 /// Response message for the first phase of registration.
