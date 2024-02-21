@@ -143,7 +143,8 @@ pub async fn send_with_options<Http: http::Client, R: Rpc<F>, F: Service>(
             {
                 Ok(marshalling::from_slice(&response.body).map_err(RpcError::Deserialization)?)
             } else {
-                Err(RpcError::HttpStatus(response.status_code))
+                marshalling::from_slice(&response.body)
+                    .map_err(|_| RpcError::HttpStatus(response.status_code))
             }
         }
     }

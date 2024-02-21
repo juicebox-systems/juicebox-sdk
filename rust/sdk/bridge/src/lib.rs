@@ -26,6 +26,9 @@ pub enum RegisterError {
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient = 3,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 4,
 }
 
 impl From<sdk::RegisterError> for RegisterError {
@@ -35,6 +38,7 @@ impl From<sdk::RegisterError> for RegisterError {
             sdk::RegisterError::UpgradeRequired => Self::UpgradeRequired,
             sdk::RegisterError::Assertion => Self::Assertion,
             sdk::RegisterError::Transient => Self::Transient,
+            sdk::RegisterError::RateLimitExceeded => Self::RateLimitExceeded,
         }
     }
 }
@@ -63,6 +67,9 @@ pub enum RecoverErrorReason {
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient = 5,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 6,
 }
 
 #[repr(C)]
@@ -100,6 +107,10 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::Transient,
                 guesses_remaining: std::ptr::null(),
             },
+            sdk::RecoverError::RateLimitExceeded => Self {
+                reason: RecoverErrorReason::RateLimitExceeded,
+                guesses_remaining: std::ptr::null(),
+            },
         }
     }
 }
@@ -129,6 +140,9 @@ pub enum DeleteError {
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient = 3,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 4,
 }
 
 impl From<sdk::DeleteError> for DeleteError {
@@ -138,6 +152,7 @@ impl From<sdk::DeleteError> for DeleteError {
             sdk::DeleteError::UpgradeRequired => DeleteError::UpgradeRequired,
             sdk::DeleteError::Assertion => DeleteError::Assertion,
             sdk::DeleteError::Transient => DeleteError::Transient,
+            sdk::DeleteError::RateLimitExceeded => DeleteError::RateLimitExceeded,
         }
     }
 }

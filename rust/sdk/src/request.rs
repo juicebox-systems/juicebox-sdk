@@ -30,6 +30,10 @@ pub(crate) enum RequestError {
     /// and must be upgraded.
     UpgradeRequired,
 
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
+
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient,
@@ -55,6 +59,7 @@ impl From<RpcError> for RequestError {
             RpcError::HttpStatus(code) => match code {
                 401 => Self::InvalidAuth,
                 426 => Self::UpgradeRequired,
+                429 => Self::RateLimitExceeded,
                 _ => Self::Transient,
             },
             RpcError::Serialization(_) => Self::Assertion,
@@ -151,6 +156,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             ClientResponse::DecodingError => Err(RequestError::Assertion),
             ClientResponse::Unavailable => Err(RequestError::Transient),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth),
+            ClientResponse::RateLimitExceeded => Err(RequestError::RateLimitExceeded),
         }
     }
 
@@ -206,6 +212,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             ClientResponse::Unavailable => Err(RequestError::Transient.into()),
             ClientResponse::InvalidAuth => Err(RequestError::InvalidAuth.into()),
             ClientResponse::MissingSession => Err(RequestErrorOrMissingSession::MissingSession),
+            ClientResponse::RateLimitExceeded => Err(RequestError::RateLimitExceeded.into()),
         }
     }
 
@@ -308,7 +315,6 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
     ) -> Result<SecretsResponse, RequestError> {
         let needs_forward_secrecy = NeedsForwardSecrecy(request.needs_forward_secrecy());
         let request = marshalling::to_vec(&request).map_err(|_| RequestError::Assertion)?;
-        // TODO: should we add some padding to the requests? and their responses?
         let mut locked = self.sessions.get(&realm.id).unwrap().lock().await;
 
         // The first iteration of this loop attempts the request with an
@@ -317,7 +323,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
         // `MissingSession` error, if the server restarts at an inopportune
         // time. This loop tries a few times, but beyond that, it's not likely
         // to succeed.
-        for _attempt in 0..5 {
+        for attempt in 1..6 {
             let session = locked
                 .take()
                 .filter(|session| session.last_used.elapsed() < session.lifetime);
@@ -337,7 +343,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
                 Err(RequestErrorOrMissingSession::RequestError(RequestError::Transient)) => {
                     // This could be due to an in progress leadership transfer, or other transitory problem.
                     // We can retry this as it'll likely need a new session anyway.
-                    self.sleeper.sleep(Duration::from_millis(5)).await;
+                    self.sleeper.sleep(Duration::from_millis(5 * attempt)).await;
                     continue;
                 }
                 Err(RequestErrorOrMissingSession::RequestError(e)) => return Err(e),

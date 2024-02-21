@@ -64,6 +64,10 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::Assertion,
                 guesses_remaining: None,
             },
+            sdk::RecoverError::RateLimitExceeded => Self {
+                reason: RecoverErrorReason::RateLimitExceeded,
+                guesses_remaining: None,
+            },
         }
     }
 }

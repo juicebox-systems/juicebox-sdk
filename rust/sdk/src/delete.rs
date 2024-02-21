@@ -24,6 +24,10 @@ pub enum DeleteError {
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient,
+
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
 }
 
 impl Display for DeleteError {
@@ -57,6 +61,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::Transient) => Err(DeleteError::Transient),
             Err(RequestError::Assertion) => Err(DeleteError::Assertion),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
+            Err(RequestError::RateLimitExceeded) => Err(DeleteError::RateLimitExceeded),
 
             Ok(SecretsResponse::Delete(dr)) => match dr {
                 DeleteResponse::Ok => Ok(()),
