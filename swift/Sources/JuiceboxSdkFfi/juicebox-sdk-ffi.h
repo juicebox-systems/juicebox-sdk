@@ -32,6 +32,11 @@ typedef enum {
    * This request may succeed by trying again with the same parameters.
    */
   JuiceboxDeleteErrorTransient = 3,
+  /**
+   * The tenant has exceeded their allowed number of operations. Try again
+   * later.
+   */
+  JuiceboxDeleteErrorRateLimitExceeded = 4,
 } JuiceboxDeleteError;
 
 typedef enum {
@@ -87,6 +92,11 @@ typedef enum {
    * This request may succeed by trying again with the same parameters.
    */
   JuiceboxRecoverErrorReasonTransient = 5,
+  /**
+   * The tenant has exceeded their allowed number of operations. Try again
+   * later.
+   */
+  JuiceboxRecoverErrorReasonRateLimitExceeded = 6,
 } JuiceboxRecoverErrorReason;
 
 /**
@@ -113,6 +123,11 @@ typedef enum {
    * This request may succeed by trying again with the same parameters.
    */
   JuiceboxRegisterErrorTransient = 3,
+  /**
+   * The tenant has exceeded their allowed number of operations. Try again
+   * later.
+   */
+  JuiceboxRegisterErrorRateLimitExceeded = 4,
 } JuiceboxRegisterError;
 
 typedef struct JuiceboxAuthToken JuiceboxAuthToken;
