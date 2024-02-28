@@ -16,6 +16,10 @@ pub enum DeleteError {
     /// and must be upgraded.
     UpgradeRequired,
 
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -24,10 +28,6 @@ pub enum DeleteError {
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
     Transient,
-
-    /// The tenant has exceeded their allowed number of operations. Try again
-    /// later.
-    RateLimitExceeded,
 }
 
 impl Display for DeleteError {

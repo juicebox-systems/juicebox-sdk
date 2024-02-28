@@ -19,16 +19,16 @@ pub enum RegisterError {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     UpgradeRequired = 1,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 2,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 2,
+    Assertion = 3,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 3,
-    /// The tenant has exceeded their allowed number of operations. Try again
-    /// later.
-    RateLimitExceeded = 4,
+    Transient = 4,
 }
 
 impl From<sdk::RegisterError> for RegisterError {
@@ -60,16 +60,16 @@ pub enum RecoverErrorReason {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     UpgradeRequired = 3,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 4,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 4,
+    Assertion = 5,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 5,
-    /// The tenant has exceeded their allowed number of operations. Try again
-    /// later.
-    RateLimitExceeded = 6,
+    Transient = 6,
 }
 
 #[repr(C)]
@@ -133,16 +133,16 @@ pub enum DeleteError {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     UpgradeRequired = 1,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 2,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 2,
+    Assertion = 3,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 3,
-    /// The tenant has exceeded their allowed number of operations. Try again
-    /// later.
-    RateLimitExceeded = 4,
+    Transient = 4,
 }
 
 impl From<sdk::DeleteError> for DeleteError {

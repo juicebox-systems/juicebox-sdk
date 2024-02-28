@@ -16,6 +16,12 @@ enum class DeleteError {
     UPGRADE_REQUIRED,
 
     /**
+     * The tenant has exceeded their allowed number of operations. Try again
+     * later.
+     */
+    RATE_LIMIT_EXCEEDED,
+
+    /**
      * A software error has occurred. This request should not be retried
      * with the same parameters. Verify your inputs, check for software
      * updates and try again.
