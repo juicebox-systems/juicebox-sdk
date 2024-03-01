@@ -59,6 +59,9 @@ pub enum ClientResponse {
     DecodingError,
     /// The payload sent to the server was too large to be processed.
     PayloadTooLarge,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
 }
 
 /// A Noise protocol handshake or transport message.

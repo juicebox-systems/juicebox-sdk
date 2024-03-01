@@ -36,6 +36,10 @@ pub enum RegisterError {
     /// and must be upgraded.
     UpgradeRequired,
 
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -160,6 +164,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),
+            Err(RequestError::RateLimitExceeded) => Err(RegisterError::RateLimitExceeded),
             Ok(SecretsResponse::Register1(Register1Response::Ok)) => Ok(()),
             Ok(_) => Err(RegisterError::Assertion),
         }
@@ -180,6 +185,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::InvalidAuth) => Err(RegisterError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RegisterError::Assertion),
             Err(RequestError::Transient) => Err(RegisterError::Transient),
+            Err(RequestError::RateLimitExceeded) => Err(RegisterError::RateLimitExceeded),
             Ok(SecretsResponse::Register2(Register2Response::Ok)) => Ok(()),
             Ok(_) => Err(RegisterError::Assertion),
         }

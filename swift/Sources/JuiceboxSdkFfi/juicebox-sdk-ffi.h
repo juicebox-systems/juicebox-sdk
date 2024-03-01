@@ -22,16 +22,21 @@ typedef enum {
    */
   JuiceboxDeleteErrorUpgradeRequired = 1,
   /**
+   * The tenant has exceeded their allowed number of operations. Try again
+   * later.
+   */
+  JuiceboxDeleteErrorRateLimitExceeded = 2,
+  /**
    * A software error has occurred. This request should not be retried
    * with the same parameters. Verify your inputs, check for software
    * updates and try again.
    */
-  JuiceboxDeleteErrorAssertion = 2,
+  JuiceboxDeleteErrorAssertion = 3,
   /**
    * A transient error in sending or receiving requests to a realm.
    * This request may succeed by trying again with the same parameters.
    */
-  JuiceboxDeleteErrorTransient = 3,
+  JuiceboxDeleteErrorTransient = 4,
 } JuiceboxDeleteError;
 
 typedef enum {
@@ -77,16 +82,21 @@ typedef enum {
    */
   JuiceboxRecoverErrorReasonUpgradeRequired = 3,
   /**
+   * The tenant has exceeded their allowed number of operations. Try again
+   * later.
+   */
+  JuiceboxRecoverErrorReasonRateLimitExceeded = 4,
+  /**
    * A software error has occurred. This request should not be retried
    * with the same parameters. Verify your inputs, check for software
    * updates and try again.
    */
-  JuiceboxRecoverErrorReasonAssertion = 4,
+  JuiceboxRecoverErrorReasonAssertion = 5,
   /**
    * A transient error in sending or receiving requests to a realm.
    * This request may succeed by trying again with the same parameters.
    */
-  JuiceboxRecoverErrorReasonTransient = 5,
+  JuiceboxRecoverErrorReasonTransient = 6,
 } JuiceboxRecoverErrorReason;
 
 /**
@@ -103,16 +113,21 @@ typedef enum {
    */
   JuiceboxRegisterErrorUpgradeRequired = 1,
   /**
+   * The tenant has exceeded their allowed number of operations. Try again
+   * later.
+   */
+  JuiceboxRegisterErrorRateLimitExceeded = 2,
+  /**
    * A software error has occurred. This request should not be retried
    * with the same parameters. Verify your inputs, check for software
    * updates and try again.
    */
-  JuiceboxRegisterErrorAssertion = 2,
+  JuiceboxRegisterErrorAssertion = 3,
   /**
    * A transient error in sending or receiving requests to a realm.
    * This request may succeed by trying again with the same parameters.
    */
-  JuiceboxRegisterErrorTransient = 3,
+  JuiceboxRegisterErrorTransient = 4,
 } JuiceboxRegisterError;
 
 typedef struct JuiceboxAuthToken JuiceboxAuthToken;

@@ -19,13 +19,16 @@ pub enum RegisterError {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     UpgradeRequired = 1,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 2,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 2,
+    Assertion = 3,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 3,
+    Transient = 4,
 }
 
 impl From<sdk::RegisterError> for RegisterError {
@@ -35,6 +38,7 @@ impl From<sdk::RegisterError> for RegisterError {
             sdk::RegisterError::UpgradeRequired => Self::UpgradeRequired,
             sdk::RegisterError::Assertion => Self::Assertion,
             sdk::RegisterError::Transient => Self::Transient,
+            sdk::RegisterError::RateLimitExceeded => Self::RateLimitExceeded,
         }
     }
 }
@@ -56,13 +60,16 @@ pub enum RecoverErrorReason {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     UpgradeRequired = 3,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 4,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 4,
+    Assertion = 5,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 5,
+    Transient = 6,
 }
 
 #[repr(C)]
@@ -100,6 +107,10 @@ impl From<sdk::RecoverError> for RecoverError {
                 reason: RecoverErrorReason::Transient,
                 guesses_remaining: std::ptr::null(),
             },
+            sdk::RecoverError::RateLimitExceeded => Self {
+                reason: RecoverErrorReason::RateLimitExceeded,
+                guesses_remaining: std::ptr::null(),
+            },
         }
     }
 }
@@ -122,13 +133,16 @@ pub enum DeleteError {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     UpgradeRequired = 1,
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded = 2,
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
-    Assertion = 2,
+    Assertion = 3,
     /// A transient error in sending or receiving requests to a realm.
     /// This request may succeed by trying again with the same parameters.
-    Transient = 3,
+    Transient = 4,
 }
 
 impl From<sdk::DeleteError> for DeleteError {
@@ -138,6 +152,7 @@ impl From<sdk::DeleteError> for DeleteError {
             sdk::DeleteError::UpgradeRequired => DeleteError::UpgradeRequired,
             sdk::DeleteError::Assertion => DeleteError::Assertion,
             sdk::DeleteError::Transient => DeleteError::Transient,
+            sdk::DeleteError::RateLimitExceeded => DeleteError::RateLimitExceeded,
         }
     }
 }

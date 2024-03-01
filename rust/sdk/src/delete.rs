@@ -16,6 +16,10 @@ pub enum DeleteError {
     /// and must be upgraded.
     UpgradeRequired,
 
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -57,6 +61,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::Transient) => Err(DeleteError::Transient),
             Err(RequestError::Assertion) => Err(DeleteError::Assertion),
             Err(RequestError::InvalidAuth) => Err(DeleteError::InvalidAuth),
+            Err(RequestError::RateLimitExceeded) => Err(DeleteError::RateLimitExceeded),
 
             Ok(SecretsResponse::Delete(dr)) => match dr {
                 DeleteResponse::Ok => Ok(()),

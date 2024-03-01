@@ -50,6 +50,10 @@ pub enum RecoverError {
     /// and must be upgraded.
     UpgradeRequired,
 
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    RateLimitExceeded,
+
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -265,6 +269,8 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::Transient) => Err(RecoverError::Transient),
+            Err(RequestError::RateLimitExceeded) => Err(RecoverError::RateLimitExceeded),
+
             Ok(SecretsResponse::Recover1(response)) => match response {
                 Recover1Response::Ok { version } => Ok((version, realm.to_owned())),
                 Recover1Response::NotRegistered => Err(RecoverError::NotRegistered),
@@ -312,6 +318,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::Transient) => return Err(RecoverError::Transient),
             Err(RequestError::Assertion) => return Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => return Err(RecoverError::InvalidAuth),
+            Err(RequestError::RateLimitExceeded) => return Err(RecoverError::RateLimitExceeded),
 
             Ok(SecretsResponse::Recover2(rr)) => match rr {
                 Recover2Response::Ok {
@@ -404,6 +411,7 @@ impl<S: Sleeper, Http: http::Client, Atm: auth::AuthTokenManager> Client<S, Http
             Err(RequestError::Transient) => Err(RecoverError::Transient),
             Err(RequestError::Assertion) => Err(RecoverError::Assertion),
             Err(RequestError::InvalidAuth) => Err(RecoverError::InvalidAuth),
+            Err(RequestError::RateLimitExceeded) => Err(RecoverError::RateLimitExceeded),
 
             Ok(SecretsResponse::Recover3(rr)) => match rr {
                 Recover3Response::Ok {

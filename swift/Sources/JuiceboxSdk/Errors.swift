@@ -15,6 +15,9 @@ public enum DeleteError: Error {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     case upgradeRequired
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    case rateLimitExceeded
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -27,6 +30,7 @@ public enum DeleteError: Error {
         switch error {
         case JuiceboxDeleteErrorInvalidAuth: self = .invalidAuth
         case JuiceboxDeleteErrorUpgradeRequired: self = .upgradeRequired
+        case JuiceboxDeleteErrorRateLimitExceeded: self = .rateLimitExceeded
         case JuiceboxDeleteErrorAssertion: self = .assertion
         case JuiceboxDeleteErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
@@ -48,6 +52,9 @@ public enum RecoverError: Error {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     case upgradeRequired
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    case rateLimitExceeded
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -63,6 +70,7 @@ public enum RecoverError: Error {
         case JuiceboxRecoverErrorReasonNotRegistered: self = .notRegistered
         case JuiceboxRecoverErrorReasonInvalidAuth: self = .invalidAuth
         case JuiceboxRecoverErrorReasonUpgradeRequired: self = .upgradeRequired
+        case JuiceboxRecoverErrorReasonRateLimitExceeded: self = .rateLimitExceeded
         case JuiceboxRecoverErrorReasonAssertion: self = .assertion
         case JuiceboxRecoverErrorReasonTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
@@ -77,6 +85,9 @@ public enum RegisterError: Error {
     /// The SDK software is too old to communicate with this realm
     /// and must be upgraded.
     case upgradeRequired
+    /// The tenant has exceeded their allowed number of operations. Try again
+    /// later.
+    case rateLimitExceeded
     /// A software error has occurred. This request should not be retried
     /// with the same parameters. Verify your inputs, check for software
     /// updates and try again.
@@ -89,6 +100,7 @@ public enum RegisterError: Error {
         switch error {
         case JuiceboxRegisterErrorInvalidAuth: self = .invalidAuth
         case JuiceboxRegisterErrorUpgradeRequired: self = .upgradeRequired
+        case JuiceboxRegisterErrorRateLimitExceeded: self = .rateLimitExceeded
         case JuiceboxRegisterErrorAssertion: self = .assertion
         case JuiceboxRegisterErrorTransient: self = .transient
         default: fatalError("Unexpected error type \(error)")
