@@ -167,7 +167,7 @@ impl RealmId {
 impl Debug for RealmId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut buf = [0u8; 32];
-        hex::encode_to_slice(&self.0, &mut buf).unwrap();
+        hex::encode_to_slice(self.0, &mut buf).unwrap();
         f.write_str(core::str::from_utf8(&buf).unwrap())
     }
 }
