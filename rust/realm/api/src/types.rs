@@ -166,10 +166,9 @@ impl RealmId {
 
 impl Debug for RealmId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for byte in self.0 {
-            write!(f, "{byte:02x}")?;
-        }
-        Ok(())
+        let mut buf = [0u8; 32];
+        hex::encode_to_slice(&self.0, &mut buf).unwrap();
+        f.write_str(core::str::from_utf8(&buf).unwrap())
     }
 }
 
@@ -485,9 +484,18 @@ impl From<[u8; 32]> for UnlockKeyCommitment {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{SecretBytesArray, SecretBytesVec};
+    use crate::types::{RealmId, SecretBytesArray, SecretBytesVec};
 
     use zeroize::Zeroize;
+
+    #[test]
+    fn test_realm_id_debug() {
+        let r = RealmId([
+            0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44,
+            0x55, 0x66,
+        ]);
+        assert_eq!("f0e1d2c3b4a59687ff00112233445566", format!("{r:?}"))
+    }
 
     #[test]
     fn test_secret_bytes_vec_redaction() {
