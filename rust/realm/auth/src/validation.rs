@@ -1,6 +1,7 @@
 use jwt_simple::{
     algorithms::{Ed25519PublicKey, EdDSAPublicKeyLike, RS256PublicKey, RSAPublicKeyLike},
     prelude::{Audiences, HS256Key, MACLike, VerificationOptions},
+    reexports::coarsetime::Duration,
     token::Token,
 };
 use std::fmt;
@@ -77,6 +78,7 @@ impl Validator {
         let options = VerificationOptions {
             allowed_audiences: Some(HashSet::from([self.audience.to_owned()])),
             max_token_length: Some(1_000),
+            time_tolerance: Some(Duration::from_secs(5)),
             ..Default::default()
         };
         let claims = match key.algorithm {
