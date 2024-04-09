@@ -2,7 +2,7 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](https://docs:JU1C380X@docs.juicebox.xyz/android/juicebox-sdk/xyz.juicebox.sdk/)
+[Documentation](https://docs.juicebox.xyz/android/juicebox-sdk/xyz.juicebox.sdk/)
 
 ### Install
 

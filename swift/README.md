@@ -2,7 +2,7 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](https://docs:JU1C380X@docs.juicebox.xyz/swift/documentation/juiceboxsdk/)
+[Documentation](https://docs.juicebox.xyz/swift/documentation/juiceboxsdk/)
 
 ### Install
 
