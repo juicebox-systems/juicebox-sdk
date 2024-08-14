@@ -17,7 +17,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-          token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Build juicebox_sdk_jni
         run: |
@@ -96,7 +95,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-          token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Build juicebox_sdk_ffi
         run: |

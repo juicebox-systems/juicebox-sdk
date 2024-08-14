@@ -35,9 +35,9 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting register (allowing 2 guesses)")
         do {
             try await client.register(
-                pin: "1234".data(using: .utf8)!,
-                secret: "apollo".data(using: .utf8)!,
-                info: "artemis".data(using: .utf8)!,
+                pin: Data("1234".utf8),
+                secret: Data("apollo".utf8),
+                info: Data("artemis".utf8),
                 guesses: 2
             )
         } catch let error {
@@ -48,10 +48,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 1)")
         do {
             let secret = try await client.recover(
-                pin: "4321".data(using: .utf8)!,
-                info: "artemis".data(using: .utf8)!
+                pin: Data("4321".utf8),
+                info: Data("artemis".utf8)
             )
-            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin(let guessesRemaining) {
             assert(guessesRemaining == 1)
             print("[Swift] Recover expectedly unsuccessful")
@@ -60,10 +60,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with correct PIN (guess 2)")
         do {
             let secret = try await client.recover(
-                pin: "1234".data(using: .utf8)!,
-                info: "artemis".data(using: .utf8)!
+                pin: Data("1234".utf8),
+                info: Data("artemis".utf8)
             )
-            print("[Swift] Recovered secret: \(String(data: secret, encoding: .utf8)!)")
+            print("[Swift] Recovered secret: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin {
             fatalError("[Swift] Recover unexpectedly failed")
         }
@@ -71,10 +71,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 1)")
         do {
             let secret = try await client.recover(
-                pin: "4321".data(using: .utf8)!,
-                info: "artemis".data(using: .utf8)!
+                pin: Data("4321".utf8),
+                info: Data("artemis".utf8)
             )
-            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin(let guessesRemaining) {
             assert(guessesRemaining == 1)
             print("[Swift] Recover expectedly unsuccessful")
@@ -83,10 +83,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 2)")
         do {
             let secret = try await client.recover(
-                pin: "4321".data(using: .utf8)!,
-                info: "artemis".data(using: .utf8)!
+                pin: Data("4321".utf8),
+                info: Data("artemis".utf8)
             )
-            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin(let guessesRemaining) {
             assert(guessesRemaining == 0)
             print("[Swift] Recover expectedly unsuccessful")
@@ -95,10 +95,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with correct PIN (guess 3)")
         do {
             let secret = try await client.recover(
-                pin: "1234".data(using: .utf8)!,
-                info: "artemis".data(using: .utf8)!
+                pin: Data("1234".utf8),
+                info: Data("artemis".utf8)
             )
-            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin(let guessesRemaining) {
             assert(guessesRemaining == 0)
             print("[Swift] Recover expectedly unsuccessful")
@@ -107,9 +107,9 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting register (allowing 2 guesses)")
         do {
             try await client.register(
-                pin: "1234".data(using: .utf8)!,
-                secret: "artemis".data(using: .utf8)!,
-                info: "apollo".data(using: .utf8)!,
+                pin: Data("1234".utf8),
+                secret: Data("artemis".utf8),
+                info: Data("apollo".utf8),
                 guesses: 2
             )
         } catch let error {
@@ -120,10 +120,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with wrong PIN (guess 1)")
         do {
             let secret = try await client.recover(
-                pin: "4321".data(using: .utf8)!,
-                info: "apollo".data(using: .utf8)!
+                pin: Data("4321".utf8),
+                info: Data("apollo".utf8)
             )
-            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin(let guessesRemaining) {
             assert(guessesRemaining == 1)
             print("[Swift] Recover expectedly unsuccessful")
@@ -132,10 +132,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with correct PIN (guess 2)")
         do {
             let secret = try await client.recover(
-                pin: "1234".data(using: .utf8)!,
-                info: "apollo".data(using: .utf8)!
+                pin: Data("1234".utf8),
+                info: Data("apollo".utf8)
             )
-            print("[Swift] Recovered secret: \(String(data: secret, encoding: .utf8)!)")
+            print("[Swift] Recovered secret: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.invalidPin {
             fatalError("[Swift] Recover unexpectedly failed")
         }
@@ -151,10 +151,10 @@ struct Demo: AsyncParsableCommand {
         print("[Swift] Starting recover with correct PIN after delete")
         do {
             let secret = try await client.recover(
-                pin: "1234".data(using: .utf8)!,
-                info: "apollo".data(using: .utf8)!
+                pin: Data("1234".utf8),
+                info: Data("apollo".utf8)
             )
-            fatalError("[Swift] Unexpected result from recover: \(String(data: secret, encoding: .utf8)!)")
+            fatalError("[Swift] Unexpected result from recover: \(String(decoding: secret, as: UTF8.self))")
         } catch RecoverError.notRegistered {
             print("[Swift] Recover expectedly unsuccessful")
         }
@@ -169,7 +169,7 @@ extension Dictionary: ExpressibleByArgument where Key == RealmId, Value == AuthT
 
     public init?(argument: String) {
         let decoder = JSONDecoder()
-        guard let dictionary = try? decoder.decode([String: String].self, from: argument.data(using: .utf8)!) else {
+        guard let dictionary = try? decoder.decode([String: String].self, from: Data(argument.utf8)) else {
             return nil
         }
         guard let keysWithValues = try? dictionary.map({ key, value in

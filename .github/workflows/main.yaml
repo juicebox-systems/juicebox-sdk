@@ -68,6 +68,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install Swiftlint
+        run: |
+          brew install swiftlint
+
       - name: Lint
         run: swiftlint lint --strict --reporter github-actions-logging
         working-directory: swift
@@ -134,8 +138,6 @@ jobs:
 
       - name: Software Realm
         uses: ./.github/actions/software-realm
-        with:
-          token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Run software realm integration tests
         uses: actions-rs/cargo@v1
