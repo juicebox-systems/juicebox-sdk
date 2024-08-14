@@ -2,8 +2,6 @@
 
 Register and recover PIN-protected secrets on behalf of a particular user.
 
-[Documentation](https://docs.juicebox.xyz/swift/documentation/juiceboxsdk/)
-
 ### Install
 
 This library wraps a Rust FFI layer. To use it, you must [install rust](https://www.rust-lang.org/tools/install) and the appropriate targets:
