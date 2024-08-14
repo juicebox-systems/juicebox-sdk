@@ -5,8 +5,6 @@ inputs:
   start-realm-count:
     description: How many jb-sw-realm should be started after the binary is installed. By default, no realms are started.
     default: "0"
-  token:
-    description: The authorization token for accessing private git repos.
   ref:
     description: The ref for the software realm repo
 outputs:
@@ -23,7 +21,6 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: 'juicebox-systems/juicebox-software-realm'
-        token: ${{ inputs.token }}
         path: 'juicebox-software-realm'
         ref: ${{ inputs.ref }}
 

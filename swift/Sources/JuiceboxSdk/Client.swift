@@ -258,7 +258,7 @@ let httpSend: JuiceboxHttpSendFn = { context, requestPointer, responseCallback i
     }.resume()
 }
 
-let authTokenGet: JuiceboxAuthTokenGetFn = { context, contextId, realmId, callback -> Void in
+let authTokenGet: JuiceboxAuthTokenGetFn = { context, contextId, realmId, callback in
     guard let callback = callback, let realmId = realmId else { return }
 
     guard let fetchFn = Client.fetchAuthTokenCallback else {
