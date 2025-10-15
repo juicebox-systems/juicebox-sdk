@@ -21,7 +21,7 @@ default-members = ["rust/sdk"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.3"
+version = "0.3.4"
 license = "MIT"
 authors = [
     "Simon Fell <simon@juicebox.me>",
@@ -31,20 +31,20 @@ authors = [
 rust-version = "1.75"
 
 [workspace.dependencies]
-juicebox_marshalling = { path = "rust/marshalling", version = "0.3.3" }
-juicebox_networking = { path = "rust/networking", version = "0.3.3" }
-juicebox_noise = { path = "rust/noise", version = "0.3.3" }
-juicebox_oprf = { path = "rust/oprf", version = "0.3.3" }
-juicebox_process_group = { path = "rust/process_group", version = "0.3.3" }
-juicebox_realm_api = { path = "rust/realm/api", version = "0.3.3" }
-juicebox_realm_auth = { path = "rust/realm/auth", version = "0.3.3" }
-juicebox_secret_sharing = { path = "rust/secret_sharing", version = "0.3.3" }
-juicebox_sdk = { path = "rust/sdk", version = "0.3.3" }
-juicebox_sdk_bridge = { path = "rust/sdk/bridge", version = "0.3.3" }
-juicebox_sdk_ffi = { path = "rust/sdk/bridge/ffi", version = "0.3.3" }
-juicebox_sdk_jni = { path = "rust/sdk/bridge/jni", version = "0.3.3" }
-juicebox_sdk_wasm = { path = "rust/sdk/bridge/wasm", version = "0.3.3" }
-juicebox_software_realm_runner = { path = "rust/software_realm_runner", version = "0.3.3" }
+juicebox_marshalling = { path = "rust/marshalling", version = "0.3.4" }
+juicebox_networking = { path = "rust/networking", version = "0.3.4" }
+juicebox_noise = { path = "rust/noise", version = "0.3.4" }
+juicebox_oprf = { path = "rust/oprf", version = "0.3.4" }
+juicebox_process_group = { path = "rust/process_group", version = "0.3.4" }
+juicebox_realm_api = { path = "rust/realm/api", version = "0.3.4" }
+juicebox_realm_auth = { path = "rust/realm/auth", version = "0.3.4" }
+juicebox_secret_sharing = { path = "rust/secret_sharing", version = "0.3.4" }
+juicebox_sdk = { path = "rust/sdk", version = "0.3.4" }
+juicebox_sdk_bridge = { path = "rust/sdk/bridge", version = "0.3.4" }
+juicebox_sdk_ffi = { path = "rust/sdk/bridge/ffi", version = "0.3.4" }
+juicebox_sdk_jni = { path = "rust/sdk/bridge/jni", version = "0.3.4" }
+juicebox_sdk_wasm = { path = "rust/sdk/bridge/wasm", version = "0.3.4" }
+juicebox_software_realm_runner = { path = "rust/software_realm_runner", version = "0.3.4" }
 
 argon2 = { version = "0.5.2", default-features = false, features = [
     "alloc",
