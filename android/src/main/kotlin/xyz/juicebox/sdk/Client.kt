@@ -1,4 +1,5 @@
 package xyz.juicebox.sdk
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import xyz.juicebox.sdk.internal.Native
@@ -123,74 +124,87 @@ class Client private constructor (
         private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<RealmId, AuthToken>?): Long {
             val httpSend = Native.HttpSendFn { httpClient, request ->
                 thread {
-                    val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
+                    try {
+                        val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
 
-                    pinnedCertificates?.let {
-                        val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
-                        keyStore.load(null, null)
-                        it.forEachIndexed { index, certificate ->
-                            keyStore.setCertificateEntry(index.toString(), certificate)
+                        pinnedCertificates?.let {
+                            val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
+                            keyStore.load(null, null)
+                            it.forEachIndexed { index, certificate ->
+                                keyStore.setCertificateEntry(index.toString(), certificate)
+                            }
+
+                            val trustManagerFactory =
+                                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                            trustManagerFactory.init(keyStore)
+                            val trustManagers = trustManagerFactory.trustManagers
+
+                            val sslContext = SSLContext.getInstance("TLS")
+                            sslContext.init(null, trustManagers, null)
+                            urlConnection.sslSocketFactory = sslContext.socketFactory
                         }
 
-                        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-                        trustManagerFactory.init(keyStore)
-                        val trustManagers = trustManagerFactory.trustManagers
+                        urlConnection.requestMethod = request.method
 
-                        val sslContext = SSLContext.getInstance("TLS")
-                        sslContext.init(null, trustManagers, null)
-                        urlConnection.sslSocketFactory = sslContext.socketFactory
+                        urlConnection.setRequestProperty(
+                            "User-Agent",
+                            "JuiceboxSdk-Android/${Native.sdkVersion()}"
+                        )
+
+                        urlConnection.setRequestProperty(
+                            "X-Juicebox-Version",
+                            Native.sdkVersion()
+                        )
+
+                        request.headers?.forEach {
+                            urlConnection.setRequestProperty(it.name, it.value)
+                        }
+
+                        urlConnection.doInput = true
+                        request.body?.let {
+                            urlConnection.doOutput = true
+                            urlConnection.outputStream.write(it)
+                        }
+
+                        val response = Native.HttpResponse()
+
+                        response.id = request.id
+                        response.statusCode = urlConnection.responseCode.toShort()
+                        response.headers = urlConnection.headerFields.filterKeys { it != null }.map { (key, values) ->
+                            Native.HttpHeader(key, values.joinToString(","))
+                        }.toTypedArray()
+
+                        if (response.statusCode == 200.toShort()) {
+                            response.body = urlConnection.inputStream.readBytes()
+                        } else {
+                            response.body = urlConnection.errorStream.readBytes()
+                        }
+
+                        Native.httpClientRequestComplete(httpClient, response)
+                    } catch (t: Throwable) {
+                        Log.e("JuiceboxClient", "Failed to make http call", t)
+                        val fakeErrorResponse = Native.HttpResponse()
+                        fakeErrorResponse.statusCode = -1
+                        Native.httpClientRequestComplete(httpClient, fakeErrorResponse)
                     }
-
-                    urlConnection.requestMethod = request.method
-
-                    urlConnection.setRequestProperty(
-                        "User-Agent",
-                        "JuiceboxSdk-Android/${Native.sdkVersion()}"
-                    )
-
-                    urlConnection.setRequestProperty(
-                        "X-Juicebox-Version",
-                        Native.sdkVersion()
-                    )
-
-                    request.headers?.forEach {
-                        urlConnection.setRequestProperty(it.name, it.value)
-                    }
-
-                    urlConnection.doInput = true
-                    request.body?.let {
-                        urlConnection.doOutput = true
-                        urlConnection.outputStream.write(it)
-                    }
-
-                    val response = Native.HttpResponse()
-
-                    response.id = request.id
-                    response.statusCode = urlConnection.responseCode.toShort()
-                    response.headers = urlConnection.headerFields.filterKeys { it != null }.map { (key, values) ->
-                        Native.HttpHeader(key, values.joinToString(","))
-                    }.toTypedArray()
-
-                    if (response.statusCode == 200.toShort()) {
-                        response.body = urlConnection.inputStream.readBytes()
-                    } else {
-                        response.body = urlConnection.errorStream.readBytes()
-                    }
-
-                    Native.httpClientRequestComplete(httpClient, response)
                 }
             }
 
             val getAuthToken = Native.GetAuthTokenFn { context, contextId, realmId ->
                 thread {
-                    authTokens?.let {
-                        Native.authTokenGetComplete(context, contextId, it[realmId]?.native ?: 0)
-                    } ?: run {
-                        fetchAuthTokenCallback?.let { callback ->
-                            Native.authTokenGetComplete(context, contextId, callback(realmId)?.native ?: 0)
+                    try {
+                        authTokens?.let {
+                            Native.authTokenGetComplete(context, contextId, it[realmId]?.native ?: 0)
                         } ?: run {
-                            Native.authTokenGetComplete(context, contextId, 0)
+                            fetchAuthTokenCallback?.let { callback ->
+                                Native.authTokenGetComplete(context, contextId, callback(realmId)?.native ?: 0)
+                            } ?: run {
+                                Native.authTokenGetComplete(context, contextId, 0)
+                            }
                         }
+                    } catch (t: Throwable) {
+                        Log.e("JuiceboxClient", "Failed to get auth token", t)
+                        Native.authTokenGetComplete(context, contextId, -1)
                     }
                 }
             }
