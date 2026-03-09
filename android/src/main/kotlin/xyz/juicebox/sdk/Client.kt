@@ -124,6 +124,8 @@ class Client private constructor (
         private fun createNative(configuration: Configuration, previousConfigurations: Array<Configuration>, authTokens: Map<RealmId, AuthToken>?): Long {
             val httpSend = Native.HttpSendFn { httpClient, request ->
                 thread {
+                    val response = Native.HttpResponse()
+                    response.id = request.id
                     try {
                         val urlConnection = URL(request.url).openConnection() as HttpsURLConnection
 
@@ -166,9 +168,6 @@ class Client private constructor (
                             urlConnection.outputStream.write(it)
                         }
 
-                        val response = Native.HttpResponse()
-
-                        response.id = request.id
                         response.statusCode = urlConnection.responseCode.toShort()
                         response.headers = urlConnection.headerFields.filterKeys { it != null }.map { (key, values) ->
                             Native.HttpHeader(key, values.joinToString(","))
@@ -183,9 +182,10 @@ class Client private constructor (
                         Native.httpClientRequestComplete(httpClient, response)
                     } catch (t: Throwable) {
                         Log.e("JuiceboxClient", "Failed to make http call", t)
-                        val fakeErrorResponse = Native.HttpResponse()
-                        fakeErrorResponse.statusCode = -1
-                        Native.httpClientRequestComplete(httpClient, fakeErrorResponse)
+                        response.statusCode = -1
+                        response.body = byteArrayOf()
+                        response.headers = arrayOf()
+                        Native.httpClientRequestComplete(httpClient, response)
                     }
                 }
             }
