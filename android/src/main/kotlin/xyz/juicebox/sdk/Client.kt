@@ -182,7 +182,8 @@ class Client private constructor (
                         Native.httpClientRequestComplete(httpClient, response)
                     } catch (t: Throwable) {
                         Log.e("JuiceboxClient", "Failed to make http call", t)
-                        response.statusCode = -1
+                        // 0 not -1: Java short -1 panics in JNI i16 → u16 try_into conversion
+                        response.statusCode = 0
                         response.body = byteArrayOf()
                         response.headers = arrayOf()
                         Native.httpClientRequestComplete(httpClient, response)
